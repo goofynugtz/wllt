@@ -18,12 +18,106 @@ class _LayoutScreenState extends State<LayoutScreen> {
   int _currentIndex = 0;
   bool _isFabExpanded = false;
 
-  late final List<Widget> _screens = [
-    HomeScreen(onNavigateToHistory: () => setState(() => _currentIndex = 1)),
-    const TransactionsScreen(),
-    const AnalyticsScreen(),
-    const AccountsScreen(),
-  ];
+  late final PageController _pageController;
+  late final List<Widget> _screens;
+  final ValueNotifier<bool> _pageScrollEnabled = ValueNotifier(true);
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _screens = [
+      HomeScreen(
+        onNavigateToHistory: () => _navigateToTab(1),
+        pageScrollEnabled: _pageScrollEnabled,
+      ),
+      const TransactionsScreen(),
+      const AnalyticsScreen(),
+      const AccountsScreen(),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _pageScrollEnabled.dispose();
+    super.dispose();
+  }
+
+  void _navigateToTab(int index) {
+    if (_isFabExpanded) setState(() => _isFabExpanded = false);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Widget? _buildFab() {
+    // Analytics — nothing to add here
+    if (_currentIndex == 2) return null;
+
+    // Accounts — simple add-account button
+    if (_currentIndex == 3) {
+      return FloatingActionButton(
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Add account coming soon!')),
+          );
+        },
+        backgroundColor: AppTheme.primaryColor,
+        elevation: 8,
+        child: const Icon(LucideIcons.plus, size: 24, color: Colors.white),
+      );
+    }
+
+    // Home + Transactions — expandable transaction FAB
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (_isFabExpanded) ...[
+          _buildFabOption(
+            icon: LucideIcons.arrowLeftRight,
+            label: 'Transfer',
+            onTap: () {
+              setState(() => _isFabExpanded = false);
+              _handleAddTransaction(AddTransactionMethod.transfer);
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildFabOption(
+            icon: LucideIcons.trendingUp,
+            label: 'Income',
+            onTap: () {
+              setState(() => _isFabExpanded = false);
+              _handleAddTransaction(AddTransactionMethod.income);
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildFabOption(
+            icon: LucideIcons.trendingDown,
+            label: 'Expense',
+            onTap: () {
+              setState(() => _isFabExpanded = false);
+              _handleAddTransaction(AddTransactionMethod.expense);
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        FloatingActionButton(
+          onPressed: () => setState(() => _isFabExpanded = !_isFabExpanded),
+          backgroundColor: AppTheme.primaryColor,
+          elevation: 8,
+          child: AnimatedRotation(
+            turns: _isFabExpanded ? 0.125 : 0,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(LucideIcons.plus, size: 24, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
 
   final List<NavItem> _navItems = [
     const NavItem(icon: LucideIcons.layoutDashboard, label: 'Home'),
@@ -82,61 +176,22 @@ class _LayoutScreenState extends State<LayoutScreen> {
       body: Container(
         constraints: const BoxConstraints(maxWidth: 430),
         decoration: const BoxDecoration(color: AppTheme.backgroundLight),
-        child: _screens[_currentIndex],
-      ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Expanded FAB options
-          if (_isFabExpanded) ...[
-            _buildFabOption(
-              icon: LucideIcons.arrowLeftRight,
-              label: 'Transfer',
-              onTap: () {
-                setState(() => _isFabExpanded = false);
-                _handleAddTransaction(AddTransactionMethod.transfer);
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildFabOption(
-              icon: LucideIcons.trendingUp,
-              label: 'Income',
-              onTap: () {
-                setState(() => _isFabExpanded = false);
-                _handleAddTransaction(AddTransactionMethod.income);
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildFabOption(
-              icon: LucideIcons.trendingDown,
-              label: 'Expense',
-              onTap: () {
-                setState(() => _isFabExpanded = false);
-                _handleAddTransaction(AddTransactionMethod.expense);
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
-          // Main FAB
-          FloatingActionButton(
-            onPressed: () {
-              setState(() => _isFabExpanded = !_isFabExpanded);
-            },
-            backgroundColor: AppTheme.primaryColor,
-            elevation: 8,
-            child: AnimatedRotation(
-              turns: _isFabExpanded ? 0.125 : 0, // 45 degrees for X icon
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(
-                LucideIcons.plus,
-                size: 24,
-                color: Colors.white,
-              ),
-            ),
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _pageScrollEnabled,
+          builder: (_, enabled, __) => PageView(
+            controller: _pageController,
+            physics: enabled
+                ? const PageScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            onPageChanged: (index) => setState(() {
+              _currentIndex = index;
+              _isFabExpanded = false;
+            }),
+            children: _screens,
           ),
-        ],
+        ),
       ),
+      floatingActionButton: _buildFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: Container(
         constraints: const BoxConstraints(maxWidth: 430),
@@ -154,7 +209,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
             ),
             child: BottomNavigationBar(
               currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
+              onTap: _navigateToTab,
               type: BottomNavigationBarType.fixed,
               backgroundColor: Colors.transparent,
               elevation: 0,

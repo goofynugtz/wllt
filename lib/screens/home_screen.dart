@@ -8,8 +8,13 @@ import '../widgets/category_icon_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToHistory;
+  final ValueNotifier<bool>? pageScrollEnabled;
 
-  const HomeScreen({super.key, this.onNavigateToHistory});
+  const HomeScreen({
+    super.key,
+    this.onNavigateToHistory,
+    this.pageScrollEnabled,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -106,24 +111,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Swipe left/right to navigate months
                     GestureDetector(
-                      behavior: HitTestBehavior.translucent,
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragStart: (_) {
+                        // Lock PageView so this drag is not stolen
+                        widget.pageScrollEnabled?.value = false;
+                      },
                       onHorizontalDragEnd: (details) {
+                        widget.pageScrollEnabled?.value = true;
                         final v = details.primaryVelocity ?? 0;
-                        if (v < -200) {
+                        if (v < -100) {
                           setState(() => _selectedMonth = DateTime(
                             _selectedMonth.year,
                             _selectedMonth.month + 1,
                             1,
                           ));
-                        } else if (v > 200) {
+                        } else if (v > 100) {
                           setState(() => _selectedMonth = DateTime(
                             _selectedMonth.year,
                             _selectedMonth.month - 1,
                             1,
                           ));
                         }
+                      },
+                      onHorizontalDragCancel: () {
+                        widget.pageScrollEnabled?.value = true;
                       },
                       child: swipeColumn,
                     ),

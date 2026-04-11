@@ -11,10 +11,17 @@ import 'amount_calculator.dart';
 
 class AddTransactionPage extends StatelessWidget {
   final AddTransactionMethod method;
-  const AddTransactionPage({super.key, required this.method});
+  final Transaction? editTransaction;
+
+  const AddTransactionPage({
+    super.key,
+    required this.method,
+    this.editTransaction,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = editTransaction != null;
     return Scaffold(
       backgroundColor: const Color(0xFFf5f2eb),
       body: SafeArea(
@@ -26,9 +33,9 @@ class AddTransactionPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Add Transaction',
-                    style: TextStyle(
+                  Text(
+                    isEdit ? 'Edit Transaction' : 'Add Transaction',
+                    style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -64,9 +71,15 @@ class AddTransactionPage extends StatelessWidget {
   Widget _buildFormContent() {
     switch (method) {
       case AddTransactionMethod.expense:
-        return const ManualEntryForm(initialType: TransactionType.expense);
+        return ManualEntryForm(
+          initialType: TransactionType.expense,
+          editTransaction: editTransaction,
+        );
       case AddTransactionMethod.income:
-        return const ManualEntryForm(initialType: TransactionType.income);
+        return ManualEntryForm(
+          initialType: TransactionType.income,
+          editTransaction: editTransaction,
+        );
       case AddTransactionMethod.transfer:
         return const TransferForm();
     }
@@ -75,7 +88,13 @@ class AddTransactionPage extends StatelessWidget {
 
 class ManualEntryForm extends StatefulWidget {
   final TransactionType initialType;
-  const ManualEntryForm({super.key, required this.initialType});
+  final Transaction? editTransaction;
+
+  const ManualEntryForm({
+    super.key,
+    required this.initialType,
+    this.editTransaction,
+  });
 
   @override
   State<ManualEntryForm> createState() => _ManualEntryFormState();
@@ -92,6 +111,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   late Account _account;
   bool _showCalculator = false;
   String? _justSelectedId;
+  late TextEditingController _titleController;
 
   // Calculator state — expression lives here so the display never moves
   String _expression = '';
@@ -102,9 +122,24 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   @override
   void initState() {
     super.initState();
-    _type = widget.initialType;
-    _selectedCategory = _type == TransactionType.income ? 'income' : 'food';
-    _account = Account.accounts.first;
+    final tx = widget.editTransaction;
+    if (tx != null) {
+      _type = tx.type;
+      final amt = tx.amount;
+      _amount = amt == amt.truncate() ? amt.toInt().toString() : amt.toStringAsFixed(2);
+      _selectedCategory = tx.categoryId;
+      _merchant = tx.transactionTitle;
+      _selectedDate = tx.date;
+      _account = Account.accounts.firstWhere(
+        (a) => a.name == tx.account,
+        orElse: () => Account.accounts.first,
+      );
+    } else {
+      _type = widget.initialType;
+      _selectedCategory = _type == TransactionType.income ? 'income' : 'food';
+      _account = Account.accounts.first;
+    }
+    _titleController = TextEditingController(text: _merchant);
     _calcController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 380),
@@ -119,6 +154,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
   @override
   void dispose() {
+    _titleController.dispose();
     _calcController.dispose();
     super.dispose();
   }
@@ -262,6 +298,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
               Material(
                 color: Colors.transparent,
                 child: TextField(
+                  controller: _titleController,
                   onChanged: (v) => setState(() => _merchant = v),
                   maxLines: 3,
                   minLines: 1,

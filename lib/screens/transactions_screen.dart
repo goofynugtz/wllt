@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../utils/helpers.dart';
 import '../widgets/category_icon_widget.dart';
+import '../widgets/add_expense_sheet.dart';
+import '../screens/layout_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -16,8 +17,6 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   final TextEditingController _searchController = TextEditingController();
   TransactionFilter _filter = TransactionFilter.all;
-  String? _expandedId;
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -258,17 +257,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 children: transactions.asMap().entries.map((entry) {
                   final tx = entry.value;
                   final isFirst = entry.key == 0;
-                  final isExpanded = _expandedId == tx.id;
 
                   return TransactionRow(
                     transaction: tx,
                     isFirst: isFirst,
-                    isExpanded: isExpanded,
-                    onToggle: () {
-                      setState(() {
-                        _expandedId = isExpanded ? null : tx.id;
-                      });
-                    },
                   );
                 }).toList(),
               ),
@@ -293,236 +285,109 @@ enum TransactionFilter {
 class TransactionRow extends StatelessWidget {
   final Transaction transaction;
   final bool isFirst;
-  final bool isExpanded;
-  final VoidCallback onToggle;
 
   const TransactionRow({
     super.key,
     required this.transaction,
     required this.isFirst,
-    required this.isExpanded,
-    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
     final category = Helpers.getCategoryById(transaction.categoryId);
 
-    return Column(
-      children: [
-        // Main row
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onToggle,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: isFirst
-                    ? null
-                    : Border(
-                        top: BorderSide(
-                          color: Colors.black.withOpacity(0.05),
-                          width: 0.5,
-                        ),
-                      ),
-              ),
-              child: Row(
-                children: [
-                  // Icon
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Color(
-                        int.parse(category.bg.substring(1), radix: 16) +
-                            0xFF000000,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: CategoryIconWidget(
-                        category: category,
-                        size: 20,
-                        color: Color(
-                          int.parse(
-                                category.color.substring(1),
-                                radix: 16,
-                              ) +
-                              0xFF000000,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Meta
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          transaction.transactionTitle,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textPrimary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          '${category.name} · ${transaction.account}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Amount + chevron
-                  Row(
-                    children: [
-                      Text(
-                        '${transaction.type == TransactionType.income ? '+' : '−'}${Helpers.formatINR(transaction.amount)}',
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 13,
-                          color: transaction.type == TransactionType.income
-                              ? AppTheme.incomeColor
-                              : AppTheme.expenseColor,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      AnimatedRotation(
-                        turns: isExpanded ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: const Icon(
-                          LucideIcons.chevronDown,
-                          size: 13,
-                          color: Color(0xFFc0bdb8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => AddTransactionPage(
+                method: transaction.type == TransactionType.income
+                    ? AddTransactionMethod.income
+                    : AddTransactionMethod.expense,
+                editTransaction: transaction,
               ),
             ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: isFirst
+                ? null
+                : Border(
+                    top: BorderSide(
+                      color: Colors.black.withOpacity(0.05),
+                      width: 0.5,
+                    ),
+                  ),
           ),
-        ),
-
-        // Expanded detail
-        if (isExpanded)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFfaf9f6),
-              border: Border(
-                top: BorderSide(
-                  color: Colors.black.withOpacity(0.04),
-                  width: 0.5,
+          child: Row(
+            children: [
+              // Icon
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Color(
+                    int.parse(category.bg.substring(1), radix: 16) +
+                        0xFF000000,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (transaction.note != null)
-                        Text(
-                          '"${transaction.note}"',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF999),
-                            fontStyle: FontStyle.italic,
-                          ),
-                        )
-                      else
-                        const Text(
-                          'No note',
-                          style: TextStyle(fontSize: 12, color: Color(0xFFccc)),
-                        ),
-                      const SizedBox(height: 4),
-                      Text(
-                        transaction.date.toString().substring(0, 10),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFFc0bdb8),
-                        ),
-                      ),
-                    ],
+                child: Center(
+                  child: CategoryIconWidget(
+                    category: category,
+                    size: 20,
+                    color: Color(
+                      int.parse(category.color.substring(1), radix: 16) +
+                          0xFF000000,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Row(
+              ),
+              const SizedBox(width: 12),
+
+              // Meta
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Edit button
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                    Text(
+                      transaction.transactionTitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textPrimary,
                       ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            LucideIcons.pencil,
-                            size: 11,
-                            color: Color(0xFF666),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'Edit',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF666),
-                            ),
-                          ),
-                        ],
-                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 8),
-                    // Delete button
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFfde8e8),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            LucideIcons.trash2,
-                            size: 11,
-                            color: AppTheme.expenseColor,
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'Delete',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.expenseColor,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      '${category.name} · ${transaction.account}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+
+              // Amount
+              Text(
+                '${transaction.type == TransactionType.income ? '+' : '−'}${Helpers.formatINR(transaction.amount)}',
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  color: transaction.type == TransactionType.income
+                      ? AppTheme.incomeColor
+                      : AppTheme.expenseColor,
+                ),
+              ),
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 }

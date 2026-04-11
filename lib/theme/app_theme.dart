@@ -31,8 +31,7 @@ class AppTheme {
 
   /// Small, wide-tracked label used for section headings (e.g. "RECENT").
   static const TextStyle trackingWide = TextStyle(
-    fontFamily: 'Inter',
-    fontSize: 12,
+        fontSize: 12,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.8,
     color: textSecondary,
@@ -40,8 +39,7 @@ class AppTheme {
 
   /// Like [trackingWide] but slightly lighter weight — for secondary labels.
   static const TextStyle trackingWideSecondary = TextStyle(
-    fontFamily: 'Inter',
-    fontSize: 11,
+        fontSize: 11,
     fontWeight: FontWeight.w500,
     letterSpacing: 0.6,
     color: textTertiary,
@@ -49,8 +47,7 @@ class AppTheme {
 
   /// Compact monospace-flavoured style for numbers/percentages.
   static const TextStyle smallMonoTextStyle = TextStyle(
-    fontFamily: 'Inter',
-    fontSize: 11,
+        fontSize: 11,
     fontWeight: FontWeight.w500,
     color: textSecondary,
   );
@@ -58,8 +55,7 @@ class AppTheme {
   // ── Theme ────────────────────────────────────────────────────────────────
   static ThemeData get lightTheme => ThemeData(
         useMaterial3: true,
-        fontFamily: 'Inter',
-        colorScheme: ColorScheme.fromSeed(
+                colorScheme: ColorScheme.fromSeed(
           seedColor: primaryColor,
           brightness: Brightness.light,
           surface: backgroundLight,
@@ -70,8 +66,7 @@ class AppTheme {
           foregroundColor: textPrimary,
           elevation: 0,
           titleTextStyle: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 20,
+                        fontSize: 20,
             fontWeight: FontWeight.w600,
             color: textPrimary,
           ),

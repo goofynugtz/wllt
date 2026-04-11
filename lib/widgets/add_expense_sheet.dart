@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../utils/helpers.dart';
 import 'category_icon_widget.dart';
 import '../screens/layout_screen.dart';
+import '../screens/categories_screen.dart';
 import 'amount_calculator.dart';
 
 class AddTransactionPage extends StatelessWidget {
@@ -304,8 +305,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                   minLines: 1,
                   maxLength: 60,
                   style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 40,
+                                        fontSize: 40,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
                     height: 1.15,
@@ -313,8 +313,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                   decoration: const InputDecoration(
                     hintText: 'Add Description',
                     hintStyle: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 40,
+                                            fontSize: 40,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFBBBBBB),
                       height: 1.15,
@@ -385,6 +384,12 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                         LucideIcons.tag,
                         'Category',
                         showEdit: true,
+                        onEdit: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CategoriesScreen(),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       SingleChildScrollView(
@@ -776,6 +781,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     IconData icon,
     String label, {
     bool showEdit = false,
+    VoidCallback? onEdit,
   }) {
     return Row(
       children: [
@@ -791,16 +797,19 @@ class _ManualEntryFormState extends State<ManualEntryForm>
         ),
         if (showEdit) ...[
           const Spacer(),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(LucideIcons.pencil, size: 11, color: Color(0xFF999999)),
-              SizedBox(width: 4),
-              Text(
-                'Edit',
-                style: TextStyle(fontSize: 11, color: Color(0xFF999999)),
-              ),
-            ],
+          GestureDetector(
+            onTap: onEdit,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(LucideIcons.pencil, size: 11, color: Color(0xFF999999)),
+                SizedBox(width: 4),
+                Text(
+                  'Edit',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                ),
+              ],
+            ),
           ),
         ],
       ],

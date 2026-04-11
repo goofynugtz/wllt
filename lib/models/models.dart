@@ -324,6 +324,47 @@ class Transaction {
       account: 'ICICI Credit Card',
       tags: ['transport'],
     ),
+    // Today & yesterday entries for Recent section demo
+    Transaction(
+      id: 't25',
+      transactionTitle: 'Uber Eats',
+      categoryId: 'restaurant',
+      amount: 340,
+      type: TransactionType.expense,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+      account: 'ICICI Credit Card',
+      tags: ['restaurant'],
+    ),
+    Transaction(
+      id: 't26',
+      transactionTitle: 'Jio Recharge',
+      categoryId: 'phone',
+      amount: 299,
+      type: TransactionType.expense,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+      account: 'HDFC Savings',
+      tags: ['phone'],
+    ),
+    Transaction(
+      id: 't27',
+      transactionTitle: 'Salary Credit',
+      categoryId: 'work',
+      amount: 95000,
+      type: TransactionType.income,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
+      account: 'HDFC Savings',
+      tags: ['work'],
+    ),
+    Transaction(
+      id: 't28',
+      transactionTitle: 'Amazon Prime',
+      categoryId: 'movies',
+      amount: 299,
+      type: TransactionType.expense,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
+      account: 'ICICI Credit Card',
+      tags: ['movies'],
+    ),
   ];
 }
 

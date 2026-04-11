@@ -18,8 +18,8 @@ class _LayoutScreenState extends State<LayoutScreen> {
   int _currentIndex = 0;
   bool _isFabExpanded = false;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(onNavigateToHistory: () => setState(() => _currentIndex = 1)),
     const TransactionsScreen(),
     const AnalyticsScreen(),
     const AccountsScreen(),

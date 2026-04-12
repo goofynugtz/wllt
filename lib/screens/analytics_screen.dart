@@ -238,8 +238,7 @@ class _SummaryCard extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 14,
+                            fontSize: 14,
               color: color,
             ),
           ),
@@ -314,16 +313,14 @@ class _MonthlyChart extends StatelessWidget {
                         TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 12,
-                          fontFamily: 'monospace',
-                        ),
+                                                  ),
                         children: [
                           TextSpan(
                             text: Helpers.formatINR(month.amount),
                             style: const TextStyle(
                               color: AppTheme.textPrimary,
                               fontSize: 12,
-                              fontFamily: 'monospace',
-                            ),
+                                                          ),
                           ),
                         ],
                       );
@@ -471,8 +468,7 @@ class _CategoryBreakdown extends StatelessWidget {
                           Text(
                             Helpers.formatINR(category.amount),
                             style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 13,
+                                                            fontSize: 13,
                               color: AppTheme.primaryColor,
                             ),
                           ),
@@ -591,8 +587,7 @@ class _TopMerchants extends StatelessWidget {
                   Text(
                     '−${Helpers.formatINR(merchant.value)}',
                     style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
+                                            fontSize: 12,
                       color: AppTheme.expenseColor,
                     ),
                   ),

@@ -53,9 +53,10 @@ class AppTheme {
   );
 
   // ── Theme ────────────────────────────────────────────────────────────────
-  static ThemeData get lightTheme => ThemeData(
+  static ThemeData lightTheme({String fontFamily = 'sans-serif'}) => ThemeData(
         useMaterial3: true,
-                colorScheme: ColorScheme.fromSeed(
+        fontFamily: fontFamily,
+        colorScheme: ColorScheme.fromSeed(
           seedColor: primaryColor,
           brightness: Brightness.light,
           surface: backgroundLight,

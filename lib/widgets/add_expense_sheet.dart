@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
@@ -119,6 +119,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   String _calcPreview = '';
   late AnimationController _calcController;
   late Animation<Offset> _calcSlide;
+  final ScrollController _exprScrollController = ScrollController();
 
   @override
   void initState() {
@@ -157,6 +158,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   void dispose() {
     _titleController.dispose();
     _calcController.dispose();
+    _exprScrollController.dispose();
     super.dispose();
   }
 
@@ -214,6 +216,16 @@ class _ManualEntryFormState extends State<ManualEntryForm>
           _expression += label;
       }
       _calcPreview = _calcTryEvaluate(_expression) ?? '';
+    });
+    // Scroll expression to end after the frame re-renders
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_exprScrollController.hasClients) {
+        _exprScrollController.animateTo(
+          _exprScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 80),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -277,10 +289,27 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
   @override
   Widget build(BuildContext context) {
-    return _buildNormalForm();
+    return _buildNormalForm(context);
   }
 
-  Widget _buildNormalForm() {
+  Widget _buildNormalForm(BuildContext context) {
+    // Measure at the large size (40) as a fixed ruler — if the text wraps
+    // at 40px, render at 32px. Always measuring at 40 avoids the flip-flop
+    // where a smaller font would make text refit → snap back → repeat.
+    final availableWidth = MediaQuery.of(context).size.width - 40;
+    final _tp = TextPainter(
+      text: TextSpan(
+        text: _merchant.isEmpty ? ' ' : _merchant,
+        style: const TextStyle(
+          fontSize: 40,
+          fontWeight: FontWeight.bold,
+          height: 1.15,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: availableWidth);
+    final titleFontSize = _tp.computeLineMetrics().length > 1 ? 32.0 : 40.0;
+
     final isExpense = _type == TransactionType.expense;
     final displayCategories = isExpense
         ? Helpers.getExpenseCategories()
@@ -304,18 +333,18 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                   maxLines: 3,
                   minLines: 1,
                   maxLength: 60,
-                  style: const TextStyle(
-                                        fontSize: 40,
+                  style: TextStyle(
+                    fontSize: titleFontSize,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
                     height: 1.15,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Add Description',
                     hintStyle: TextStyle(
-                                            fontSize: 40,
+                      fontSize: titleFontSize,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFFBBBBBB),
+                      color: const Color(0xFFBBBBBB),
                       height: 1.15,
                     ),
                     border: InputBorder.none,
@@ -328,31 +357,39 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                 ),
               ),
 
-              // Amount / Expression — same vertical position in both modes
-              if (_showCalculator)
-                _buildExpressionDisplay()
-              else
-                GestureDetector(
-                  onTap: _openCalculator,
-                  child: Text(
-                    '₹ ${_amount.isEmpty ? '0' : _amount}',
-                    style: const TextStyle(
-                      fontFamily: 'Archia',
-                      fontSize: 64,
-                      fontWeight: FontWeight.normal,
-                      color: AppTheme.textPrimary,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-
-              // Divider — only in normal mode
-              if (!_showCalculator)
-                Container(
-                  height: 1,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  color: Colors.black.withOpacity(0.08),
-                ),
+              // Amount / Expression — fixed-height slot so the ₹ never
+              // shifts when switching modes. 106px fits both branches:
+              //   normal  : amount(~70) + divider+margin(21) = 91px
+              //   calc    : expression(72) + preview(~34)    = 106px
+              SizedBox(
+                height: 106,
+                child: _showCalculator
+                    ? _buildExpressionDisplay()
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: _openCalculator,
+                            child: Text(
+                              '₹ ${_amount.isEmpty ? '0' : _amount}',
+                              style: const TextStyle(
+                                fontFamily: 'Archia',
+                                fontSize: 64,
+                                fontWeight: FontWeight.normal,
+                                color: AppTheme.textPrimary,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            height: 1,
+                            margin: const EdgeInsets.only(bottom: 20),
+                            color: Colors.black.withOpacity(0.08),
+                          ),
+                        ],
+                      ),
+              ),
             ],
           ),
         ),
@@ -618,7 +655,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                   Text(
                                                     '**** ${account.cardIdentifier}',
                                                     style: const TextStyle(
-                                                      fontFamily: 'monospace',
+                                                      fontFamily: 'Archia',
                                                       color: Color(0xFF898989),
                                                       fontSize: 10,
                                                     ),
@@ -733,6 +770,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ₹ stays fixed — only the expression scrolls
         const Text(
           '₹',
           style: TextStyle(
@@ -747,23 +785,31 @@ class _ManualEntryFormState extends State<ManualEntryForm>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _expression.isEmpty ? '0' : _expression,
-                style: TextStyle(
-                  fontFamily: 'Archia',
-                  fontSize: 64,
-                  color: _expression.isEmpty
-                      ? const Color(0xFFBBBBBB)
-                      : AppTheme.textPrimary,
-                  height: 1.1,
+              // Fixed-height row: scrolls horizontally, never wraps
+              SizedBox(
+                height: 72,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  controller: _exprScrollController,
+                  child: Text(
+                    _expression.isEmpty ? '0' : _expression,
+                    style: TextStyle(
+                      fontFamily: 'Archia',
+                      fontSize: 64,
+                      color: _expression.isEmpty
+                          ? const Color(0xFFBBBBBB)
+                          : AppTheme.textPrimary,
+                      height: 1.1,
+                    ),
+                  ),
                 ),
               ),
-              // Always rendered — space reserved to prevent layout shift
+              // Preview — always rendered to reserve space
               Text(
-                _calcPreview.isEmpty ? ' ' : _calcPreview,
+                _calcPreview.isEmpty ? ' ' : '= $_calcPreview',
                 style: TextStyle(
                   fontFamily: 'Archia',
-                  fontSize: 32,
+                  fontSize: 28,
                   color: _calcPreview.isEmpty
                       ? Colors.transparent
                       : const Color(0xFF818181),
@@ -1301,7 +1347,7 @@ class _SmsImportFormState extends State<SmsImportForm> {
                     Text(
                       Helpers.formatINR(_currentCard!.amount),
                       style: const TextStyle(
-                        fontFamily: 'monospace',
+                        fontFamily: 'Archia',
                         fontSize: 26,
                         color: AppTheme.expenseColor,
                       ),

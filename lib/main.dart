@@ -8,6 +8,7 @@ import 'screens/layout_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'services/auth_service.dart';
 import 'services/storage_service.dart';
+import 'services/system_font_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -18,13 +19,16 @@ void main() async {
   final storage = StorageService();
   await storage.init();
 
-  runApp(WalletApp(storage: storage));
+  final systemFont = await SystemFontService.loadSystemFont();
+
+  runApp(WalletApp(storage: storage, systemFont: systemFont));
 }
 
 class WalletApp extends StatelessWidget {
   final StorageService storage;
+  final String systemFont;
 
-  const WalletApp({super.key, required this.storage});
+  const WalletApp({super.key, required this.storage, required this.systemFont});
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +43,7 @@ class WalletApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'WLLT',
-        theme: AppTheme.lightTheme,
+        theme: AppTheme.lightTheme(fontFamily: systemFont),
         home: storage.isOnboardingComplete
             ? const LayoutScreen()
             : const OnboardingFlow(),

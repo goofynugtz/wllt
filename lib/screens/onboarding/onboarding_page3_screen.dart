@@ -95,8 +95,7 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                       '3 of 3',
                       textAlign: TextAlign.right,
                       style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
+                                                fontSize: 12,
                         color: Color(0xFF6B6572),
                       ),
                     ),
@@ -114,8 +113,7 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                   Text(
                     'Choose your categories',
                     style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 26,
+                                            fontSize: 26,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -0.65,
                       color: Color(0xFF1D1B20),
@@ -125,8 +123,7 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                   Text(
                     'Select the categories you use most. You can always add or remove them later.',
                     style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14,
+                                            fontSize: 14,
                       color: Color(0xFF6B6572),
                       height: 1.43,
                     ),
@@ -144,8 +141,7 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                   RichText(
                     text: TextSpan(
                       style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14,
+                                                fontSize: 14,
                         color: Color(0xFF1D1B20),
                       ),
                       children: [
@@ -169,8 +165,7 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                           ? 'Deselect all'
                           : 'Select all',
                       style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14,
+                                                fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF6750A4),
                       ),
@@ -249,8 +244,7 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                                 Text(
                                   'Get Started',
                                   style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 15,
+                                                                        fontSize: 15,
                                     fontWeight: FontWeight.w500,
                                     color: Colors.white,
                                   ),
@@ -345,8 +339,7 @@ class _CategoryChip extends StatelessWidget {
                     child: Text(
                       category.name,
                       style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
+                                                fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: isSelected
                             ? const Color(0xFF1D1B20)

@@ -142,8 +142,7 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                         const Text(
                           'WLLT',
                           style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 38,
+                                                        fontSize: 38,
                             fontWeight: FontWeight.w500,
                             letterSpacing: -0.76,
                             color: Color(0xFF1D1B20),
@@ -154,8 +153,7 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                           'Track your expenses,\nmaster your money.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16,
+                                                        fontSize: 16,
                             color: Color(0xFF6B6572),
                             height: 1.375,
                           ),
@@ -187,8 +185,7 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                         'GET STARTED',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 13,
+                                                    fontSize: 13,
                           letterSpacing: 0.325,
                           color: Color(0xFF6B6572),
                         ),
@@ -217,8 +214,7 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                             child: Text(
                               'or',
                               style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12,
+                                                                fontSize: 12,
                                 color: Colors.grey.shade400,
                               ),
                             ),
@@ -263,8 +259,7 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                             child: RichText(
                               text: TextSpan(
                                 style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11,
+                                                                    fontSize: 11,
                                   color: Color(0xFF9E99A3),
                                 ),
                                 children: [
@@ -353,8 +348,7 @@ class _ActionButton extends StatelessWidget {
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 15,
+                                    fontSize: 15,
                   fontWeight: FontWeight.w500,
                   color: foregroundColor,
                 ),

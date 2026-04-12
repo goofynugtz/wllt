@@ -158,8 +158,7 @@ class _NetWorthCard extends StatelessWidget {
               Text(
                 '${netWorth >= 0 ? '' : '−'}${Helpers.formatINR(netWorth.abs())}',
                 style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 36,
+                                    fontSize: 36,
                   color: Colors.white,
                   letterSpacing: -1,
                   height: 1,
@@ -186,8 +185,7 @@ class _NetWorthCard extends StatelessWidget {
                       Text(
                         Helpers.formatINR(totalAssets),
                         style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 14,
+                                                    fontSize: 14,
                           color: AppTheme.successColor,
                         ),
                       ),
@@ -221,8 +219,7 @@ class _NetWorthCard extends StatelessWidget {
                       Text(
                         Helpers.formatINR(totalDebt),
                         style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 14,
+                                                    fontSize: 14,
                           color: AppTheme.warningColor,
                         ),
                       ),
@@ -375,8 +372,7 @@ class AccountCard extends StatelessWidget {
                   Text(
                     '${isNegative ? '−' : ''}${Helpers.formatINR(account.balance.abs())}',
                     style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 18,
+                                            fontSize: 18,
                       color: isNegative
                           ? AppTheme.expenseColor
                           : AppTheme.primaryColor,

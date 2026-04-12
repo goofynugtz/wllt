@@ -213,7 +213,7 @@ class _CategoryListTileState extends State<_CategoryListTile> {
                   ),
                 ]
               : [],
-          color: Colors.white,
+          color: _pressed ? Colors.white : const Color(0xFFFFF8F6),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

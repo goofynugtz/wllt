@@ -177,8 +177,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     '${_totalFiltered >= 0 ? '+' : '−'}${Helpers.formatINR(_totalFiltered.abs())}',
                     style: TextStyle(
                       fontSize: 12,
-                      fontFamily: 'monospace',
-                      color: _totalFiltered >= 0
+                                            color: _totalFiltered >= 0
                           ? AppTheme.incomeColor
                           : AppTheme.expenseColor,
                     ),
@@ -234,8 +233,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   Text(
                     '−${Helpers.formatINR(dayExpense)}',
                     style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
+                                            fontSize: 11,
                       color: AppTheme.expenseColor,
                     ),
                   ),
@@ -358,6 +356,7 @@ class TransactionRow extends StatelessWidget {
                       transaction.transactionTitle,
                       style: const TextStyle(
                         fontSize: 13,
+                        fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -377,8 +376,7 @@ class TransactionRow extends StatelessWidget {
               Text(
                 '${transaction.type == TransactionType.income ? '+' : '−'}${Helpers.formatINR(transaction.amount)}',
                 style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
+                                    fontSize: 13,
                   color: transaction.type == TransactionType.income
                       ? AppTheme.incomeColor
                       : AppTheme.expenseColor,

@@ -92,8 +92,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       '2 of 3',
                       textAlign: TextAlign.right,
                       style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
+                                                fontSize: 12,
                         color: Color(0xFF6B6572),
                       ),
                     ),
@@ -111,8 +110,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                   const Text(
                     "What's your currency?",
                     style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 26,
+                                            fontSize: 26,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -0.65,
                       color: Color(0xFF1D1B20),
@@ -125,8 +123,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       const Text(
                         'We detected ',
                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
+                                                    fontSize: 14,
                           color: Color(0xFF6B6572),
                         ),
                       ),
@@ -140,16 +137,14 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       Text(
                         detectedInfo.code,
                         style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
+                                                    fontSize: 14,
                           color: Color(0xFF1D1B20),
                         ),
                       ),
                       const Text(
                         ' based on your region.',
                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
+                                                    fontSize: 14,
                           color: Color(0xFF6B6572),
                         ),
                       ),
@@ -174,8 +169,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                           Text(
                             'Offline mode · No cloud backup',
                             style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
+                                                            fontSize: 11,
                               color: Color(0xFF92400E),
                             ),
                           ),
@@ -210,8 +204,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                     decoration: const InputDecoration(
                       hintText: 'Search currencies...',
                       hintStyle: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 15,
+                                                fontSize: 15,
                         color: Color(0xFFCAC4D0),
                       ),
                       prefixIcon: Icon(LucideIcons.search,
@@ -265,16 +258,14 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                           Text(
                             selectedInfo.name,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
+                                                            fontSize: 14,
                               color: Color(0xFF6750A4),
                             ),
                           ),
                           Text(
                             '${selectedInfo.code} · ${selectedInfo.symbol}',
                             style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
+                                                            fontSize: 12,
                               color: Color(0xFF9D85E5),
                             ),
                           ),
@@ -291,8 +282,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       child: const Text(
                         'Selected',
                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12,
+                                                    fontSize: 12,
                           color: Color(0xFF6750A4),
                         ),
                       ),
@@ -319,8 +309,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                           Text(
                             'No results for "$_query"',
                             style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
+                                                            fontSize: 14,
                               color: Color(0xFF9E99A3),
                             ),
                           ),
@@ -369,8 +358,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       Text(
                         'Continue',
                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 15,
+                                                    fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: Colors.white,
                         ),
@@ -431,8 +419,7 @@ class _CurrencyRow extends StatelessWidget {
                   Text(
                     currency.name,
                     style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w500,
+                                            fontWeight: FontWeight.w500,
                       fontSize: 15,
                       color: Color(0xFF1D1B20),
                     ),
@@ -440,8 +427,7 @@ class _CurrencyRow extends StatelessWidget {
                   Text(
                     '${currency.code} · ${currency.symbol} · ${currency.country}',
                     style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
+                                            fontSize: 12,
                       color: Color(0xFF9E99A3),
                     ),
                   ),

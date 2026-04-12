@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 
 /// Pure grid widget — all expression state and logic live in the parent.
@@ -12,9 +13,12 @@ class AmountCalculator extends StatelessWidget {
     required this.onSetPressed,
   });
 
-  static const _kDark = Color(0xFF636363);
-  static const _kLight = Color(0xFF929292);
-  static const _kGap = 5.0;
+  // Number buttons: warm off-white; Operator buttons: deep muted purple-charcoal
+  static const _kNumBg   = Color(0xFFEDE8F5);
+  static const _kNumFg   = AppTheme.textPrimary;
+  static const _kOpBg    = Color(0xFF4A4458);
+  static const _kOpFg    = Colors.white;
+  static const _kGap     = 5.0;
 
   static const List<List<(String, String)>> _grid = [
     [('AC', 'd'), ('( )', 'd'), ('%', 'd'), ('÷', 'd')],
@@ -50,28 +54,39 @@ class AmountCalculator extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: rowEntry.value.map((entry) {
                           final (label, type) = entry;
-                          final color = switch (type) {
+                          final bgColor = switch (type) {
                             'g' => AppTheme.primaryColor,
-                            'd' => _kDark,
-                            _ => _kLight,
+                            'd' => _kOpBg,
+                            _ => _kNumBg,
                           };
-                          return GestureDetector(
-                            onTap: () => onButtonPressed(label),
-                            child: Container(
-                              width: btnSize,
-                              height: btnSize,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                label,
-                                style: TextStyle(
-                                  fontFamily: label == '.' ? 'Archia' : null,
-                                  fontSize: fontSize,
-                                  color: Colors.white,
-                                  height: 1,
+                          final fgColor = switch (type) {
+                            'l' => _kNumFg,
+                            _ => _kOpFg,
+                          };
+                          return SizedBox(
+                            width: btnSize,
+                            height: btnSize,
+                            child: Material(
+                              color: bgColor,
+                              shape: const CircleBorder(),
+                              elevation: 2,
+                              shadowColor: Colors.black26,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  onButtonPressed(label);
+                                },
+                                child: Center(
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontFamily: label == '.' ? 'Archia' : null,
+                                      fontSize: fontSize,
+                                      color: fgColor,
+                                      height: 1,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -105,8 +120,7 @@ class AmountCalculator extends StatelessWidget {
             child: const Text(
               'Set Amount',
               style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 15,
+                                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
                 color: Colors.white,

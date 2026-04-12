@@ -5,6 +5,8 @@ import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../utils/helpers.dart';
 import '../widgets/category_icon_widget.dart';
+import '../widgets/add_expense_sheet.dart';
+import '../screens/layout_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToHistory;
@@ -170,8 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
         RichText(
           text: const TextSpan(
             style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 22,
+                            fontSize: 22,
               color: AppTheme.textPrimary,
             ),
             children: [
@@ -690,68 +691,86 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 1,
                       color: Colors.black.withOpacity(0.05),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      children: [
-                        // Icon circle
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: catBg,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: CategoryIconWidget(
-                              category: category,
-                              size: 18,
-                              color: catColor,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => AddTransactionPage(
+                              method: tx.type == TransactionType.income
+                                  ? AddTransactionMethod.income
+                                  : AddTransactionMethod.expense,
+                              editTransaction: tx,
                             ),
                           ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                        const SizedBox(width: 12),
-                        // Title + category
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                tx.transactionTitle,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppTheme.textPrimary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          children: [
+                            // Icon circle
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: catBg,
+                                shape: BoxShape.circle,
                               ),
-                              Text(
-                                category.name,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFFB0ADA8),
+                              child: Center(
+                                child: CategoryIconWidget(
+                                  category: category,
+                                  size: 18,
+                                  color: catColor,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Title + category
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tx.transactionTitle,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    category.name,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFFB0ADA8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Amount
+                            Text(
+                              '${tx.type == TransactionType.income ? '+' : '−'}${Helpers.formatINR(tx.amount)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: tx.type == TransactionType.income
+                                    ? AppTheme.incomeColor
+                                    : AppTheme.expenseColor,
+                              ),
+                            ),
+                          ],
                         ),
-                        // Amount
-                        Text(
-                          '${tx.type == TransactionType.income ? '+' : '−'}${Helpers.formatINR(tx.amount)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: tx.type == TransactionType.income
-                                ? AppTheme.incomeColor
-                                : AppTheme.expenseColor,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ],
-              );
+                  ],
+                );
             }).toList(),
           ),
         ),

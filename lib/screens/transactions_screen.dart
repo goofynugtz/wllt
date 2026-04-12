@@ -55,17 +55,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text(
           'Transactions',
           style: TextStyle(
-            color: AppTheme.textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w600,
           ),
         ),
-        backgroundColor: AppTheme.backgroundLight,
         elevation: 0,
         actions: [
           Container(
@@ -192,10 +189,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           // Transactions list
           Expanded(
             child: _groupedTransactions.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No transactions found',
-                      style: TextStyle(color: Color(0xFFc0bdb8), fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                     ),
                   )
                 : ListView(
@@ -247,9 +244,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderColor, width: 0.5),
+                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
               ),
               child: Column(
                 children: transactions.asMap().entries.map((entry) {
@@ -316,7 +313,7 @@ class TransactionRow extends StatelessWidget {
                 ? null
                 : Border(
                     top: BorderSide(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Theme.of(context).colorScheme.outlineVariant,
                       width: 0.5,
                     ),
                   ),
@@ -354,18 +351,18 @@ class TransactionRow extends StatelessWidget {
                   children: [
                     Text(
                       transaction.transactionTitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '${category.name} · ${transaction.account}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],

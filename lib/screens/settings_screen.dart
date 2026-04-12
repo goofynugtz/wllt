@@ -1,0 +1,864 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/app_settings_provider.dart';
+import '../providers/user_preferences_provider.dart';
+import '../screens/categories_screen.dart';
+import '../screens/currency_picker_screen.dart';
+import '../screens/onboarding/onboarding_flow.dart';
+import '../theme/app_theme.dart';
+
+// ── Color scheme definitions ──────────────────────────────────────────────────
+
+class _AppColorScheme {
+  final String name;
+  final Color seed;
+  final Color container;
+  final Color onContainer;
+
+  const _AppColorScheme({
+    required this.name,
+    required this.seed,
+    required this.container,
+    required this.onContainer,
+  });
+}
+
+const _kColorSchemes = [
+  _AppColorScheme(
+    name: 'Violet',
+    seed: Color(0xFF6750A4),
+    container: Color(0xFFEDE7F6),
+    onContainer: Color(0xFF6750A4),
+  ),
+  _AppColorScheme(
+    name: 'Rose',
+    seed: Color(0xFFB5264C),
+    container: Color(0xFFFFD9E2),
+    onContainer: Color(0xFFB5264C),
+  ),
+  _AppColorScheme(
+    name: 'Ocean',
+    seed: Color(0xFF006874),
+    container: Color(0xFFA2EFF8),
+    onContainer: Color(0xFF006874),
+  ),
+  _AppColorScheme(
+    name: 'Sage',
+    seed: Color(0xFF386A20),
+    container: Color(0xFFB3F397),
+    onContainer: Color(0xFF386A20),
+  ),
+  _AppColorScheme(
+    name: 'Amber',
+    seed: Color(0xFF7D5700),
+    container: Color(0xFFFFDEA3),
+    onContainer: Color(0xFF7D5700),
+  ),
+  _AppColorScheme(
+    name: 'Crimson',
+    seed: Color(0xFF9C3425),
+    container: Color(0xFFFFDAD5),
+    onContainer: Color(0xFF9C3425),
+  ),
+  _AppColorScheme(
+    name: 'Indigo',
+    seed: Color(0xFF3951AD),
+    container: Color(0xFFDCE2FF),
+    onContainer: Color(0xFF3951AD),
+  ),
+  _AppColorScheme(
+    name: 'Forest',
+    seed: Color(0xFF256156),
+    container: Color(0xFFA0F0E3),
+    onContainer: Color(0xFF256156),
+  ),
+];
+
+// ── Main screen ───────────────────────────────────────────────────────────────
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<AppSettingsProvider>();
+    final prefs    = context.watch<UserPreferencesProvider>();
+
+    final activeScheme = _kColorSchemes.firstWhere(
+      (s) => s.seed.toARGB32() == settings.colorSeed.toARGB32(),
+      orElse: () => _kColorSchemes.first,
+    );
+    final paletteName = Theme.of(context).brightness == Brightness.dark
+        ? 'Dark palette'
+        : 'Light palette';
+
+    return Scaffold(
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader(context, prefs)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildSectionLabel(context, 'Appearance')),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            SliverToBoxAdapter(child: _buildAppearanceCard(context, settings)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildSectionLabel(context, 'Customize')),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            SliverToBoxAdapter(
+              child: _buildColorSchemeCard(
+                context, settings, activeScheme, paletteName,
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildSectionLabel(context, 'Preferences')),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            SliverToBoxAdapter(child: _buildPreferencesCard(context, prefs)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildSectionLabel(context, 'Account & Data')),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            SliverToBoxAdapter(
+              child: _buildAccountCard(context, settings, prefs),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildSectionLabel(context, 'About')),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            SliverToBoxAdapter(child: _buildAboutCard(context)),
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Section builders ──────────────────────────────────────────────────────
+
+  Widget _buildHeader(BuildContext context, UserPreferencesProvider prefs) {
+    final isOffline = prefs.authMode == 'offline';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              LucideIcons.settings,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.55,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  'WLLT v1.0.0',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
+            decoration: BoxDecoration(
+              color: isOffline
+                  ? const Color(0xFFFFF8E1)
+                  : const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isOffline
+                    ? const Color(0x4DF59E0B)
+                    : const Color(0x4D4CAF50),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isOffline ? LucideIcons.wifiOff : LucideIcons.wifi,
+                  size: 12,
+                  color: isOffline
+                      ? const Color(0xFF92400E)
+                      : const Color(0xFF1B5E20),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isOffline ? 'Offline' : 'Online',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isOffline
+                        ? const Color(0xFF92400E)
+                        : const Color(0xFF1B5E20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(BuildContext context, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        label.toUpperCase(),
+        style: AppTheme.trackingWide.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppearanceCard(
+    BuildContext context,
+    AppSettingsProvider settings,
+  ) {
+    final subtitle = switch (settings.themeMode) {
+      ThemeMode.light  => 'Always light',
+      ThemeMode.dark   => 'Always dark',
+      ThemeMode.system => 'Follows system',
+    };
+    return _SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SettingsInfoRow(
+            icon: LucideIcons.palette,
+            label: 'App theme',
+            subtitle: subtitle,
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _ThemeModeToggle(
+              current: settings.themeMode,
+              onChanged: (mode) =>
+                  context.read<AppSettingsProvider>().setThemeMode(mode),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorSchemeCard(
+    BuildContext context,
+    AppSettingsProvider settings,
+    _AppColorScheme activeScheme,
+    String paletteName,
+  ) {
+    return _SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SettingsInfoRow(
+            icon: LucideIcons.circle,
+            iconColor: activeScheme.seed,
+            label: 'Color scheme',
+            subtitle: '${activeScheme.name} · $paletteName',
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: _kColorSchemes.take(4).map((scheme) => _ColorSwatch(
+                    scheme: scheme,
+                    isSelected: scheme.seed.toARGB32() == settings.colorSeed.toARGB32(),
+                    onTap: () => context.read<AppSettingsProvider>().setColorSeed(scheme.seed),
+                  )).toList(),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: _kColorSchemes.skip(4).map((scheme) => _ColorSwatch(
+                    scheme: scheme,
+                    isSelected: scheme.seed.toARGB32() == settings.colorSeed.toARGB32(),
+                    onTap: () => context.read<AppSettingsProvider>().setColorSeed(scheme.seed),
+                  )).toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreferencesCard(
+    BuildContext context,
+    UserPreferencesProvider prefs,
+  ) {
+    return _SettingsCard(
+      child: Column(
+        children: [
+          _SettingsTappableRow(
+            icon: LucideIcons.dollarSign,
+            label: 'Currency',
+            value: prefs.currency,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CurrencyPickerScreen()),
+            ),
+          ),
+          Divider(
+            height: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant,
+            indent: 16,
+            endIndent: 16,
+          ),
+          _SettingsTappableRow(
+            icon: LucideIcons.tag,
+            label: 'Categories',
+            value: '${prefs.activeCategories.length} categories',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountCard(
+    BuildContext context,
+    AppSettingsProvider settings,
+    UserPreferencesProvider prefs,
+  ) {
+    return _SettingsCard(
+      child: Column(
+        children: [
+          _SettingsReadOnlyRow(
+            icon: LucideIcons.refreshCw,
+            label: 'Sync mode',
+            value: prefs.authMode == 'offline' ? 'Offline' : 'Google',
+          ),
+          Divider(
+            height: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant,
+            indent: 16,
+            endIndent: 16,
+          ),
+          _SettingsTappableRow(
+            icon: LucideIcons.trash2,
+            label: 'Reset all data',
+            labelColor: const Color(0xFFB3261E),
+            iconBgColor: const Color(0x1FB3261E),
+            iconColor: const Color(0xFFB3261E),
+            onTap: () => _showResetConfirmation(context, settings),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showResetConfirmation(
+    BuildContext context,
+    AppSettingsProvider settings,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset all data?'),
+        content: const Text(
+          'This will permanently delete all your transactions, accounts, '
+          'and preferences. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await settings.resetAllData();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+                  (_) => false,
+                );
+              }
+            },
+            child: const Text(
+              'Reset',
+              style: TextStyle(color: Color(0xFFB3261E)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutCard(BuildContext context) {
+    return _SettingsCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF3B2977), Color(0xFF6750A4)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(LucideIcons.wallet, size: 26, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WLLT: Expense Tracker',
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Version 1.0.0',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Built with ♥ using Flutter',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Shared card wrapper ───────────────────────────────────────────────────────
+
+class _SettingsCard extends StatelessWidget {
+  final Widget child;
+  const _SettingsCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 8,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: child,
+    );
+  }
+}
+
+// ── Row variants ──────────────────────────────────────────────────────────────
+
+/// Non-interactive header row inside a card (icon + label + subtitle).
+class _SettingsInfoRow extends StatelessWidget {
+  final IconData icon;
+  final Color? iconColor;
+  final String label;
+  final String subtitle;
+
+  const _SettingsInfoRow({
+    required this.icon,
+    this.iconColor,
+    required this.label,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: iconColor ?? Theme.of(context).colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tappable row — navigates somewhere or triggers an action.
+class _SettingsTappableRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? value;
+  final Color? labelColor;
+  final Color? iconBgColor;
+  final Color? iconColor;
+  final VoidCallback onTap;
+
+  const _SettingsTappableRow({
+    required this.icon,
+    required this.label,
+    this.value,
+    this.labelColor,
+    this.iconBgColor,
+    this.iconColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: iconBgColor ?? Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: iconColor ?? Theme.of(context).colorScheme.onSecondaryContainer,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: labelColor ?? Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+            if (value != null) ...[
+              Text(
+                value!,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Icon(
+              LucideIcons.chevronRight,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Non-tappable row showing a read-only value on the right.
+class _SettingsReadOnlyRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _SettingsReadOnlyRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Theme mode toggle ─────────────────────────────────────────────────────────
+
+class _ThemeModeToggle extends StatelessWidget {
+  final ThemeMode current;
+  final ValueChanged<ThemeMode> onChanged;
+
+  const _ThemeModeToggle({required this.current, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          _ThemeSegment(
+            icon: LucideIcons.sun,
+            label: 'Light',
+            isSelected: current == ThemeMode.light,
+            onTap: () => onChanged(ThemeMode.light),
+          ),
+          _ThemeSegment(
+            icon: LucideIcons.monitor,
+            label: 'System',
+            isSelected: current == ThemeMode.system,
+            onTap: () => onChanged(ThemeMode.system),
+          ),
+          _ThemeSegment(
+            icon: LucideIcons.moon,
+            label: 'Dark',
+            isSelected: current == ThemeMode.dark,
+            onTap: () => onChanged(ThemeMode.dark),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeSegment extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ThemeSegment({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: isSelected ? Theme.of(context).colorScheme.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: isSelected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x1F000000),
+                      blurRadius: 6,
+                      offset: Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Color scheme swatch ───────────────────────────────────────────────────────
+
+class _ColorSwatch extends StatelessWidget {
+  final _AppColorScheme scheme;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ColorSwatch({
+    required this.scheme,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: isSelected ? null : scheme.container,
+              gradient: isSelected
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        scheme.seed.withValues(alpha: 0.8),
+                        scheme.seed,
+                      ],
+                    )
+                  : null,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: scheme.seed.withValues(alpha: 0.33),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: isSelected
+                ? const Icon(LucideIcons.check, size: 26, color: Colors.white)
+                : Center(
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: scheme.onContainer,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            scheme.name,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: isSelected ? scheme.seed : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

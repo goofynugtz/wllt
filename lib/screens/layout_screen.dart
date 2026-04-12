@@ -6,6 +6,7 @@ import '../screens/transactions_screen.dart';
 import '../screens/analytics_screen.dart';
 import '../screens/accounts_screen.dart';
 import '../widgets/add_expense_sheet.dart';
+import '../screens/settings_screen.dart';
 
 class LayoutScreen extends StatefulWidget {
   const LayoutScreen({super.key});
@@ -34,6 +35,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
       const TransactionsScreen(),
       const AnalyticsScreen(),
       const AccountsScreen(),
+      const SettingsScreen(),
     ];
   }
 
@@ -56,6 +58,9 @@ class _LayoutScreenState extends State<LayoutScreen> {
   Widget? _buildFab() {
     // Analytics — nothing to add here
     if (_currentIndex == 2) return null;
+
+    // Settings — no FAB
+    if (_currentIndex == 4) return null;
 
     // Accounts — simple add-account button
     if (_currentIndex == 3) {
@@ -124,6 +129,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
     const NavItem(icon: LucideIcons.arrowLeftRight, label: 'History'),
     const NavItem(icon: LucideIcons.barChart2, label: 'Analytics'),
     const NavItem(icon: LucideIcons.wallet, label: 'Accounts'),
+    const NavItem(icon: LucideIcons.settings, label: 'Settings'),
   ];
 
   void _handleAddTransaction(AddTransactionMethod method) {
@@ -175,7 +181,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
       backgroundColor: AppTheme.backgroundDark,
       body: Container(
         constraints: const BoxConstraints(maxWidth: 430),
-        decoration: const BoxDecoration(color: AppTheme.backgroundLight),
+        decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor),
         child: ValueListenableBuilder<bool>(
           valueListenable: _pageScrollEnabled,
           builder: (_, enabled, __) => PageView(
@@ -196,9 +202,9 @@ class _LayoutScreenState extends State<LayoutScreen> {
       bottomNavigationBar: Container(
         constraints: const BoxConstraints(maxWidth: 430),
         decoration: BoxDecoration(
-          color: AppTheme.backgroundLight,
+          color: Theme.of(context).colorScheme.surface,
           border: Border(
-            top: BorderSide(color: Colors.black.withOpacity(0.08), width: 0.5),
+            top: BorderSide(color: Colors.black.withValues(alpha: 0.08), width: 0.5),
           ),
         ),
         child: SafeArea(

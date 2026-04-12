@@ -23,17 +23,14 @@ class AccountsScreen extends StatelessWidget {
         .fold(0.0, (sum, a) => sum + a.balance.abs());
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text(
           'Accounts',
           style: TextStyle(
-            color: AppTheme.textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w600,
           ),
         ),
-        backgroundColor: AppTheme.backgroundLight,
         elevation: 0,
         actions: [
           Container(
@@ -256,9 +253,9 @@ class AccountCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         children: [
@@ -274,10 +271,10 @@ class AccountCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(0xFFE8E8E8),
+                        color: Theme.of(context).colorScheme.outlineVariant,
                         width: 1,
                       ),
                     ),
@@ -301,16 +298,16 @@ class AccountCard extends StatelessWidget {
                     children: [
                       Text(
                         account.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: AppTheme.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       Text(
                         '${account.bank ?? _getAccountTypeLabel(account.type)} · $transactionCount txns',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppTheme.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -362,9 +359,9 @@ class AccountCard extends StatelessWidget {
                 account.type == AccountType.credit
                     ? 'Outstanding balance'
                     : 'Available balance',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               Row(

@@ -53,6 +53,68 @@ class AppTheme {
   );
 
   // ── Theme ────────────────────────────────────────────────────────────────
+  static ThemeData fromSeed(
+    Color seed,
+    Brightness brightness, {
+    String fontFamily = 'sans-serif',
+  }) {
+    final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
+    return ThemeData(
+      useMaterial3: true,
+      fontFamily: fontFamily,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scheme.surfaceContainerLowest,
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurface,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: seed,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static ThemeData darkTheme({String fontFamily = 'sans-serif'}) => ThemeData(
+        useMaterial3: true,
+        fontFamily: fontFamily,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryColor,
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: backgroundDark,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: backgroundDark,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          titleTextStyle: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      );
+
   static ThemeData lightTheme({String fontFamily = 'sans-serif'}) => ThemeData(
         useMaterial3: true,
         fontFamily: fontFamily,

@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     return ColoredBox(
-      color: AppTheme.backgroundLight,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -170,12 +170,12 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         // "Hi Ranjan"
         RichText(
-          text: const TextSpan(
+          text: TextSpan(
             style: TextStyle(
                             fontSize: 22,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
-            children: [
+            children: const [
               TextSpan(
                 text: 'Hi ',
                 style: TextStyle(fontWeight: FontWeight.w500),
@@ -198,13 +198,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 36,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE8E4DC)),
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   monthLabel,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
                 ),
               ),
             ),
@@ -213,8 +213,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: 36,
               height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE8E4DC),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -252,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showMonthPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -472,9 +472,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(17, 17, 17, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x12000000), width: 1),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,11 +516,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           'total',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xFFBBBBBB),
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             height: 1,
                           ),
                         ),
@@ -568,18 +568,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           Expanded(
                             child: Text(
                               cd.category.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF555555),
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           Text(
                             '$pct%',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF333333),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -631,10 +631,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 32),
             alignment: Alignment.center,
-            child: const Text(
+            child: Text(
               'No transactions today or yesterday',
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
               ),
             ),
@@ -664,10 +664,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0x12000000),
+              color: Theme.of(context).colorScheme.outlineVariant,
               width: 1,
             ),
           ),
@@ -689,7 +689,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (isNotFirst)
                     Divider(
                       height: 1,
-                      color: Colors.black.withOpacity(0.05),
+                      color: Theme.of(context).colorScheme.outlineVariant,
                     ),
                   Material(
                     color: Colors.transparent,
@@ -737,10 +737,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   Text(
                                     tx.transactionTitle,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: AppTheme.textPrimary,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -838,7 +838,7 @@ class _InsightChip extends StatelessWidget {
       height: 86,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -854,14 +854,14 @@ class _InsightChip extends StatelessWidget {
           // Label row with icon
           Row(
             children: [
-              Icon(data.icon, size: 13, color: const Color(0xFF9E99A3)),
+              Icon(data.icon, size: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   data.label.toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
-                    color: Color(0xFF9E99A3),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     letterSpacing: 0.5,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -873,7 +873,7 @@ class _InsightChip extends StatelessWidget {
           // Value
           Text(
             data.value,
-            style: const TextStyle(fontSize: 15, color: Color(0xFF1D1B20)),
+            style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -881,7 +881,7 @@ class _InsightChip extends StatelessWidget {
           // Sub-label
           Text(
             data.sub,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF9E99A3)),
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -942,10 +942,10 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
               ),
               Text(
                 '$_year',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               IconButton(
@@ -980,7 +980,7 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppTheme.primaryColor
-                        : const Color(0xFFF3F0E8),
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,
@@ -988,7 +988,7 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
                     Helpers.months[i],
                     style: TextStyle(
                       fontSize: 13,
-                      color: isSelected ? Colors.white : AppTheme.textPrimary,
+                      color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.normal,

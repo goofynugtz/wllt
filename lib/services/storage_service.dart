@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,6 +12,8 @@ class StorageService {
   static const String keyGoogleEmail = 'google_email';
   static const String keyCategories = 'categories';
   static const String keyOnboardingComplete = 'onboarding_complete';
+  static const String keyThemeMode          = 'theme_mode';
+  static const String keyColorSeed          = 'color_seed';
 
   late Box _userPrefs;
   late Box _categories;
@@ -55,6 +58,40 @@ class StorageService {
   }) async {
     await _userPrefs.put(keyGoogleUid, uid);
     await _userPrefs.put(keyGoogleEmail, email);
+  }
+
+  // ── Theme mode ────────────────────────────────────────────────────────
+  ThemeMode get themeMode {
+    switch (_userPrefs.get(keyThemeMode) as String?) {
+      case 'light': return ThemeMode.light;
+      case 'dark':  return ThemeMode.dark;
+      default:      return ThemeMode.system;
+    }
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) {
+    final val = switch (mode) {
+      ThemeMode.light  => 'light',
+      ThemeMode.dark   => 'dark',
+      ThemeMode.system => 'system',
+    };
+    return _userPrefs.put(keyThemeMode, val);
+  }
+
+  // ── Color seed ────────────────────────────────────────────────────────
+  Color get colorSeed {
+    final raw = _userPrefs.get(keyColorSeed) as int?;
+    return raw != null ? Color(raw) : const Color(0xFF6750A4);
+  }
+
+  Future<void> setColorSeed(Color color) =>
+      _userPrefs.put(keyColorSeed, color.toARGB32());
+
+  // ── Reset ─────────────────────────────────────────────────────────────
+  Future<void> clearAll() async {
+    await _userPrefs.clear();
+    await _categories.clear();
+    await _prefs.remove(keyOnboardingComplete);
   }
 
   // ── Categories ────────────────────────────────────────────────────────

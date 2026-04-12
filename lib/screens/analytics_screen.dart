@@ -68,17 +68,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final momChange = ((currMonth - prevMonth) / prevMonth) * 100;
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text(
           'Analytics',
           style: TextStyle(
-            color: AppTheme.textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w600,
           ),
         ),
-        backgroundColor: AppTheme.backgroundLight,
         elevation: 0,
         actions: [
           Padding(
@@ -221,9 +218,9 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         children: [
@@ -259,9 +256,9 @@ class _MonthlyChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         children: [
@@ -305,20 +302,20 @@ class _MonthlyChart extends StatelessWidget {
                 alignment: BarChartAlignment.spaceAround,
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => Colors.white,
+                    getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       final month = monthlyData[group.x.toInt()];
                       return BarTooltipItem(
                         '',
                         TextStyle(
-                          color: AppTheme.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 12,
                                                   ),
                         children: [
                           TextSpan(
                             text: Helpers.formatINR(month.amount),
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 12,
                                                           ),
                           ),
@@ -347,9 +344,9 @@ class _MonthlyChart extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               monthlyData[index].month,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFFbbb),
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           );
@@ -404,9 +401,9 @@ class _CategoryBreakdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,9 +442,9 @@ class _CategoryBreakdown extends StatelessWidget {
                           const SizedBox(width: 8),
                           Text(
                             category.category.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF444),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -481,7 +478,7 @@ class _CategoryBreakdown extends StatelessWidget {
                   Container(
                     height: 6,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFf0ede6),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(3),
                     ),
                     child: FractionallySizedBox(
@@ -540,9 +537,9 @@ class _TopMerchants extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -561,15 +558,15 @@ class _TopMerchants extends StatelessWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFf0ede6),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(
                       child: Text(
                         '${index + 1}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF888),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -578,9 +575,9 @@ class _TopMerchants extends StatelessWidget {
                   Expanded(
                     child: Text(
                       merchant.key,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF333),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),

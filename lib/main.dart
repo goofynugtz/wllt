@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
+import 'providers/app_settings_provider.dart';
 import 'providers/user_preferences_provider.dart';
 import 'screens/layout_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
@@ -35,19 +36,34 @@ class WalletApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
+          create: (_) => AppSettingsProvider(storage),
+        ),
+        ChangeNotifierProvider(
           create: (_) => UserPreferencesProvider(storage),
         ),
         Provider<AuthService>(
           create: (_) => AuthService(),
         ),
       ],
-      child: MaterialApp(
-        title: 'WLLT',
-        theme: AppTheme.lightTheme(fontFamily: systemFont),
-        home: storage.isOnboardingComplete
-            ? const LayoutScreen()
-            : const OnboardingFlow(),
-        debugShowCheckedModeBanner: false,
+      child: Consumer<AppSettingsProvider>(
+        builder: (context, settings, _) => MaterialApp(
+          title: 'WLLT',
+          theme: AppTheme.fromSeed(
+            settings.colorSeed,
+            Brightness.light,
+            fontFamily: systemFont,
+          ),
+          darkTheme: AppTheme.fromSeed(
+            settings.colorSeed,
+            Brightness.dark,
+            fontFamily: systemFont,
+          ),
+          themeMode: settings.themeMode,
+          home: storage.isOnboardingComplete
+              ? const LayoutScreen()
+              : const OnboardingFlow(),
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }

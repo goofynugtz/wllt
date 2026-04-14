@@ -23,46 +23,6 @@ class AccountsScreen extends StatelessWidget {
         .fold(0.0, (sum, a) => sum + a.balance.abs());
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Accounts',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        elevation: 0,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: ElevatedButton(
-              onPressed: () {
-                // Add account functionality
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.plus, size: 13, color: Colors.white),
-                  SizedBox(width: 6),
-                  Text(
-                    'Add',
-                    style: TextStyle(fontSize: 12, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

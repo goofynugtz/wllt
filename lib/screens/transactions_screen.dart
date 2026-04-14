@@ -3,12 +3,14 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../utils/helpers.dart';
-import '../widgets/category_icon_widget.dart';
+import '../widgets/category_icon_badge.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../screens/layout_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
-  const TransactionsScreen({super.key});
+  final DateTime selectedMonth;
+
+  const TransactionsScreen({super.key, required this.selectedMonth});
 
   @override
   State<TransactionsScreen> createState() => _TransactionsScreenState();
@@ -25,6 +27,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   List<Transaction> get _filteredTransactions {
     return Transaction.transactions.where((tx) {
+      final matchMonth =
+          tx.date.month == widget.selectedMonth.month &&
+          tx.date.year == widget.selectedMonth.year;
       final category = Helpers.getCategoryById(tx.categoryId);
       final matchSearch =
           _searchController.text.isEmpty ||
@@ -34,10 +39,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           category.name.toLowerCase().contains(
             _searchController.text.toLowerCase(),
           );
-
       final matchType =
           _filter == TransactionFilter.all || tx.type.name == _filter.name;
-      return matchSearch && matchType;
+      return matchMonth && matchSearch && matchType;
     }).toList()..sort((a, b) => b.date.compareTo(a.date));
   }
 
@@ -55,38 +59,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Transactions',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        elevation: 0,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: IconButton(
-              onPressed: () {
-                // Show filter options
-              },
-              icon: const Icon(
-                LucideIcons.slidersHorizontal,
-                size: 15,
-                color: AppTheme.onSurfaceColor,
-              ),
-              padding: EdgeInsets.zero,
-            ),
-          ),
-        ],
-      ),
       body: Column(
         children: [
           // Search bar
@@ -321,27 +293,7 @@ class TransactionRow extends StatelessWidget {
           child: Row(
             children: [
               // Icon
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Color(
-                    int.parse(category.bg.substring(1), radix: 16) +
-                        0xFF000000,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: CategoryIconWidget(
-                    category: category,
-                    size: 20,
-                    color: Color(
-                      int.parse(category.color.substring(1), radix: 16) +
-                          0xFF000000,
-                    ),
-                  ),
-                ),
-              ),
+              CategoryIconBadge(category: category, size: 36, iconSize: 18),
               const SizedBox(width: 12),
 
               // Meta

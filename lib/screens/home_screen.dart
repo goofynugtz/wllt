@@ -3,17 +3,24 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../models/ad_config.dart';
 import '../utils/helpers.dart';
-import '../widgets/category_icon_widget.dart';
+import '../widgets/category_icon_badge.dart';
 import '../widgets/add_expense_sheet.dart';
+import '../widgets/trial_banner.dart';
+import '../services/ad_config_service.dart';
 import '../screens/layout_screen.dart';
 
 class HomeScreen extends StatefulWidget {
+  final DateTime selectedMonth;
+  final void Function(int delta)? onMonthChanged;
   final VoidCallback? onNavigateToHistory;
   final ValueNotifier<bool>? pageScrollEnabled;
 
   const HomeScreen({
     super.key,
+    required this.selectedMonth,
+    this.onMonthChanged,
     this.onNavigateToHistory,
     this.pageScrollEnabled,
   });
@@ -23,22 +30,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late DateTime _selectedMonth;
-
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    _selectedMonth = DateTime(now.year, now.month, 1);
-  }
-
   @override
   Widget build(BuildContext context) {
     final monthTransactions = Transaction.transactions
         .where(
           (tx) =>
-              tx.date.month == _selectedMonth.month &&
-              tx.date.year == _selectedMonth.year,
+              tx.date.month == widget.selectedMonth.month &&
+              tx.date.year == widget.selectedMonth.year,
         )
         .toList();
 
@@ -89,8 +87,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final swipeColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(context),
-        const SizedBox(height: 16),
+        // TODO: Replace hardcoded values with real subscription state once
+        // the subscription service is wired up.
+        TrialBanner(
+          trialDaysLeft: 30,
+          onUpgrade: () {
+            // TODO: Navigate to upgrade/subscription screen.
+          },
+        ),
+        const SizedBox(height: 12),
         _buildBalanceCard(totalExpense, budgetPct, totalIncome),
       ],
     );
@@ -123,17 +128,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         widget.pageScrollEnabled?.value = true;
                         final v = details.primaryVelocity ?? 0;
                         if (v < -100) {
-                          setState(() => _selectedMonth = DateTime(
-                            _selectedMonth.year,
-                            _selectedMonth.month + 1,
-                            1,
-                          ));
+                          widget.onMonthChanged?.call(1);
                         } else if (v > 100) {
-                          setState(() => _selectedMonth = DateTime(
-                            _selectedMonth.year,
-                            _selectedMonth.month - 1,
-                            1,
-                          ));
+                          widget.onMonthChanged?.call(-1);
                         }
                       },
                       onHorizontalDragCancel: () {
@@ -144,10 +141,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                     _buildInsightChips(categoryBreakdown, totalExpense),
                     const SizedBox(height: 16),
-                    if (categoryBreakdown.isNotEmpty) ...[
-                      _buildSpendingBreakdown(categoryBreakdown, totalExpense),
-                      const SizedBox(height: 16),
-                    ],
+                    ValueListenableBuilder<AdConfig>(
+                      valueListenable: AdConfigService.instance.config,
+                      builder: (_, cfg, child) => cfg.showInlineAd
+                          ? Column(
+                              children: [
+                                _buildInlineAd(),
+                                const SizedBox(height: 16),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                     _buildRecentTransactions(todayTxns, yesterdayTxns),
                   ],
                 ),
@@ -159,110 +163,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(BuildContext context) {
-    final monthLabel =
-        '${Helpers.months[_selectedMonth.month - 1]} ${_selectedMonth.year}';
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // "Hi Ranjan"
-        RichText(
-          text: TextSpan(
-            style: TextStyle(
-                            fontSize: 22,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-            children: const [
-              TextSpan(
-                text: 'Hi ',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              TextSpan(
-                text: 'Ranjan',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
-
-        // Controls: month pill + bell + avatar
-        Row(
-          children: [
-            // Month selector pill
-            GestureDetector(
-              onTap: () => _showMonthPicker(context),
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  monthLabel,
-                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Bell
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                LucideIcons.bell,
-                size: 16,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Avatar
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: AppTheme.primaryColor,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text(
-                  'R',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _showMonthPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _MonthPickerSheet(
-        selected: _selectedMonth,
-        onSelected: (m) => setState(() => _selectedMonth = m),
-      ),
-    );
-  }
-
   // ── Balance Card ──────────────────────────────────────────────────────────
 
   Widget _buildBalanceCard(
@@ -270,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double budgetPct,
     double totalIncome,
   ) {
-    final monthName = Helpers.months[_selectedMonth.month - 1];
+    final monthName = Helpers.months[widget.selectedMonth.month - 1];
 
     return Container(
       width: double.infinity,
@@ -290,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 144,
               height: 144,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
+                color: Colors.white.withValues(alpha: 0.04),
                 shape: BoxShape.circle,
               ),
             ),
@@ -302,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 112,
               height: 112,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
+                color: Colors.white.withValues(alpha: 0.03),
                 shape: BoxShape.circle,
               ),
             ),
@@ -317,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 11,
                   letterSpacing: 0.66,
-                  color: Colors.white.withOpacity(0.45),
+                  color: Colors.white.withValues(alpha: 0.45),
                 ),
               ),
               const SizedBox(height: 6),
@@ -343,14 +243,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Budget ${Helpers.formatINR(Helpers.monthlyBudget)}',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withValues(alpha: 0.4),
                     ),
                   ),
                   Text(
                     '${budgetPct.round()}% used',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withValues(alpha: 0.4),
                     ),
                   ),
                 ],
@@ -359,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(2),
                 ),
                 child: FractionallySizedBox(
@@ -409,9 +309,10 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     final now = DateTime.now();
     final isCurrentMonth =
-        _selectedMonth.month == now.month && _selectedMonth.year == now.year;
+        widget.selectedMonth.month == now.month &&
+        widget.selectedMonth.year == now.year;
     final daysInMonth =
-        DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+        DateTime(widget.selectedMonth.year, widget.selectedMonth.month + 1, 0).day;
     final dayOfMonth = isCurrentMonth ? now.day : daysInMonth;
     final daysLeft = isCurrentMonth ? daysInMonth - dayOfMonth : 0;
     final dailyAvg =
@@ -457,140 +358,8 @@ class _HomeScreenState extends State<HomeScreen> {
         clipBehavior: Clip.none,
         padding: const EdgeInsets.symmetric(vertical: 5),
         itemCount: chips.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (context, i) => const SizedBox(width: 12),
         itemBuilder: (_, i) => _InsightChip(data: chips[i]),
-      ),
-    );
-  }
-
-  // ── Spending Breakdown ────────────────────────────────────────────────────
-
-  Widget _buildSpendingBreakdown(
-    List<CategoryData> breakdown,
-    double totalExpense,
-  ) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(17, 17, 17, 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Spending Breakdown', style: AppTheme.trackingWide),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Donut chart — outer box 112×112, chart padded inward by 8px
-              SizedBox(
-                width: 112,
-                height: 112,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: PieChart(
-                        PieChartData(
-                          sectionsSpace: 2,
-                          centerSpaceRadius: 22,
-                          sections: breakdown.take(5).map((cd) {
-                            return PieChartSectionData(
-                              color: Color(
-                                int.parse(
-                                      cd.category.color.substring(1),
-                                      radix: 16,
-                                    ) +
-                                    0xFF000000,
-                              ),
-                              value: cd.amount,
-                              title: '',
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'total',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            height: 1,
-                          ),
-                        ),
-                        Text(
-                          Helpers.formatINR(totalExpense).replaceFirst('₹', ''),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.primaryColor,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Legend
-              Expanded(
-                child: Column(
-                  children: breakdown.take(5).map((cd) {
-                    final pct = totalExpense > 0
-                        ? (cd.amount / totalExpense * 100).round()
-                        : 0;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: Color(
-                                int.parse(
-                                      cd.category.color.substring(1),
-                                      radix: 16,
-                                    ) +
-                                    0xFF000000,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              cd.category.name,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            '$pct%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -651,6 +420,107 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Inline Ad Card ────────────────────────────────────────────────────────
+
+  Widget _buildInlineAd() {
+    const green = Color(0xFF10B981);
+
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        color: const Color(0xFFD1FAE5),
+        border: Border.all(color: green.withValues(alpha: 0.13)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Stack(
+        children: [
+          // "Ad" label – top right
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Text(
+              'AD',
+              style: TextStyle(
+                fontSize: 9,
+                color: green.withValues(alpha: 0.6),
+                letterSpacing: 0.9,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              children: [
+                // Icon bubble
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: green.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text('📅', style: TextStyle(fontSize: 18)),
+                ),
+                const SizedBox(width: 12),
+                // Title + subtitle
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'BillTracker',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: green,
+                          height: 1.4,
+                        ),
+                      ),
+                      Text(
+                        'Never miss a payment again',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF374151),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Get App button
+                Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: green,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Get App',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(LucideIcons.arrowRight, size: 10, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDateGroup(String label, List<Transaction> txns) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -677,12 +547,6 @@ class _HomeScreenState extends State<HomeScreen> {
               final isNotFirst = entry.key > 0;
               final tx = entry.value;
               final category = Helpers.getCategoryById(tx.categoryId);
-              final catColor = Color(
-                int.parse(category.color.substring(1), radix: 16) + 0xFF000000,
-              );
-              final catBg = Color(
-                int.parse(category.bg.substring(1), radix: 16) + 0xFF000000,
-              );
 
               return Column(
                 children: [
@@ -714,21 +578,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           children: [
                             // Icon circle
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: catBg,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: CategoryIconWidget(
-                                  category: category,
-                                  size: 18,
-                                  color: catColor,
-                                ),
-                              ),
-                            ),
+                            CategoryIconBadge(category: category, size: 40),
                             const SizedBox(width: 12),
                             // Title + category
                             Expanded(
@@ -797,7 +647,7 @@ class _CardPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -842,7 +692,7 @@ class _InsightChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.07),
+            color: Colors.black.withValues(alpha: 0.07),
             blurRadius: 8,
             offset: const Offset(0, 1),
           ),
@@ -884,119 +734,6 @@ class _InsightChip extends StatelessWidget {
             style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Month picker bottom sheet ─────────────────────────────────────────────────
-
-class _MonthPickerSheet extends StatefulWidget {
-  final DateTime selected;
-  final ValueChanged<DateTime> onSelected;
-
-  const _MonthPickerSheet({required this.selected, required this.onSelected});
-
-  @override
-  State<_MonthPickerSheet> createState() => _MonthPickerSheetState();
-}
-
-class _MonthPickerSheetState extends State<_MonthPickerSheet> {
-  late int _year;
-
-  @override
-  void initState() {
-    super.initState();
-    _year = widget.selected.year;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Container(
-            width: 36,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E0E0),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          // Year navigator
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: () => setState(() => _year--),
-                icon: const Icon(LucideIcons.chevronLeft, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              Text(
-                '$_year',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              IconButton(
-                onPressed: () => setState(() => _year++),
-                icon: const Icon(LucideIcons.chevronRight, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Month grid (3 columns × 4 rows)
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 2.6,
-            physics: const NeverScrollableScrollPhysics(),
-            children: List.generate(12, (i) {
-              final m = DateTime(_year, i + 1, 1);
-              final isSelected =
-                  m.month == widget.selected.month &&
-                  m.year == widget.selected.year;
-              return GestureDetector(
-                onTap: () {
-                  widget.onSelected(m);
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    Helpers.months[i],
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              );
-            }),
           ),
         ],
       ),

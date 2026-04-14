@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/models.dart';
-import '../theme/app_theme.dart';
-import '../widgets/category_icon_widget.dart';
+import '../widgets/category_icon_badge.dart';
 import 'category_detail_screen.dart';
 
 class CategoriesScreen extends StatefulWidget {
@@ -24,7 +23,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F6),
       body: SafeArea(
         child: Stack(
           children: [
@@ -37,21 +35,21 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Categories',
                         style: TextStyle(
-                                                    fontSize: 28,
+                          fontSize: 28,
                           fontWeight: FontWeight.w500,
-                          color: AppTheme.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           letterSpacing: -0.7,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${_categories.length} categories',
-                        style: const TextStyle(
-                                                    fontSize: 14,
-                          color: AppTheme.textSecondary,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -61,9 +59,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 const SizedBox(height: 20),
 
                 // Divider
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
-                  child: Divider(color: AppTheme.borderColor, height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Divider(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    height: 1,
+                  ),
                 ),
 
                 const SizedBox(height: 9),
@@ -87,12 +88,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               color: Colors.transparent,
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black
-                                          .withOpacity(0.13 * t),
+                                          .withValues(alpha: 0.13 * t),
                                       blurRadius: 16 * t,
                                       offset: Offset(0, 6 * t),
                                     ),
@@ -139,11 +140,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.28),
+                        color: Colors.black.withValues(alpha: 0.28),
                         blurRadius: 20,
                         offset: const Offset(0, 4),
                       ),
@@ -181,10 +182,6 @@ class _CategoryListTile extends StatefulWidget {
 class _CategoryListTileState extends State<_CategoryListTile> {
   bool _pressed = false;
 
-  Color get _accentColor => Color(
-        int.parse(widget.category.color.substring(1), radix: 16) + 0xFF000000,
-      );
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -207,39 +204,31 @@ class _CategoryListTileState extends State<_CategoryListTile> {
           boxShadow: _pressed
               ? [
                   BoxShadow(
-                    color: _accentColor.withOpacity(0.18),
+                    color: Color(
+                      int.parse(
+                            widget.category.color.substring(1),
+                            radix: 16,
+                          ) +
+                          0xFF000000,
+                    ).withValues(alpha: 0.18),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [],
-          color: _pressed ? Colors.white : const Color(0xFFFFF8F6),
+          color: _pressed
+              ? Theme.of(context).colorScheme.surface
+              : Colors.transparent,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
               // Category icon circle
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _accentColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.10),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: CategoryIconWidget(
-                    category: widget.category,
-                    size: 22,
-                    color: Colors.white,
-                  ),
-                ),
+              CategoryIconBadge(
+                category: widget.category,
+                size: 48,
+                iconSize: 22,
               ),
 
               const SizedBox(width: 14),
@@ -248,10 +237,10 @@ class _CategoryListTileState extends State<_CategoryListTile> {
               Expanded(
                 child: Text(
                   widget.category.name,
-                  style: const TextStyle(
-                                        fontSize: 16,
+                  style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -259,12 +248,12 @@ class _CategoryListTileState extends State<_CategoryListTile> {
               // Drag handle
               ReorderableDragStartListener(
                 index: widget.index,
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 8),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
                   child: Icon(
                     LucideIcons.gripVertical,
                     size: 18,
-                    color: AppTheme.textTertiary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

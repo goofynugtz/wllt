@@ -24,7 +24,7 @@ class AddTransactionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEdit = editTransaction != null;
     return Scaffold(
-      backgroundColor: const Color(0xFFf5f2eb),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -36,8 +36,8 @@ class AddTransactionPage extends StatelessWidget {
                 children: [
                   Text(
                     isEdit ? 'Edit Transaction' : 'Add Transaction',
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -46,15 +46,15 @@ class AddTransactionPage extends StatelessWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceColor,
+                      color: Theme.of(context).colorScheme.secondaryContainer,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(
+                      icon: Icon(
                         LucideIcons.x,
                         size: 13,
-                        color: Color(0xFF666666),
+                        color: Theme.of(context).colorScheme.onSecondaryContainer,
                       ),
                       padding: EdgeInsets.zero,
                     ),
@@ -289,7 +289,15 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
   @override
   Widget build(BuildContext context) {
-    return _buildNormalForm(context);
+    return PopScope(
+      canPop: !_showCalculator,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _showCalculator) {
+          _closeCalculator(_calcTryEvaluate(_expression) ?? _expression);
+        }
+      },
+      child: _buildNormalForm(context),
+    );
   }
 
   Widget _buildNormalForm(BuildContext context) {
@@ -336,7 +344,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                   style: TextStyle(
                     fontSize: titleFontSize,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                     height: 1.15,
                   ),
                   decoration: InputDecoration(
@@ -344,7 +352,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                     hintStyle: TextStyle(
                       fontSize: titleFontSize,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFFBBBBBB),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                       height: 1.15,
                     ),
                     border: InputBorder.none,
@@ -364,7 +372,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
               SizedBox(
                 height: 106,
                 child: _showCalculator
-                    ? _buildExpressionDisplay()
+                    ? _buildExpressionDisplay(context)
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
@@ -373,11 +381,11 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                             onTap: _openCalculator,
                             child: Text(
                               '₹ ${_amount.isEmpty ? '0' : _amount}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Archia',
                                 fontSize: 64,
                                 fontWeight: FontWeight.normal,
-                                color: AppTheme.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                                 height: 1.1,
                               ),
                             ),
@@ -385,7 +393,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                           Container(
                             height: 1,
                             margin: const EdgeInsets.only(bottom: 20),
-                            color: Colors.black.withOpacity(0.08),
+                            color: Theme.of(context).colorScheme.outlineVariant,
                           ),
                         ],
                       ),
@@ -418,6 +426,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                     children: [
                       // Category section
                       _buildSectionHeader(
+                        context,
                         LucideIcons.tag,
                         'Category',
                         showEdit: true,
@@ -456,19 +465,17 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                       decoration: BoxDecoration(
                                         color: isSelected
                                             ? accentColor
-                                            : Colors.white,
+                                            : Theme.of(context).colorScheme.surfaceContainerHighest,
                                         shape: BoxShape.circle,
                                         border: isSelected
                                             ? null
                                             : Border.all(
-                                                color: const Color(0xFFE8E8E8),
+                                                color: Theme.of(context).colorScheme.outlineVariant,
                                                 width: 1,
                                               ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.06,
-                                            ),
+                                            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.06),
                                             blurRadius: 6,
                                             offset: const Offset(0, 2),
                                           ),
@@ -480,7 +487,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                           size: 30,
                                           color: isSelected
                                               ? Colors.white
-                                              : const Color(0xFF1a1a1a),
+                                              : Theme.of(context).colorScheme.onSurface,
                                         ),
                                       ),
                                     ),
@@ -492,9 +499,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                         textAlign: TextAlign.center,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 9,
-                                          color: Color(0xFF888888),
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ),
@@ -514,17 +521,17 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                         children: [
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 LucideIcons.calendar,
                                 size: 16,
-                                color: AppTheme.textSecondary,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 8),
-                              const Text(
+                              Text(
                                 'Created On',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: AppTheme.textSecondary,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -535,19 +542,19 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                 onTap: () => _pickDate(),
                                 child: Text(
                                   DateFormat('EEE d MMM').format(_selectedDate),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: AppTheme.textPrimary,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 6),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
                                 child: Text(
                                   '·',
                                   style: TextStyle(
-                                    color: AppTheme.textSecondary,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -555,10 +562,10 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                 onTap: () => _pickTime(),
                                 child: Text(
                                   DateFormat('HH:mm').format(_selectedDate),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: AppTheme.textPrimary,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ),
@@ -570,7 +577,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       const SizedBox(height: 24),
 
                       // Pay with section
-                      _buildSectionHeader(LucideIcons.creditCard, 'Pay with'),
+                      _buildSectionHeader(context, LucideIcons.creditCard, 'Pay with'),
                       const SizedBox(height: 12),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -594,19 +601,19 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                 width: isSelected ? 160.0 : 56.0,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppTheme.textPrimary
-                                      : Colors.white,
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(14),
                                   border: isSelected
                                       ? null
                                       : Border.all(
-                                          color: const Color(0xFFe8e8e8),
+                                          color: Theme.of(context).colorScheme.outlineVariant,
                                           width: 0.5,
                                         ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(
-                                        isSelected ? 0.15 : 0.06,
+                                      color: Theme.of(context).colorScheme.shadow.withValues(
+                                        alpha: isSelected ? 0.15 : 0.06,
                                       ),
                                       blurRadius: 4,
                                     ),
@@ -644,8 +651,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                               children: [
                                                 Text(
                                                   account.name,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
+                                                  style: TextStyle(
+                                                    color: Theme.of(context).colorScheme.onPrimary,
                                                     fontSize: 13,
                                                     fontWeight: FontWeight.w500,
                                                   ),
@@ -654,9 +661,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                     null)
                                                   Text(
                                                     '**** ${account.cardIdentifier}',
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       fontFamily: 'Archia',
-                                                      color: Color(0xFF898989),
+                                                      color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.65),
                                                       fontSize: 10,
                                                     ),
                                                   ),
@@ -676,10 +683,10 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                               )
                                             : Text(
                                                 _accountInitials(account.name),
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w600,
-                                                  color: Color(0xFF444444),
+                                                  color: Theme.of(context).colorScheme.onSurface,
                                                 ),
                                               ),
                                       ),
@@ -714,6 +721,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
                       // Tags section
                       _buildSectionHeader(
+                        context,
                         LucideIcons.tags,
                         'Tags',
                         showEdit: true,
@@ -723,8 +731,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          ..._tags.map((tag) => _buildTagChip(tag)),
-                          _buildAddTagButton(),
+                          ..._tags.map((tag) => _buildTagChip(context, tag)),
+                          _buildAddTagButton(context),
                         ],
                       ),
 
@@ -743,7 +751,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -766,17 +774,17 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
   // Expression display — replaces the amount GestureDetector in calculator mode.
   // Rendered in the exact same parent position so Y never shifts.
-  Widget _buildExpressionDisplay() {
+  Widget _buildExpressionDisplay(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ₹ stays fixed — only the expression scrolls
-        const Text(
+        Text(
           '₹',
           style: TextStyle(
             fontFamily: 'Archia',
             fontSize: 64,
-            color: AppTheme.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             height: 1.1,
           ),
         ),
@@ -797,8 +805,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       fontFamily: 'Archia',
                       fontSize: 64,
                       color: _expression.isEmpty
-                          ? const Color(0xFFBBBBBB)
-                          : AppTheme.textPrimary,
+                          ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                          : Theme.of(context).colorScheme.onSurface,
                       height: 1.1,
                     ),
                   ),
@@ -812,7 +820,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                   fontSize: 28,
                   color: _calcPreview.isEmpty
                       ? Colors.transparent
-                      : const Color(0xFF818181),
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.2,
                 ),
               ),
@@ -824,20 +832,22 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   }
 
   Widget _buildSectionHeader(
+    BuildContext context,
     IconData icon,
     String label, {
     bool showEdit = false,
     VoidCallback? onEdit,
   }) {
+    final labelColor = Theme.of(context).colorScheme.onSurfaceVariant;
     return Row(
       children: [
-        Icon(icon, size: 16, color: const Color(0xFFaaaaaa)),
+        Icon(icon, size: 16, color: labelColor),
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
-            color: Color(0xFF888888),
+            color: labelColor,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -847,12 +857,12 @@ class _ManualEntryFormState extends State<ManualEntryForm>
             onTap: onEdit,
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(LucideIcons.pencil, size: 11, color: Color(0xFF999999)),
-                SizedBox(width: 4),
+              children: [
+                Icon(LucideIcons.pencil, size: 11, color: labelColor),
+                const SizedBox(width: 4),
                 Text(
                   'Edit',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF999999)),
+                  style: TextStyle(fontSize: 11, color: labelColor),
                 ),
               ],
             ),
@@ -862,40 +872,41 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     );
   }
 
-  Widget _buildTagChip(String tag) {
+  Widget _buildTagChip(BuildContext context, String tag) {
     return GestureDetector(
       onTap: () => setState(() => _tags.remove(tag)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppTheme.textPrimary,
+          color: Theme.of(context).colorScheme.primary,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           '#$tag',
-          style: const TextStyle(fontSize: 12, color: Colors.white),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary),
         ),
       ),
     );
   }
 
-  Widget _buildAddTagButton() {
+  Widget _buildAddTagButton(BuildContext context) {
+    final subtleColor = Theme.of(context).colorScheme.onSurfaceVariant;
     return GestureDetector(
       onTap: () => _showAddTagDialog(),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFd0ccc4)),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.plus, size: 12, color: Color(0xFF999999)),
-            SizedBox(width: 4),
+            Icon(LucideIcons.plus, size: 12, color: subtleColor),
+            const SizedBox(width: 4),
             Text(
               'Add tag',
-              style: TextStyle(fontSize: 12, color: Color(0xFF999999)),
+              style: TextStyle(fontSize: 12, color: subtleColor),
             ),
           ],
         ),
@@ -1053,7 +1064,7 @@ class _VoiceInputFormState extends State<VoiceInputForm>
                 : _stage == VoiceStage.listening
                 ? 'Listening…'
                 : "Got it! Here's what I heard:",
-            style: const TextStyle(fontSize: 13, color: Color(0xFF888)),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
 
           if (_transcribed.isNotEmpty) ...[
@@ -1061,14 +1072,14 @@ class _VoiceInputFormState extends State<VoiceInputForm>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
+                color: Theme.of(context).colorScheme.secondaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 _transcribed,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF555),
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -1144,12 +1155,12 @@ class _VoiceInputFormState extends State<VoiceInputForm>
                       _transcribed = '';
                     }),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFd0ccc4)),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outline),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Retake',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF666)),
+                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ),
@@ -1245,9 +1256,9 @@ class _SmsImportFormState extends State<SmsImportForm> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'All SMS transactions reviewed!',
-              style: TextStyle(color: Color(0xFF888), fontSize: 13),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -1292,7 +1303,7 @@ class _SmsImportFormState extends State<SmsImportForm> {
                       ? AppTheme.primaryColor
                       : isCompleted
                       ? AppTheme.successColor
-                      : const Color(0xFFd8d4cc),
+                      : Theme.of(context).colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(3),
                 ),
               );
@@ -1305,9 +1316,9 @@ class _SmsImportFormState extends State<SmsImportForm> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderColor, width: 0.5),
+              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1317,16 +1328,16 @@ class _SmsImportFormState extends State<SmsImportForm> {
                   children: [
                     Text(
                       _currentCard!.bank,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFFaaa),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     Text(
                       _currentCard!.date,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFFaaa),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1334,9 +1345,9 @@ class _SmsImportFormState extends State<SmsImportForm> {
                 const SizedBox(height: 16),
                 Text(
                   _currentCard!.transactionTitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 19,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1405,7 +1416,7 @@ class _SmsImportFormState extends State<SmsImportForm> {
 
           Text(
             '${_currentIndex + 1} of ${_pending.length} pending SMS',
-            style: const TextStyle(fontSize: 11, color: Color(0xFFbbb)),
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
 
           const Spacer(),
@@ -1416,12 +1427,12 @@ class _SmsImportFormState extends State<SmsImportForm> {
                 child: OutlinedButton(
                   onPressed: () => _skip(_currentCard!.id),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFd0ccc4)),
+                    side: BorderSide(color: Theme.of(context).colorScheme.outline),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Skip',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF666)),
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
               ),
@@ -1446,9 +1457,9 @@ class _SmsImportFormState extends State<SmsImportForm> {
 
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
+            child: Text(
               'Accept all remaining',
-              style: TextStyle(fontSize: 12, color: Color(0xFFbbb)),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
         ],
@@ -1497,19 +1508,19 @@ class TransferForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Transfer',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Transfer money between accounts',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 32),
           const Text(

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -59,9 +60,21 @@ class WalletApp extends StatelessWidget {
             fontFamily: systemFont,
           ),
           themeMode: settings.themeMode,
-          home: storage.isOnboardingComplete
-              ? const LayoutScreen()
-              : const OnboardingFlow(),
+          home: StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final signedIn = snapshot.data != null;
+              if (signedIn && storage.isOnboardingComplete) {
+                return const LayoutScreen();
+              }
+              return const OnboardingFlow();
+            },
+          ),
           debugShowCheckedModeBanner: false,
         ),
       ),

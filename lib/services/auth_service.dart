@@ -27,6 +27,13 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
+  /// Disconnects the current Google account and opens the account picker,
+  /// allowing the user to choose a different Google account.
+  Future<UserCredential?> switchAccount() async {
+    await _googleSignIn.disconnect();
+    return signInWithGoogle();
+  }
+
   Future<void> signOut() => Future.wait([
         _googleSignIn.signOut(),
         _auth.signOut(),

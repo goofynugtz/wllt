@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/ad_config.dart';
 import '../services/ad_config_service.dart';
+import '../services/auth_service.dart';
 import '../screens/home_screen.dart';
 import '../screens/transactions_screen.dart';
 import '../screens/analytics_screen.dart';
@@ -171,29 +173,174 @@ class _LayoutScreenState extends State<LayoutScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text(
-                    'R',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+              GestureDetector(
+                onTap: () => _showAccountSheet(context),
+                child: _buildAvatarCircle(context, size: 36),
               ),
             ],
           ),
         ],
       ),
     ),
+    );
+  }
+
+  Widget _buildAvatarCircle(BuildContext context, {double size = 36}) {
+    final user = context.read<AuthService>().currentUser;
+    final photoUrl = user?.photoURL;
+    final initials = (user?.displayName?.isNotEmpty == true)
+        ? user!.displayName![0].toUpperCase()
+        : (user?.email?.isNotEmpty == true)
+            ? user!.email![0].toUpperCase()
+            : 'R';
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor,
+        shape: BoxShape.circle,
+        image: photoUrl != null
+            ? DecorationImage(
+                image: NetworkImage(photoUrl),
+                fit: BoxFit.cover,
+              )
+            : null,
+      ),
+      child: photoUrl == null
+          ? Center(
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  void _showAccountSheet(BuildContext context) {
+    final authService = context.read<AuthService>();
+    final user = authService.currentUser;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0E0E0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Account info row
+            Row(
+              children: [
+                _buildAvatarCircle(context, size: 48),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (user?.displayName != null)
+                        Text(
+                          user!.displayName!,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      if (user?.email != null)
+                        Text(
+                          user!.email!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Switch account
+            _buildAccountSheetAction(
+              context: context,
+              icon: LucideIcons.refreshCw,
+              label: 'Switch account',
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                await authService.switchAccount();
+                if (mounted) setState(() {});
+              },
+            ),
+            const SizedBox(height: 12),
+            // Sign out
+            _buildAccountSheetAction(
+              context: context,
+              icon: LucideIcons.logOut,
+              label: 'Sign out',
+              color: Colors.red,
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                await authService.signOut();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountSheetAction({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final effectiveColor =
+        color ?? Theme.of(context).colorScheme.onSurface;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: effectiveColor),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: effectiveColor,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

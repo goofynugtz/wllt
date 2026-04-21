@@ -111,7 +111,6 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   final List<String> _tags = [];
   late Account _account;
   bool _showCalculator = false;
-  String? _justSelectedId;
   late TextEditingController _titleController;
 
   // Calculator state — expression lives here so the display never moves
@@ -164,10 +163,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
   void _selectAccount(Account account) {
     if (account.id == _account.id) return;
-    setState(() {
-      _justSelectedId = account.id;
-      _account = account;
-    });
+    setState(() => _account = account);
   }
 
   void _openCalculator() {
@@ -582,136 +578,107 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
-                          children: [
-                            _account,
-                            ...Account.accounts.where(
-                              (a) => a.id != _account.id,
-                            ),
-                          ].map((account) {
+                          children: Account.accounts.map((account) {
                             final isSelected = account.id == _account.id;
-                            final isJustSelected =
-                                account.id == _justSelectedId;
-
-                            Widget tile = GestureDetector(
-                              onTap: () => _selectAccount(account),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 320),
-                                curve: Curves.easeInOut,
-                                height: 56,
-                                width: isSelected ? 160.0 : 56.0,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: isSelected
-                                      ? null
-                                      : Border.all(
-                                          color: Theme.of(context).colorScheme.outlineVariant,
-                                          width: 0.5,
-                                        ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(context).colorScheme.shadow.withValues(
-                                        alpha: isSelected ? 0.15 : 0.06,
-                                      ),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: isSelected
-                                    ? Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (account.bankLogoPath != null)
-                                              Container(
-                                                width: 30,
-                                                height: 30,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                padding: const EdgeInsets.all(4),
-                                                child: SvgPicture.asset(
-                                                  account.bankLogoPath!,
-                                                  fit: BoxFit.contain,
-                                                ),
-                                              ),
-                                            const SizedBox(width: 10),
-                                            Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  account.name,
-                                                  style: TextStyle(
-                                                    color: Theme.of(context).colorScheme.onPrimary,
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                if (account.cardIdentifier !=
-                                                    null)
-                                                  Text(
-                                                    '**** ${account.cardIdentifier}',
-                                                    style: TextStyle(
-                                                      fontFamily: 'Archia',
-                                                      color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.65),
-                                                      fontSize: 10,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    : Center(
-                                        child: account.bankLogoPath != null
-                                            ? Padding(
-                                                padding: const EdgeInsets.all(12),
-                                                child: SvgPicture.asset(
-                                                  account.bankLogoPath!,
-                                                  fit: BoxFit.contain,
-                                                ),
-                                              )
-                                            : Text(
-                                                _accountInitials(account.name),
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Theme.of(context).colorScheme.onSurface,
-                                                ),
-                                              ),
-                                      ),
-                              ),
-                            );
-
-                            if (isJustSelected) {
-                              tile = TweenAnimationBuilder<double>(
-                                key: ValueKey('slide_${account.id}'),
-                                tween: Tween(begin: 1.0, end: 0.0),
-                                duration: const Duration(milliseconds: 380),
-                                curve: Curves.easeOutCubic,
-                                builder: (ctx, value, child) =>
-                                    Transform.translate(
-                                      offset: Offset(value * 72, 0),
-                                      child: child,
-                                    ),
-                                child: tile,
-                              );
-                            }
 
                             return Padding(
                               key: ValueKey(account.id),
                               padding: const EdgeInsets.only(right: 10),
-                              child: tile,
+                              child: GestureDetector(
+                                onTap: () => _selectAccount(account),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 280),
+                                  curve: Curves.easeInOut,
+                                  clipBehavior: Clip.hardEdge,
+                                  height: 56,
+                                  width: isSelected ? 160.0 : 56.0,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: isSelected
+                                        ? null
+                                        : Border.all(
+                                            color: Theme.of(context).colorScheme.outlineVariant,
+                                            width: 0.5,
+                                          ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(context).colorScheme.shadow.withValues(
+                                          alpha: isSelected ? 0.15 : 0.06,
+                                        ),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: isSelected
+                                      ? Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (account.bankLogoPath != null)
+                                                Container(
+                                                  width: 30,
+                                                  height: 30,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  padding: const EdgeInsets.all(4),
+                                                  child: SvgPicture.asset(
+                                                    account.bankLogoPath!,
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                                ),
+                                              const SizedBox(width: 10),
+                                              Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    account.name,
+                                                    style: TextStyle(
+                                                      color: Theme.of(context).colorScheme.onPrimary,
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  if (account.cardIdentifier != null)
+                                                    Text(
+                                                      '**** ${account.cardIdentifier}',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Archia',
+                                                        color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.65),
+                                                        fontSize: 10,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : Center(
+                                          child: account.bankLogoPath != null
+                                              ? Padding(
+                                                  padding: const EdgeInsets.all(12),
+                                                  child: SvgPicture.asset(
+                                                    account.bankLogoPath!,
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                                )
+                                              : Text(
+                                                  _accountInitials(account.name),
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Theme.of(context).colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                        ),
+                                ),
+                              ),
                             );
                           }).toList(),
                         ),
@@ -748,20 +715,16 @@ class _ManualEntryFormState extends State<ManualEntryForm>
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             child: SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: const StadiumBorder(),
                 ),
                 child: const Text(
                   'Save Transaction',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

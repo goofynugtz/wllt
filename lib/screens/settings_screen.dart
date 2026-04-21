@@ -1,11 +1,12 @@
+import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../data/currencies.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/categories_screen.dart';
-import '../screens/currency_picker_screen.dart';
 import '../screens/onboarding/onboarding_flow.dart';
 import '../theme/app_theme.dart';
 
@@ -76,6 +77,9 @@ const _kColorSchemes = [
   ),
 ];
 
+// Trial end date — static placeholder until subscription backend is wired
+final _kTrialEndDate = DateTime(2026, 5, 14);
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 class SettingsScreen extends StatelessWidget {
@@ -115,6 +119,10 @@ class SettingsScreen extends StatelessWidget {
             SliverToBoxAdapter(child: _buildSectionLabel(context, 'Preferences')),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
             SliverToBoxAdapter(child: _buildPreferencesCard(context, prefs)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildSectionLabel(context, 'Premium')),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            SliverToBoxAdapter(child: _buildPremiumCard(context)),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             SliverToBoxAdapter(child: _buildSectionLabel(context, 'Account & Data')),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -319,8 +327,15 @@ class SettingsScreen extends StatelessWidget {
             icon: LucideIcons.dollarSign,
             label: 'Currency',
             value: prefs.currency,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CurrencyPickerScreen()),
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ChangeNotifierProvider.value(
+                value: context.read<UserPreferencesProvider>(),
+                child: const _CurrencySheet(),
+              ),
             ),
           ),
           Divider(
@@ -406,6 +421,43 @@ class SettingsScreen extends StatelessWidget {
               'Reset',
               style: TextStyle(color: Color(0xFFB3261E)),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPremiumSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _PremiumSheet(),
+    );
+  }
+
+  Widget _buildPremiumCard(BuildContext context) {
+    final daysLeft = _kTrialEndDate.difference(DateTime.now()).inDays;
+    return _SettingsCard(
+      child: Column(
+        children: [
+          _SettingsTappableRow(
+            icon: LucideIcons.sparkles,
+            label: 'WLLT Premium',
+            value: '${daysLeft}d left',
+            onTap: () => _showPremiumSheet(context),
+          ),
+          Divider(
+            height: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant,
+            indent: 16,
+            endIndent: 16,
+          ),
+          const _SettingsReadOnlyRow(
+            icon: LucideIcons.scanLine,
+            label: 'Bill scanning',
+            value: 'Available',
           ),
         ],
       ),
@@ -790,6 +842,570 @@ class _ThemeSegment extends StatelessWidget {
 
 // ── Color scheme swatch ───────────────────────────────────────────────────────
 
+// ── Currency sheet row ────────────────────────────────────────────────────────
+
+class _SheetCurrencyRow extends StatelessWidget {
+  final CurrencyInfo currency;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _SheetCurrencyRow({
+    required this.currency,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 66,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.5)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            CountryFlag.fromCountryCode(
+              currency.countryCode,
+              height: 24,
+              width: 34,
+              shape: const RoundedRectangle(4),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    currency.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    '${currency.code} · ${currency.symbol} · ${currency.country}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  LucideIcons.check,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Currency bottom sheet ─────────────────────────────────────────────────────
+
+class _CurrencySheet extends StatefulWidget {
+  const _CurrencySheet();
+
+  @override
+  State<_CurrencySheet> createState() => _CurrencySheetState();
+}
+
+class _CurrencySheetState extends State<_CurrencySheet> {
+  String _query = '';
+  late String _selectedCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCode = context.read<UserPreferencesProvider>().currency;
+  }
+
+  List<CurrencyInfo> get _filtered {
+    if (_query.isEmpty) return kCurrencies;
+    final q = _query.toLowerCase();
+    return kCurrencies
+        .where((c) =>
+            c.name.toLowerCase().contains(q) ||
+            c.code.toLowerCase().contains(q) ||
+            c.country.toLowerCase().contains(q))
+        .toList();
+  }
+
+  Future<void> _select(String code) async {
+    setState(() => _selectedCode = code);
+    await context.read<UserPreferencesProvider>().setCurrency(code);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _filtered;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant
+                  .withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Currency',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              autofocus: false,
+              onChanged: (v) => setState(() => _query = v),
+              style: TextStyle(
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search currencies...',
+                hintStyle: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                prefixIcon: Icon(
+                  LucideIcons.search,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: filtered.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          LucideIcons.searchX,
+                          size: 36,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No results for "$_query"',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, i) {
+                      final c = filtered[i];
+                      return _SheetCurrencyRow(
+                        currency: c,
+                        isSelected: c.code == _selectedCode,
+                        onTap: () => _select(c.code),
+                      );
+                    },
+                  ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Premium feature row ───────────────────────────────────────────────────────
+
+class _PremiumFeatureRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? badge;
+
+  const _PremiumFeatureRow({
+    required this.icon,
+    required this.label,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(
+            icon,
+            size: 15,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+        if (badge != null) ...[
+          const SizedBox(width: 8),
+          Container(
+            height: 19,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              badge!,
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ── Premium upgrade sheet ─────────────────────────────────────────────────────
+
+class _PremiumSheet extends StatelessWidget {
+  const _PremiumSheet();
+
+  static const _gradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1A1130), Color(0xFF4F378B), Color(0xFF7A65C4)],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final daysLeft = _kTrialEndDate.difference(DateTime.now()).inDays;
+    final trialLabel = daysLeft > 0
+        ? '$daysLeft days left in your free trial.'
+        : 'Your free trial has ended.';
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      child: ColoredBox(
+        color: Theme.of(context).colorScheme.surface,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Gradient header
+            SizedBox(
+              height: 184,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(gradient: _gradient),
+                    ),
+                  ),
+                  // Decorative circles
+                  Positioned(
+                    right: -22,
+                    top: -40,
+                    child: Container(
+                      width: 176,
+                      height: 176,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: -32,
+                    top: 31,
+                    child: Container(
+                      width: 208,
+                      height: 208,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  // Close button
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          LucideIcons.x,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Header content
+                  Positioned(
+                    left: 24,
+                    top: 24,
+                    right: 64,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            LucideIcons.wallet,
+                            size: 28,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'WLLT Premium',
+                          style: TextStyle(
+                            fontSize: 24,
+                            color: Colors.white,
+                            letterSpacing: -0.6,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          trialLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0x99FFFFFF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Scrollable body
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "WHAT'S INCLUDED",
+                    style: AppTheme.trackingWide.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const _PremiumFeatureRow(
+                    icon: LucideIcons.scanLine,
+                    label: 'Bill & receipt scanning with AI',
+                    badge: 'Most used',
+                  ),
+                  const SizedBox(height: 12),
+                  const _PremiumFeatureRow(
+                    icon: LucideIcons.lightbulb,
+                    label: 'Smart insights & spend predictions',
+                  ),
+                  const SizedBox(height: 12),
+                  const _PremiumFeatureRow(
+                    icon: LucideIcons.barChart2,
+                    label: 'Advanced analytics & export',
+                  ),
+                  const SizedBox(height: 12),
+                  const _PremiumFeatureRow(
+                    icon: LucideIcons.tag,
+                    label: 'Unlimited categories & budgets',
+                  ),
+                  const SizedBox(height: 12),
+                  const _PremiumFeatureRow(
+                    icon: LucideIcons.volumeX,
+                    label: 'No ads',
+                  ),
+                  const SizedBox(height: 20),
+                  // Pricing card
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Monthly',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Cancel any time',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '\$4.99',
+                              style: TextStyle(
+                                fontSize: 22,
+                                letterSpacing: -0.55,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            Text(
+                              'per month',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // CTA button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.onSurface,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.surface,
+                        shape: const StadiumBorder(),
+                        elevation: 4,
+                      ),
+                      icon: const Icon(LucideIcons.arrowRight, size: 18),
+                      label: const Text(
+                        'Upgrade Now — \$4.99/mo',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: MediaQuery.of(context).padding.bottom + 20,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Color scheme swatch ───────────────────────────────────────────────────────
+
 class _ColorSwatch extends StatelessWidget {
   final _AppColorScheme scheme;
   final bool isSelected;
@@ -803,59 +1419,82 @@ class _ColorSwatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: isSelected ? null : scheme.container,
-              gradient: isSelected
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        scheme.seed.withValues(alpha: 0.8),
-                        scheme.seed,
-                      ],
-                    )
-                  : null,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: scheme.seed.withValues(alpha: 0.33),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: isSelected
-                ? const Icon(LucideIcons.check, size: 26, color: Colors.white)
-                : Center(
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: scheme.onContainer,
-                        shape: BoxShape.circle,
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: isSelected ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            builder: (context, t, _) {
+              final bgTop = Color.lerp(
+                scheme.container,
+                scheme.seed.withValues(alpha: 0.8),
+                t,
+              )!;
+              final bgBottom = Color.lerp(scheme.container, scheme.seed, t)!;
+              final shadowAlpha = t * 0.33;
+              return Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [bgTop, bgBottom],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.seed.withValues(alpha: shadowAlpha),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Unselected dot — fades out
+                    Opacity(
+                      opacity: (1 - t).clamp(0.0, 1.0),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Color.lerp(scheme.onContainer, Colors.white, t),
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
-                  ),
+                    // Check icon — fades in
+                    Opacity(
+                      opacity: t.clamp(0.0, 1.0),
+                      child: const Icon(LucideIcons.check, size: 26, color: Colors.white),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 6),
-          Text(
-            scheme.name,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: isSelected ? scheme.seed : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: isSelected ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            builder: (context, t, _) {
+              return Text(
+                scheme.name,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Color.lerp(surfaceVariant, scheme.seed, t),
+                ),
+              );
+            },
           ),
         ],
       ),

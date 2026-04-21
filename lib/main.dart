@@ -46,38 +46,53 @@ class WalletApp extends StatelessWidget {
           create: (_) => AuthService(),
         ),
       ],
-      child: Consumer<AppSettingsProvider>(
-        builder: (context, settings, _) => MaterialApp(
-          title: 'WLLT',
-          theme: AppTheme.fromSeed(
-            settings.colorSeed,
-            Brightness.light,
-            fontFamily: systemFont,
-          ),
-          darkTheme: AppTheme.fromSeed(
-            settings.colorSeed,
-            Brightness.dark,
-            fontFamily: systemFont,
-          ),
-          themeMode: settings.themeMode,
-          home: StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-              final signedIn = snapshot.data != null;
-              if (signedIn && storage.isOnboardingComplete) {
-                return const LayoutScreen();
-              }
-              return const OnboardingFlow();
-            },
-          ),
-          debugShowCheckedModeBanner: false,
-        ),
+      child: _ThemedApp(storage: storage, systemFont: systemFont),
+    );
+  }
+}
+
+class _ThemedApp extends StatefulWidget {
+  final StorageService storage;
+  final String systemFont;
+
+  const _ThemedApp({required this.storage, required this.systemFont});
+
+  @override
+  State<_ThemedApp> createState() => _ThemedAppState();
+}
+
+class _ThemedAppState extends State<_ThemedApp> {
+  // Cached once — prevents StreamBuilder from resubscribing on every theme
+  // rebuild, which would briefly show a loading state and reset LayoutScreen.
+  late final Stream<User?> _authStream =
+      FirebaseAuth.instance.authStateChanges();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorSeed = context.select<AppSettingsProvider, Color>((s) => s.colorSeed);
+    final themeMode = context.select<AppSettingsProvider, ThemeMode>((s) => s.themeMode);
+
+    return MaterialApp(
+      title: 'WLLT',
+      theme: AppTheme.fromSeed(colorSeed, Brightness.light, fontFamily: widget.systemFont),
+      darkTheme: AppTheme.fromSeed(colorSeed, Brightness.dark, fontFamily: widget.systemFont),
+      themeMode: themeMode,
+      home: StreamBuilder<User?>(
+        stream: _authStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final signedIn = snapshot.data != null;
+          if (signedIn && widget.storage.isOnboardingComplete) {
+            return const LayoutScreen();
+          }
+          return const OnboardingFlow();
+        },
       ),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

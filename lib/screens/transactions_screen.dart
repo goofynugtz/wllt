@@ -26,19 +26,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   List<Transaction> get _filteredTransactions {
+    final query = _searchController.text.toLowerCase().trim();
     return Transaction.transactions.where((tx) {
       final matchMonth =
           tx.date.month == widget.selectedMonth.month &&
           tx.date.year == widget.selectedMonth.year;
       final category = Helpers.getCategoryById(tx.categoryId);
-      final matchSearch =
-          _searchController.text.isEmpty ||
-          tx.transactionTitle.toLowerCase().contains(
-            _searchController.text.toLowerCase(),
-          ) ||
-          category.name.toLowerCase().contains(
-            _searchController.text.toLowerCase(),
-          );
+      final matchSearch = query.isEmpty ||
+          tx.transactionTitle.toLowerCase().contains(query) ||
+          category.name.toLowerCase().contains(query) ||
+          tx.amount.toString().contains(query) ||
+          Helpers.formatINR(tx.amount).toLowerCase().contains(query);
       final matchType =
           _filter == TransactionFilter.all || tx.type.name == _filter.name;
       return matchMonth && matchSearch && matchType;
@@ -68,18 +66,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               controller: _searchController,
               onChanged: (value) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Search merchant or category…',
-                hintStyle: const TextStyle(
-                  color: AppTheme.textSecondary,
+                hintText: 'Search merchant, category or amount…',
+                hintStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 13,
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   LucideIcons.search,
                   size: 14,
-                  color: AppTheme.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 filled: true,
-                fillColor: AppTheme.surfaceColor,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -89,7 +87,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   vertical: 12.5,
                 ),
               ),
-              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 13,
+              ),
             ),
           ),
 
@@ -105,24 +106,38 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     padding: const EdgeInsets.only(right: 8),
                     child: GestureDetector(
                       onTap: () => setState(() => _filter = filter),
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeInOut,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
                           color: isActive
-                              ? AppTheme.primaryColor
-                              : AppTheme.surfaceColor,
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Text(
                           filter.label,
                           style: TextStyle(
                             fontSize: 12,
                             color: isActive
-                                ? Colors.white
-                                : AppTheme.onSurfaceColor,
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -139,14 +154,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceColor,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${_totalFiltered >= 0 ? '+' : '−'}${Helpers.formatINR(_totalFiltered.abs())}',
                     style: TextStyle(
                       fontSize: 12,
-                                            color: _totalFiltered >= 0
+                      color: _totalFiltered >= 0
                           ? AppTheme.incomeColor
                           : AppTheme.expenseColor,
                     ),

@@ -165,134 +165,186 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Balance Card ──────────────────────────────────────────────────────────
 
+  List<Color> _buildCardGradient(Color primary) {
+    final hsl = HSLColor.fromColor(primary);
+    return [
+      hsl.withLightness(0.08).toColor(),
+      hsl.withLightness(0.27).toColor(),
+      hsl.withLightness(0.36).toColor(),
+    ];
+  }
+
+
+
   Widget _buildBalanceCard(
     double totalExpense,
     double budgetPct,
     double totalIncome,
   ) {
     final monthName = Helpers.months[widget.selectedMonth.month - 1];
+    final year = widget.selectedMonth.year;
+    final hasBudget = Helpers.monthlyBudget > 0;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       clipBehavior: Clip.hardEdge,
-      decoration: const BoxDecoration(
-        color: AppTheme.primaryColor,
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: const Alignment(0.7, -1.0),
+          end: const Alignment(-0.3, 1.0),
+          colors: _buildCardGradient(Theme.of(context).colorScheme.primary),
+          stops: const [0.0, 0.55, 1.0],
+        ),
+        borderRadius: BorderRadius.circular(28),
       ),
       child: Stack(
+        // Clip.none so circles aren't pre-clipped to Stack's rectangular
+        // bounds — the parent Container's rounded clip handles it cleanly.
+        clipBehavior: Clip.none,
         children: [
-          // Decorative circles
+          // Decorative circles — sized and positioned to match Figma
           Positioned(
-            top: -48,
-            right: -48,
+            top: -40,
+            right: -40,
             child: Container(
-              width: 144,
-              height: 144,
+              width: 176,
+              height: 176,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
+                color: Colors.white.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
             ),
           ),
           Positioned(
-            bottom: -32,
-            left: -24,
+            top: 30,
+            left: -32,
             child: Container(
-              width: 112,
-              height: 112,
+              width: 208,
+              height: 208,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
+                color: Colors.white.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
             ),
           ),
 
-          Column(
+          // Card content
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Spending label
-              Text(
-                '$monthName spending'.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 11,
-                  letterSpacing: 0.66,
-                  color: Colors.white.withValues(alpha: 0.45),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Month label
+                    Text(
+                      '$monthName $year · Overview'.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        letterSpacing: 1.1,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Amount
+                    Text(
+                      Helpers.formatINR(totalExpense),
+                      style: const TextStyle(
+                        fontSize: 38,
+                        color: Colors.white,
+                        letterSpacing: -0.95,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'total spent this month',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Budget section
+                    if (hasBudget) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Budget ${Helpers.formatINR(Helpers.monthlyBudget)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          Text(
+                            '${budgetPct.round()}% used',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: budgetPct / 100,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: budgetPct > 85
+                                  ? AppTheme.warningColor
+                                  : AppTheme.successColor,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      Text(
+                        'No budgets configured',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Edit categories to set monthly budgets',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(width: 12),
 
-              // Amount
-              Text(
-                Helpers.formatINR(totalExpense),
-                style: const TextStyle(
-                  fontSize: 38,
-                  color: Colors.white,
-                  letterSpacing: -1,
-                  height: 1,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Budget bar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Budget ${Helpers.formatINR(Helpers.monthlyBudget)}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  Text(
-                    '${budgetPct.round()}% used',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
+              // Wallet icon circle
               Container(
-                height: 4,
+                width: 82,
+                height: 82,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(2),
+                  color: Colors.white.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
                 ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: budgetPct / 100,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: budgetPct > 85
-                          ? AppTheme.warningColor
-                          : AppTheme.successColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+                child: const Icon(
+                  LucideIcons.wallet,
+                  size: 28,
+                  color: Colors.white,
                 ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Pill row
-              Row(
-                children: [
-                  _CardPill(
-                    icon: LucideIcons.trendingUp,
-                    iconColor: AppTheme.successColor,
-                    label: '${Helpers.formatINR(totalIncome)} income',
-                  ),
-                  const SizedBox(width: 8),
-                  _CardPill(
-                    icon: LucideIcons.trendingDown,
-                    iconColor: AppTheme.warningColor,
-                    label: '${Helpers.formatINR(totalExpense)} spent',
-                  ),
-                ],
               ),
             ],
           ),
@@ -631,36 +683,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // ── Supporting widgets ────────────────────────────────────────────────────────
 
-class _CardPill extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-
-  const _CardPill({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: iconColor),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.white)),
-        ],
-      ),
-    );
-  }
-}
 
 class _InsightChipData {
   final IconData icon;

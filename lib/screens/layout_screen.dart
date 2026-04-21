@@ -12,6 +12,7 @@ import '../screens/accounts_screen.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/ad_banner.dart';
 import '../screens/settings_screen.dart';
+import '../screens/add_account_screen.dart';
 import '../utils/helpers.dart';
 
 class LayoutScreen extends StatefulWidget {
@@ -351,15 +352,15 @@ class _LayoutScreenState extends State<LayoutScreen> {
     // Settings — no FAB
     if (_currentIndex == 4) return null;
 
-    // Accounts — simple add-account button
+    // Accounts — navigate to add account
     if (_currentIndex == 3) {
       return FloatingActionButton(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add account coming soon!')),
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AddAccountScreen()),
           );
         },
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 8,
         child: const Icon(LucideIcons.plus, size: 24, color: Colors.white),
       );
@@ -401,7 +402,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
         ],
         FloatingActionButton(
           onPressed: () => setState(() => _isFabExpanded = !_isFabExpanded),
-          backgroundColor: AppTheme.primaryColor,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           elevation: 8,
           child: AnimatedRotation(
             turns: _isFabExpanded ? 0.125 : 0,
@@ -533,29 +534,58 @@ class _LayoutScreenState extends State<LayoutScreen> {
                   ),
                 ),
                 child: SafeArea(
-                  child: Theme(
-                    data: Theme.of(context).copyWith(
-                      splashColor: Colors.transparent,
-                      highlightColor: Colors.transparent,
-                    ),
-                    child: BottomNavigationBar(
-                      currentIndex: _currentIndex,
-                      onTap: _navigateToTab,
-                      type: BottomNavigationBarType.fixed,
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      selectedFontSize: 11,
-                      unselectedFontSize: 11,
-                      selectedItemColor: AppTheme.primaryColor,
-                      unselectedItemColor: AppTheme.textSecondary,
-                      items: _navItems.map((item) {
-                        return BottomNavigationBarItem(
-                          icon: Icon(item.icon, size: 22),
-                          activeIcon: Icon(item.icon, size: 22, weight: 2.5),
-                          label: item.label,
-                        );
-                      }).toList(),
-                    ),
+                  child: Row(
+                    children: _navItems.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final item = entry.value;
+                      final isActive = _currentIndex == i;
+                      final cs = Theme.of(context).colorScheme;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => _navigateToTab(i),
+                          behavior: HitTestBehavior.opaque,
+                          child: SizedBox(
+                            height: 63,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                  width: isActive ? 60 : 36,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: isActive
+                                        ? cs.primaryContainer
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Icon(
+                                    item.icon,
+                                    size: 20,
+                                    color: isActive
+                                        ? cs.onPrimaryContainer
+                                        : cs.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.label,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: isActive
+                                        ? cs.onPrimaryContainer
+                                        : cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
               ),

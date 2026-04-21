@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/app_theme.dart';
 
 /// Pure grid widget — all expression state and logic live in the parent.
 class AmountCalculator extends StatelessWidget {
@@ -13,12 +12,7 @@ class AmountCalculator extends StatelessWidget {
     required this.onSetPressed,
   });
 
-  // Number buttons: warm off-white; Operator buttons: deep muted purple-charcoal
-  static const _kNumBg   = Color(0xFFEDE8F5);
-  static const _kNumFg   = AppTheme.textPrimary;
-  static const _kOpBg    = Color(0xFF4A4458);
-  static const _kOpFg    = Colors.white;
-  static const _kGap     = 5.0;
+  static const _kGap = 5.0;
 
   static const List<List<(String, String)>> _grid = [
     [('AC', 'd'), ('( )', 'd'), ('%', 'd'), ('÷', 'd')],
@@ -30,6 +24,12 @@ class AmountCalculator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final numBg = cs.surfaceContainerHigh;
+    final numFg = cs.onSurface;
+    final opBg  = cs.secondaryContainer;
+    final opFg  = cs.onSecondaryContainer;
+
     return Column(
       children: [
         const SizedBox(height: 20),
@@ -55,13 +55,14 @@ class AmountCalculator extends StatelessWidget {
                         children: rowEntry.value.map((entry) {
                           final (label, type) = entry;
                           final bgColor = switch (type) {
-                            'g' => AppTheme.primaryColor,
-                            'd' => _kOpBg,
-                            _ => _kNumBg,
+                            'g' => cs.primary,
+                            'd' => opBg,
+                            _ => numBg,
                           };
                           final fgColor = switch (type) {
-                            'l' => _kNumFg,
-                            _ => _kOpFg,
+                            'g' => cs.onPrimary,
+                            'd' => opFg,
+                            _ => numFg,
                           };
                           return SizedBox(
                             width: btnSize,
@@ -104,26 +105,20 @@ class AmountCalculator extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // Material You filled pill button
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton(
+          child: FilledButton(
             onPressed: onSetPressed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 17),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
               shape: const StadiumBorder(),
             ),
             child: const Text(
               'Set Amount',
               style: TextStyle(
-                                fontSize: 15,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
-                color: Colors.white,
               ),
             ),
           ),

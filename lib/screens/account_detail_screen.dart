@@ -23,7 +23,7 @@ class AccountDetailScreen extends StatelessWidget {
   }
 
   List<Transaction> get _transactions =>
-      Transaction.transactions
+      Transaction.dummyData
           .where((t) => t.account == account.name)
           .toList()
         ..sort((a, b) => b.date.compareTo(a.date));
@@ -103,12 +103,17 @@ class AccountDetailScreen extends StatelessWidget {
                             ),
                             _HeroButton(
                               icon: LucideIcons.pencil,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AddAccountScreen(initialAccount: account),
-                                ),
-                              ),
+                              onTap: () async {
+                                final result = await Navigator.push<String>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddAccountScreen(initialAccount: account),
+                                  ),
+                                );
+                                if (result == 'deleted' && context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
                             ),
                           ],
                         ),

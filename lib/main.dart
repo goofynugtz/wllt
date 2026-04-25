@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
+import 'providers/account_provider.dart';
 import 'providers/app_settings_provider.dart';
+import 'providers/transaction_provider.dart';
 import 'providers/user_preferences_provider.dart';
 import 'screens/layout_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
@@ -41,6 +43,14 @@ class WalletApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => UserPreferencesProvider(storage),
+        ),
+        ChangeNotifierProxyProvider<AppSettingsProvider, TransactionProvider>(
+          create: (_) => TransactionProvider(storage, devMode: storage.devMode),
+          update: (_, settings, prev) => prev!..reloadIfNeeded(settings.devMode),
+        ),
+        ChangeNotifierProxyProvider<AppSettingsProvider, AccountProvider>(
+          create: (_) => AccountProvider(storage, devMode: storage.devMode),
+          update: (_, settings, prev) => prev!..reloadIfNeeded(settings.devMode),
         ),
         Provider<AuthService>(
           create: (_) => AuthService(),

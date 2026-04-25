@@ -8,6 +8,7 @@ import 'package:country_flags/country_flags.dart';
 import '../data/currencies.dart';
 import '../providers/user_preferences_provider.dart';
 import '../models/models.dart';
+import '../providers/account_provider.dart';
 import 'add_card_screen.dart';
 import 'bank_picker_screen.dart';
 import 'currency_picker_screen.dart';
@@ -78,6 +79,53 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
     // the Consumer below will rebuild with the updated currency.
   }
 
+  Future<void> _saveAccount() async {
+    final balance = double.tryParse(_balanceController.text) ?? 0.0;
+    final account = Account(
+      id: widget.initialAccount?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      name: _selectedBank!.name,
+      type: AccountType.bank,
+      balance: balance,
+      bank: _selectedBank!.name,
+      bankLogoPath: _selectedBank!.logoPath,
+      sparkline: widget.initialAccount?.sparkline ?? [balance],
+    );
+    final provider = context.read<AccountProvider>();
+    if (widget.initialAccount != null) {
+      await provider.updateAccount(account);
+    } else {
+      await provider.addAccount(account);
+    }
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text('This removes the account. Linked transactions are not affected.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<AccountProvider>().deleteAccount(widget.initialAccount!.id);
+      if (mounted) Navigator.of(context).pop('deleted');
+    }
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -126,8 +174,14 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                       ],
                     ),
                   ),
-                  // Dynamic bank badge
-                  _BankLogoBox(bank: _selectedBank, size: 36, borderRadius: 14),
+                  // Delete icon when editing, bank badge when creating
+                  if (widget.initialAccount != null)
+                    IconButton(
+                      icon: Icon(LucideIcons.trash2, color: Theme.of(context).colorScheme.error, size: 20),
+                      onPressed: _confirmDelete,
+                    )
+                  else
+                    _BankLogoBox(bank: _selectedBank, size: 36, borderRadius: 14),
                 ],
               ),
             ),
@@ -364,13 +418,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
               child: SafeArea(
                 top: false,
                 child: GestureDetector(
-                  onTap: _selectedBank == null
-                      ? null
-                      : () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Account creation coming soon!')),
-                          );
-                        },
+                  onTap: _selectedBank == null ? null : _saveAccount,
                   child: Container(
                     width: double.infinity,
                     height: 56,
@@ -395,7 +443,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                         Icon(LucideIcons.check, size: 18, color: cs.surface),
                         const SizedBox(width: 8),
                         Text(
-                          'Create Account',
+                          widget.initialAccount != null ? 'Update Account' : 'Create Account',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,

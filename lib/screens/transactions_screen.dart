@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../utils/helpers.dart';
 import '../widgets/category_icon_badge.dart';
+import '../providers/transaction_provider.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../screens/layout_screen.dart';
 
@@ -25,9 +27,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     super.dispose();
   }
 
-  List<Transaction> get _filteredTransactions {
+  List<Transaction> _filteredTransactions(List<Transaction> source) {
     final query = _searchController.text.toLowerCase().trim();
-    return Transaction.transactions.where((tx) {
+    return source.where((tx) {
       final matchMonth =
           tx.date.month == widget.selectedMonth.month &&
           tx.date.year == widget.selectedMonth.year;
@@ -43,19 +45,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }).toList()..sort((a, b) => b.date.compareTo(a.date));
   }
 
-  Map<String, List<Transaction>> get _groupedTransactions {
-    return Helpers.groupByDate(_filteredTransactions);
-  }
-
-  double get _totalFiltered {
-    return _filteredTransactions.fold(0.0, (sum, tx) {
-      return sum +
-          (tx.type == TransactionType.expense ? -tx.amount : tx.amount);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final allTx = context.watch<TransactionProvider>().transactions;
+    final filtered = _filteredTransactions(allTx);
+    final grouped = Helpers.groupByDate(filtered);
+    final total = filtered.fold(0.0, (sum, tx) =>
+        sum + (tx.type == TransactionType.expense ? -tx.amount : tx.amount));
     return Scaffold(
       body: Column(
         children: [
@@ -158,10 +154,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${_totalFiltered >= 0 ? '+' : '−'}${Helpers.formatINR(_totalFiltered.abs())}',
+                    '${total >= 0 ? '+' : '−'}${Helpers.formatINR(total.abs())}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: _totalFiltered >= 0
+                      color: total >= 0
                           ? AppTheme.incomeColor
                           : AppTheme.expenseColor,
                     ),
@@ -175,7 +171,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
           // Transactions list
           Expanded(
-            child: _groupedTransactions.isEmpty
+            child: grouped.isEmpty
                 ? Center(
                     child: Text(
                       'No transactions found',
@@ -184,7 +180,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   )
                 : ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: _groupedTransactions.entries.map((entry) {
+                    children: grouped.entries.map((entry) {
                       return _buildDayGroup(entry.key, entry.value);
                     }).toList(),
                   ),

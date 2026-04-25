@@ -376,6 +376,25 @@ class SettingsScreen extends StatelessWidget {
             indent: 16,
             endIndent: 16,
           ),
+          Divider(
+            height: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant,
+            indent: 16,
+            endIndent: 16,
+          ),
+          _SettingsSwitchRow(
+            icon: LucideIcons.flaskConical,
+            label: 'Dev mode',
+            subtitle: 'Show sample data instead of real data',
+            value: settings.devMode,
+            onChanged: (v) => context.read<AppSettingsProvider>().setDevMode(v),
+          ),
+          Divider(
+            height: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant,
+            indent: 16,
+            endIndent: 16,
+          ),
           _SettingsTappableRow(
             icon: LucideIcons.trash2,
             label: 'Reset all data',
@@ -728,6 +747,71 @@ class _SettingsReadOnlyRow extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Switch row ────────────────────────────────────────────────────────────────
+
+class _SettingsSwitchRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SettingsSwitchRow({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(value: value, onChanged: onChanged),
         ],
       ),
     );

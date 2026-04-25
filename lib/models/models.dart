@@ -28,6 +28,38 @@ class Category {
   /// Backward compat: existing screens that call category.icon still compile.
   String get icon => iconPath ?? '';
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'color': color,
+    'bg': bg,
+    if (iconPath != null) 'iconPath': iconPath,
+    if (lucideIcon != null) ...{
+      'iconCodePoint': lucideIcon!.codePoint,
+      'iconFontFamily': lucideIcon!.fontFamily,
+      'iconFontPackage': lucideIcon!.fontPackage,
+    },
+  };
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    IconData? lucideIcon;
+    if (json['iconCodePoint'] != null) {
+      lucideIcon = IconData(
+        json['iconCodePoint'] as int,
+        fontFamily: json['iconFontFamily'] as String?,
+        fontPackage: json['iconFontPackage'] as String?,
+      );
+    }
+    return Category(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      lucideIcon: lucideIcon,
+      iconPath: json['iconPath'] as String?,
+      color: json['color'] as String,
+      bg: (json['bg'] as String?) ?? json['color'] as String,
+    );
+  }
+
   static const List<Category> categories = [
     Category(id: 'shopping',   name: 'Shopping',   lucideIcon: LucideIcons.shoppingBag,  color: '#EBA9A9', bg: '#fce4ec'),
     Category(id: 'restaurant', name: 'Restaurant', lucideIcon: LucideIcons.utensils,     color: '#E2B932', bg: '#fffde7'),
@@ -80,7 +112,53 @@ class Transaction {
     this.note,
   });
 
-  static List<Transaction> transactions = [
+  Transaction copyWith({
+    String? id,
+    String? transactionTitle,
+    String? categoryId,
+    double? amount,
+    TransactionType? type,
+    DateTime? date,
+    String? account,
+    List<String>? tags,
+    String? note,
+  }) => Transaction(
+    id: id ?? this.id,
+    transactionTitle: transactionTitle ?? this.transactionTitle,
+    categoryId: categoryId ?? this.categoryId,
+    amount: amount ?? this.amount,
+    type: type ?? this.type,
+    date: date ?? this.date,
+    account: account ?? this.account,
+    tags: tags ?? this.tags,
+    note: note ?? this.note,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'transactionTitle': transactionTitle,
+    'categoryId': categoryId,
+    'amount': amount,
+    'type': type.name,
+    'date': date.toIso8601String(),
+    'account': account,
+    'tags': tags,
+    if (note != null) 'note': note,
+  };
+
+  factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
+    id: json['id'] as String,
+    transactionTitle: json['transactionTitle'] as String,
+    categoryId: json['categoryId'] as String,
+    amount: (json['amount'] as num).toDouble(),
+    type: TransactionType.values.firstWhere((e) => e.name == json['type']),
+    date: DateTime.parse(json['date'] as String),
+    account: json['account'] as String,
+    tags: (json['tags'] as List).cast<String>(),
+    note: json['note'] as String?,
+  );
+
+  static List<Transaction> dummyData = [
     Transaction(
       id: 't1',
       transactionTitle: 'Big Bazaar',
@@ -391,7 +469,29 @@ class Account {
     required this.sparkline,
   });
 
-  static const List<Account> accounts = [
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'type': type.name,
+    'balance': balance,
+    if (bank != null) 'bank': bank,
+    if (bankLogoPath != null) 'bankLogoPath': bankLogoPath,
+    if (cardIdentifier != null) 'cardIdentifier': cardIdentifier,
+    'sparkline': sparkline,
+  };
+
+  factory Account.fromJson(Map<String, dynamic> json) => Account(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    type: AccountType.values.firstWhere((e) => e.name == json['type']),
+    balance: (json['balance'] as num).toDouble(),
+    bank: json['bank'] as String?,
+    bankLogoPath: json['bankLogoPath'] as String?,
+    cardIdentifier: json['cardIdentifier'] as String?,
+    sparkline: (json['sparkline'] as List).cast<num>().map((e) => e.toDouble()).toList(),
+  );
+
+  static const List<Account> dummyData = [
     Account(
       id: 'a1',
       name: 'HDFC Savings',

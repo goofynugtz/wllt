@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../providers/user_preferences_provider.dart';
 import '../utils/helpers.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -24,7 +26,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         DateTime(widget.selectedMonth.year, widget.selectedMonth.month + 1, 0).day;
     final dayOfMonth = isCurrentMonth ? now.day : daysInMonth;
 
-    final monthTxs = Transaction.transactions
+    final monthTxs = Transaction.dummyData
         .where(
           (tx) =>
               tx.date.month == widget.selectedMonth.month &&
@@ -39,7 +41,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final txCount = monthTxs.length;
     final dailyAvg = dayOfMonth > 0 ? totalExpense / dayOfMonth : 0.0;
 
-    final categoryBreakdown = Helpers.getExpenseCategories()
+    final activeIds = context.watch<UserPreferencesProvider>().activeCategories.toSet();
+    final categoryBreakdown = Helpers.getExpenseCategories(activeIds: activeIds)
         .map((cat) {
           final amount = monthTxs
               .where(

@@ -8,6 +8,7 @@ class AppSettingsProvider extends ChangeNotifier {
 
   ThemeMode get themeMode => _storage.themeMode;
   Color     get colorSeed => _storage.colorSeed;
+  bool      get devMode   => _storage.devMode;
 
   Future<void> setThemeMode(ThemeMode mode) async {
     await _storage.setThemeMode(mode);
@@ -16,6 +17,11 @@ class AppSettingsProvider extends ChangeNotifier {
 
   Future<void> setColorSeed(Color color) async {
     await _storage.setColorSeed(color);
+    notifyListeners();
+  }
+
+  Future<void> setDevMode(bool value) async {
+    await _storage.setDevMode(value);
     notifyListeners();
   }
 

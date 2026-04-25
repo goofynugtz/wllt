@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
+import '../models/models.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 
@@ -38,6 +39,18 @@ class UserPreferencesProvider extends ChangeNotifier {
   Future<void> setCategories(List<String> ids) async {
     await _storage.setActiveCategories(ids);
     _syncService?.syncPreferences();
+    notifyListeners();
+  }
+
+  List<Category> get customCategories => _storage.getCustomCategories();
+
+  Future<void> saveCustomCategory(Category category) async {
+    await _storage.saveCustomCategory(category);
+    notifyListeners();
+  }
+
+  Future<void> deleteCustomCategory(String id) async {
+    await _storage.deleteCustomCategory(id);
     notifyListeners();
   }
 

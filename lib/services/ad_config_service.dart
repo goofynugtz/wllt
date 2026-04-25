@@ -11,8 +11,8 @@ class AdConfigService {
   AdConfigService._();
   static final AdConfigService instance = AdConfigService._();
 
-  final ValueNotifier<AdConfig> config = ValueNotifier(const AdConfig(showBannerAd: true, showInlineAd: true));
-  // final ValueNotifier<AdConfig> config = ValueNotifier(const AdConfig());
+  // final ValueNotifier<AdConfig> config = ValueNotifier(const AdConfig(showBannerAd: true, showInlineAd: true));
+  final ValueNotifier<AdConfig> config = ValueNotifier(const AdConfig());
 
   Future<void> fetch() async {
     try {

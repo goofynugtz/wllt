@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../providers/account_provider.dart';
+import '../providers/transaction_provider.dart';
+import '../providers/user_preferences_provider.dart';
 import '../utils/helpers.dart';
 import 'category_icon_widget.dart';
+import '../screens/add_account_screen.dart';
 import '../screens/layout_screen.dart';
 import '../screens/categories_screen.dart';
 import 'amount_calculator.dart';
@@ -109,9 +114,11 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   String _merchant = '';
   DateTime _selectedDate = DateTime.now();
   final List<String> _tags = [];
-  late Account _account;
+  Account? _account;
+  bool _accountInitialized = false;
   bool _showCalculator = false;
   late TextEditingController _titleController;
+  final FocusNode _titleFocusNode = FocusNode();
 
   // Calculator state — expression lives here so the display never moves
   String _expression = '';
@@ -131,14 +138,10 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       _selectedCategory = tx.categoryId;
       _merchant = tx.transactionTitle;
       _selectedDate = tx.date;
-      _account = Account.accounts.firstWhere(
-        (a) => a.name == tx.account,
-        orElse: () => Account.accounts.first,
-      );
+      _tags.addAll(tx.tags);
     } else {
       _type = widget.initialType;
-      _selectedCategory = _type == TransactionType.income ? 'income' : 'food';
-      _account = Account.accounts.first;
+      _selectedCategory = '';
     }
     _titleController = TextEditingController(text: _merchant);
     _calcController = AnimationController(
@@ -154,19 +157,61 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_accountInitialized) {
+      final accounts = context.read<AccountProvider>().accounts;
+      if (accounts.isNotEmpty) {
+        final tx = widget.editTransaction;
+        _account = tx != null
+            ? accounts.firstWhere((a) => a.name == tx.account, orElse: () => accounts.first)
+            : accounts.first;
+      }
+      _accountInitialized = true;
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
+    _titleFocusNode.dispose();
     _calcController.dispose();
     _exprScrollController.dispose();
     super.dispose();
   }
 
+  Future<void> _saveTransaction() async {
+    final amountValue = double.tryParse(_amount);
+    if (amountValue == null || amountValue <= 0) return;
+    if (_merchant.trim().isEmpty) return;
+
+    final provider = context.read<TransactionProvider>();
+    final tx = Transaction(
+      id: widget.editTransaction?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      transactionTitle: _merchant.trim(),
+      categoryId: _selectedCategory,
+      amount: amountValue,
+      type: _type,
+      date: _selectedDate,
+      account: _account?.name ?? '',
+      tags: List.from(_tags),
+    );
+
+    if (widget.editTransaction != null) {
+      await provider.updateTransaction(tx);
+    } else {
+      await provider.addTransaction(tx);
+    }
+    if (mounted) Navigator.of(context).pop();
+  }
+
   void _selectAccount(Account account) {
-    if (account.id == _account.id) return;
+    if (account.id == _account?.id) return;
     setState(() => _account = account);
   }
 
   void _openCalculator() {
+    _titleFocusNode.unfocus();
     _expression = _amount;
     _calcPreview = _calcTryEvaluate(_expression) ?? '';
     setState(() => _showCalculator = true);
@@ -315,9 +360,19 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     final titleFontSize = _tp.computeLineMetrics().length > 1 ? 32.0 : 40.0;
 
     final isExpense = _type == TransactionType.expense;
+    final prefs = context.watch<UserPreferencesProvider>();
+    final activeIds = prefs.activeCategories.toSet();
+    final customMap = {for (final c in prefs.customCategories) c.id: c};
+    final builtinIds = Category.categories.map((c) => c.id).toSet();
     final displayCategories = isExpense
-        ? Helpers.getExpenseCategories()
-        : Helpers.getIncomeCategories();
+        ? [
+            ...Helpers.getExpenseCategories(activeIds: activeIds)
+                .map((c) => customMap[c.id] ?? c),
+            ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
+          ]
+        : Helpers.getIncomeCategories(activeIds: activeIds)
+            .map((c) => customMap[c.id] ?? c)
+            .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,6 +388,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                 color: Colors.transparent,
                 child: TextField(
                   controller: _titleController,
+                  focusNode: _titleFocusNode,
                   onChanged: (v) => setState(() => _merchant = v),
                   maxLines: 3,
                   minLines: 1,
@@ -573,13 +629,56 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       const SizedBox(height: 24),
 
                       // Pay with section
-                      _buildSectionHeader(context, LucideIcons.creditCard, 'Pay with'),
+                      _buildSectionHeader(
+                        context,
+                        LucideIcons.creditCard,
+                        'Pay with',
+                        showEdit: true,
+                        editLabel: 'Add',
+                        onEdit: () async {
+                          await Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AddAccountScreen(),
+                            ),
+                          );
+                          // Auto-select first account if none selected yet
+                          if (mounted && _account == null) {
+                            final updated = context.read<AccountProvider>().accounts;
+                            if (updated.isNotEmpty) {
+                              setState(() => _account = updated.first);
+                            }
+                          }
+                        },
+                      ),
                       const SizedBox(height: 12),
-                      SingleChildScrollView(
+                      Builder(builder: (context) {
+                        final providerAccounts = context.watch<AccountProvider>().accounts;
+                        // Auto-select when first account arrives without requiring re-open
+                        if (_account == null && providerAccounts.isNotEmpty) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted && _account == null) {
+                              setState(() => _account = providerAccounts.first);
+                            }
+                          });
+                        }
+                        if (providerAccounts.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'No accounts yet — tap Add to create one',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          );
+                        }
+                        return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
-                          children: Account.accounts.map((account) {
-                            final isSelected = account.id == _account.id;
+                          children: providerAccounts.map((account) {
+                            final isSelected = account.id == _account?.id;
 
                             return Padding(
                               key: ValueKey(account.id),
@@ -682,7 +781,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                             );
                           }).toList(),
                         ),
-                      ),
+                      );
+                      }),
 
                       const SizedBox(height: 24),
 
@@ -691,7 +791,6 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                         context,
                         LucideIcons.tags,
                         'Tags',
-                        showEdit: true,
                       ),
                       const SizedBox(height: 12),
                       Wrap(
@@ -716,7 +815,11 @@ class _ManualEntryFormState extends State<ManualEntryForm>
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: (_amount.isNotEmpty &&
+                        _merchant.trim().isNotEmpty &&
+                        _selectedCategory.isNotEmpty)
+                    ? _saveTransaction
+                    : null,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                   shape: const StadiumBorder(),
@@ -799,6 +902,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     IconData icon,
     String label, {
     bool showEdit = false,
+    String editLabel = 'Edit',
     VoidCallback? onEdit,
   }) {
     final labelColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -824,7 +928,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                 Icon(LucideIcons.pencil, size: 11, color: labelColor),
                 const SizedBox(width: 4),
                 Text(
-                  'Edit',
+                  editLabel,
                   style: TextStyle(fontSize: 11, color: labelColor),
                 ),
               ],
@@ -924,16 +1028,16 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   }
 
   Future<void> _showAddTagDialog() async {
-    final controller = TextEditingController();
+    String inputValue = '';
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Add Tag', style: TextStyle(fontSize: 16)),
         content: TextField(
-          controller: controller,
           autofocus: true,
           decoration: const InputDecoration(hintText: 'Tag name (without #)'),
-          onSubmitted: (_) => _submitTag(ctx, controller),
+          onChanged: (v) => inputValue = v,
+          onSubmitted: (_) => Navigator.of(ctx).pop(),
         ),
         actions: [
           TextButton(
@@ -941,21 +1045,16 @@ class _ManualEntryFormState extends State<ManualEntryForm>
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => _submitTag(ctx, controller),
+            onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Add'),
           ),
         ],
       ),
     );
-    controller.dispose();
-  }
-
-  void _submitTag(BuildContext ctx, TextEditingController controller) {
-    final tag = controller.text.trim();
-    if (tag.isNotEmpty && !_tags.contains(tag)) {
+    final tag = inputValue.trim();
+    if (tag.isNotEmpty && !_tags.contains(tag) && mounted) {
       setState(() => _tags.add(tag));
     }
-    Navigator.of(ctx).pop();
   }
 }
 

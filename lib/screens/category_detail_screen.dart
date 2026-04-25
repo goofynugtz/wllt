@@ -18,25 +18,43 @@ class CategoryDetailScreen extends StatefulWidget {
 }
 
 class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
+  late Category _category;
   late int _selectedYear;
   late int _selectedMonth;
 
   @override
   void initState() {
     super.initState();
+    _category = widget.category;
     final now = DateTime.now();
     _selectedYear = now.year;
     _selectedMonth = now.month;
   }
 
   Color get _accentColor => Color(
-        int.parse(widget.category.color.substring(1), radix: 16) + 0xFF000000,
+        int.parse(_category.color.substring(1), radix: 16) + 0xFF000000,
       );
 
+  void _openEdit() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditCategoryScreen(category: _category),
+      ),
+    ).then((result) {
+      if (!mounted) return;
+      if (result == 'deleted') {
+        Navigator.of(context).pop();
+      } else if (result is Category) {
+        setState(() => _category = result);
+      }
+    });
+  }
+
   List<Transaction> _monthTransactions(int year, int month) {
-    return Transaction.transactions
+    return Transaction.dummyData
         .where((t) =>
-            t.categoryId == widget.category.id &&
+            t.categoryId == _category.id &&
             t.date.year == year &&
             t.date.month == month &&
             t.type == TransactionType.expense)
@@ -77,6 +95,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final txs = _monthTransactions(_selectedYear, _selectedMonth);
     final totalSpent = txs.fold<double>(0, (sum, t) => sum + t.amount);
     final txCount = txs.length;
@@ -101,7 +120,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
 
     // Budget
     final budget = Budget.budgets.cast<Budget?>().firstWhere(
-          (b) => b?.categoryId == widget.category.id,
+          (b) => b?.categoryId == _category.id,
           orElse: () => null,
         );
 
@@ -128,13 +147,13 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       weeklyTotals[weekIdx] += t.amount;
     }
 
-    final colorName = _colorName(widget.category.color);
+    final colorName = _colorName(_category.color);
     final monthLabel =
         DateFormat('MMMM yyyy').format(DateTime(_selectedYear, _selectedMonth));
     final dayOfMonth = DateTime.now().day;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F6),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -148,41 +167,32 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   children: [
                     GestureDetector(
                       onTap: () => Navigator.of(context).pop(),
-                      child: const SizedBox(
+                      child: SizedBox(
                         width: 40,
                         height: 40,
                         child: Icon(
                           LucideIcons.chevronLeft,
                           size: 22,
-                          color: AppTheme.textPrimary,
+                          color: cs.onSurface,
                         ),
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Category Details',
                       style: TextStyle(
-                                                fontSize: 16,
-                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        color: cs.onSurface,
                       ),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => EditCategoryScreen(
-                              category: widget.category,
-                            ),
-                          ),
-                        );
-                      },
-                      child: const SizedBox(
+                      onTap: _openEdit,
+                      child: SizedBox(
                         width: 40,
                         height: 40,
                         child: Icon(
                           LucideIcons.pencil,
                           size: 20,
-                          color: AppTheme.textPrimary,
+                          color: cs.onSurface,
                         ),
                       ),
                     ),
@@ -217,7 +227,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             ),
                             child: Center(
                               child: CategoryIconWidget(
-                                category: widget.category,
+                                category: _category,
                                 size: 40,
                                 color: Colors.white,
                               ),
@@ -225,11 +235,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            widget.category.name,
-                            style: const TextStyle(
-                                                            fontSize: 30,
+                            _category.name,
+                            style: TextStyle(
+                              fontSize: 30,
                               fontWeight: FontWeight.w500,
-                              color: AppTheme.textPrimary,
+                              color: cs.onSurface,
                               letterSpacing: -0.75,
                             ),
                           ),
@@ -259,7 +269,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                 Text(
                                   colorName,
                                   style: TextStyle(
-                                                                        fontSize: 12,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                     color: _accentColor,
                                   ),
@@ -276,7 +286,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       height: 56,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cs.surface,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -295,10 +305,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                               width: 40,
                               height: 40,
                               alignment: Alignment.center,
-                              child: const Icon(
+                              child: Icon(
                                 LucideIcons.chevronLeft,
                                 size: 20,
-                                color: AppTheme.textPrimary,
+                                color: cs.onSurface,
                               ),
                             ),
                           ),
@@ -307,17 +317,17 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             children: [
                               Text(
                                 monthLabel,
-                                style: const TextStyle(
-                                                                    fontSize: 16,
-                                  color: AppTheme.textPrimary,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: cs.onSurface,
                                 ),
                               ),
                               if (_isCurrentMonth)
                                 Text(
                                   'Day $dayOfMonth of $daysInMonth · in progress',
-                                  style: const TextStyle(
-                                                                        fontSize: 11,
-                                    color: AppTheme.textTertiary,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant,
                                   ),
                                 ),
                             ],
@@ -330,10 +340,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                 width: 40,
                                 height: 40,
                                 alignment: Alignment.center,
-                                child: const Icon(
+                                child: Icon(
                                   LucideIcons.chevronRight,
                                   size: 20,
-                                  color: AppTheme.textPrimary,
+                                  color: cs.onSurface,
                                 ),
                               ),
                             ),
@@ -349,7 +359,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cs.surface,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
@@ -362,20 +372,20 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'SPENT SO FAR',
                             style: TextStyle(
-                                                            fontSize: 11,
-                              color: AppTheme.textTertiary,
+                              fontSize: 11,
+                              color: cs.onSurfaceVariant,
                               letterSpacing: 1.1,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '\$${totalSpent.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                                                            fontSize: 36,
-                              color: AppTheme.textPrimary,
+                            style: TextStyle(
+                              fontSize: 36,
+                              color: cs.onSurface,
                               letterSpacing: -0.9,
                             ),
                           ),
@@ -395,19 +405,19 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             const SizedBox(height: 6),
                             Text(
                               '\$${totalSpent.toStringAsFixed(0)} of \$${budget.budget.toStringAsFixed(0)} budget',
-                              style: const TextStyle(
-                                                                fontSize: 12,
+                              style: TextStyle(
+                                fontSize: 12,
                                 fontStyle: FontStyle.italic,
-                                color: AppTheme.textTertiary,
+                                color: cs.onSurfaceVariant,
                               ),
                             ),
                           ] else
-                            const Text(
+                            Text(
                               'No budget set · edit to add one',
                               style: TextStyle(
-                                                                fontSize: 12,
+                                fontSize: 12,
                                 fontStyle: FontStyle.italic,
-                                color: AppTheme.textTertiary,
+                                color: cs.onSurfaceVariant,
                               ),
                             ),
                         ],
@@ -424,9 +434,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             label: 'TXNS',
                             valueWidget: Text(
                               '$txCount',
-                              style: const TextStyle(
-                                                                fontSize: 22,
-                                color: AppTheme.textPrimary,
+                              style: TextStyle(
+                                fontSize: 22,
+                                color: cs.onSurface,
                               ),
                             ),
                             sub: 'this month',
@@ -452,7 +462,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                       Text(
                                         '${vsPercent.toStringAsFixed(0)}%',
                                         style: TextStyle(
-                                                                                    fontSize: 18,
+                                          fontSize: 18,
                                           color: vsMore
                                               ? const Color(0xFFB3261E)
                                               : AppTheme.incomeColor,
@@ -460,11 +470,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                       ),
                                     ],
                                   )
-                                : const Text(
+                                : Text(
                                     '—',
                                     style: TextStyle(
-                                                                            fontSize: 18,
-                                      color: AppTheme.textPrimary,
+                                      fontSize: 18,
+                                      color: cs.onSurface,
                                     ),
                                   ),
                             sub: vsPercent != null
@@ -478,9 +488,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             label: 'DAILY',
                             valueWidget: Text(
                               '\$${avgPerDay.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                                                fontSize: 18,
-                                color: AppTheme.textPrimary,
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: cs.onSurface,
                               ),
                             ),
                             sub: 'avg / day',
@@ -525,13 +535,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: GestureDetector(
-                onTap: () {
-                  // TODO: open edit-category sheet
-                },
+                onTap: _openEdit,
                 child: Container(
                   height: 56,
                   decoration: BoxDecoration(
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(99),
                     boxShadow: [
                       BoxShadow(
@@ -541,17 +549,17 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(LucideIcons.pencil, size: 18, color: Colors.white),
-                      SizedBox(width: 8),
+                      Icon(LucideIcons.pencil, size: 18, color: Theme.of(context).colorScheme.onPrimary),
+                      const SizedBox(width: 8),
                       Text(
                         'Edit Category',
                         style: TextStyle(
-                                                    fontSize: 15,
+                          fontSize: 15,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
                     ],
@@ -605,10 +613,11 @@ class _MiniStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -623,9 +632,9 @@ class _MiniStatCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-                            fontSize: 10,
-              color: AppTheme.textTertiary,
+            style: TextStyle(
+              fontSize: 10,
+              color: cs.onSurfaceVariant,
               letterSpacing: 0.25,
             ),
           ),
@@ -634,9 +643,9 @@ class _MiniStatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             sub,
-            style: const TextStyle(
-                            fontSize: 10,
-              color: AppTheme.textTertiary,
+            style: TextStyle(
+              fontSize: 10,
+              color: cs.onSurfaceVariant,
             ),
           ),
         ],
@@ -660,6 +669,7 @@ class _TrendChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final maxVal = amounts.isEmpty ? 0.0 : amounts.reduce(max);
     final positives = amounts.where((a) => a > 0);
     final minVal = positives.isEmpty ? 0.0 : positives.reduce(min);
@@ -668,7 +678,7 @@ class _TrendChartCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -684,18 +694,18 @@ class _TrendChartCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 '6-Month Trend',
                 style: TextStyle(
-                                    fontSize: 13,
-                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                  color: cs.onSurface,
                 ),
               ),
-              const Text(
+              Text(
                 'Tap bar to navigate',
                 style: TextStyle(
-                                    fontSize: 11,
-                  color: AppTheme.textTertiary,
+                  fontSize: 11,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             ],
@@ -710,6 +720,9 @@ class _TrendChartCard extends StatelessWidget {
                 highlightIndex: amounts.length - 1,
                 accentColor: accentColor,
                 showDot: true,
+                labelColor: cs.onSurface,
+                labelDimColor: cs.onSurfaceVariant,
+                barBgColor: cs.surfaceContainerHighest,
               ),
               size: Size.infinite,
             ),
@@ -720,16 +733,16 @@ class _TrendChartCard extends StatelessWidget {
             children: [
               Text(
                 'Low \$${minVal.toStringAsFixed(0)}',
-                style: const TextStyle(
-                                    fontSize: 10,
-                  color: AppTheme.textTertiary,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
               Text(
                 'High \$${maxVal.toStringAsFixed(0)}',
-                style: const TextStyle(
-                                    fontSize: 10,
-                  color: AppTheme.textTertiary,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             ],
@@ -755,11 +768,12 @@ class _WeeklyChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -775,18 +789,18 @@ class _WeeklyChartCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Weekly Breakdown',
                 style: TextStyle(
-                                    fontSize: 13,
-                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                  color: cs.onSurface,
                 ),
               ),
               Text(
                 monthName,
-                style: const TextStyle(
-                                    fontSize: 11,
-                  color: AppTheme.textTertiary,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             ],
@@ -801,6 +815,9 @@ class _WeeklyChartCard extends StatelessWidget {
                 highlightIndex: -1,
                 accentColor: accentColor,
                 showDot: false,
+                labelColor: cs.onSurface,
+                labelDimColor: cs.onSurfaceVariant,
+                barBgColor: cs.surfaceContainerHighest,
               ),
               size: Size.infinite,
             ),
@@ -812,9 +829,9 @@ class _WeeklyChartCard extends StatelessWidget {
                 .map(
                   (v) => Text(
                     '\$${v.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                                            fontSize: 10,
-                      color: AppTheme.textTertiary,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 )
@@ -834,6 +851,9 @@ class _BarChartPainter extends CustomPainter {
   final int highlightIndex;
   final Color accentColor;
   final bool showDot;
+  final Color labelColor;
+  final Color labelDimColor;
+  final Color barBgColor;
 
   const _BarChartPainter({
     required this.values,
@@ -841,6 +861,9 @@ class _BarChartPainter extends CustomPainter {
     required this.highlightIndex,
     required this.accentColor,
     required this.showDot,
+    required this.labelColor,
+    required this.labelDimColor,
+    required this.barBgColor,
   });
 
   @override
@@ -859,7 +882,7 @@ class _BarChartPainter extends CustomPainter {
     final barWidth = (size.width - totalGap) / values.length;
 
     final bgPaint = Paint()
-      ..color = const Color(0xFFF0EBF4)
+      ..color = barBgColor
       ..isAntiAlias = true;
     final barPaint = Paint()..isAntiAlias = true;
 
@@ -910,10 +933,8 @@ class _BarChartPainter extends CustomPainter {
       textPainter.text = TextSpan(
         text: i < labels.length ? labels[i] : '',
         style: TextStyle(
-                    fontSize: 10,
-          color: isHighlighted
-              ? const Color(0xFF1D1B20)
-              : const Color(0xFF9E99A3),
+          fontSize: 10,
+          color: isHighlighted ? labelColor : labelDimColor,
         ),
       );
       textPainter.layout();
@@ -931,7 +952,9 @@ class _BarChartPainter extends CustomPainter {
   bool shouldRepaint(_BarChartPainter old) =>
       old.values != values ||
       old.highlightIndex != highlightIndex ||
-      old.accentColor != accentColor;
+      old.accentColor != accentColor ||
+      old.labelColor != labelColor ||
+      old.barBgColor != barBgColor;
 }
 
 // ── Transactions list ─────────────────────────────────────────────────────
@@ -949,9 +972,10 @@ class _TransactionsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -969,42 +993,42 @@ class _TransactionsList extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Transactions',
                   style: TextStyle(
-                                        fontSize: 13,
-                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    color: cs.onSurface,
                   ),
                 ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceColor,
+                    color: cs.secondaryContainer,
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
                     '$count total',
-                    style: const TextStyle(
-                                            fontSize: 11,
-                      color: AppTheme.onSurfaceColor,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSecondaryContainer,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: AppTheme.borderColor),
+          Divider(height: 1, color: cs.outlineVariant),
 
           // Rows
           if (transactions.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
+            Padding(
+              padding: const EdgeInsets.all(24),
               child: Text(
                 'No transactions this month',
                 style: TextStyle(
-                                    fontSize: 13,
-                  color: AppTheme.textTertiary,
+                  fontSize: 13,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             )
@@ -1032,7 +1056,7 @@ class _TransactionsList extends StatelessWidget {
                           child: Text(
                             '${t.date.day}',
                             style: TextStyle(
-                                                            fontSize: 13,
+                              fontSize: 13,
                               color: accentColor,
                             ),
                           ),
@@ -1045,18 +1069,18 @@ class _TransactionsList extends StatelessWidget {
                             children: [
                               Text(
                                 t.transactionTitle,
-                                style: const TextStyle(
-                                                                    fontSize: 14,
-                                  color: AppTheme.textPrimary,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: cs.onSurface,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 DateFormat('MMM d, yyyy').format(t.date),
-                                style: const TextStyle(
-                                                                    fontSize: 11,
-                                  color: AppTheme.textTertiary,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: cs.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -1065,16 +1089,16 @@ class _TransactionsList extends StatelessWidget {
                         // Amount
                         Text(
                           '−\$${t.amount.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                                                        fontSize: 14,
-                            color: AppTheme.textPrimary,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: cs.onSurface,
                           ),
                         ),
                       ],
                     ),
                   ),
                   if (!isLast)
-                    const Divider(height: 1, color: AppTheme.borderColor),
+                    Divider(height: 1, color: cs.outlineVariant),
                 ],
               );
             }),

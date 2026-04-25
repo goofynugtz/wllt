@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../models/ad_config.dart';
@@ -9,6 +9,8 @@ import '../widgets/category_icon_badge.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/trial_banner.dart';
 import '../services/ad_config_service.dart';
+import '../providers/transaction_provider.dart';
+import '../providers/user_preferences_provider.dart';
 import '../screens/layout_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -32,7 +34,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    final monthTransactions = Transaction.transactions
+    final allTx = context.watch<TransactionProvider>().transactions;
+
+    final monthTransactions = allTx
         .where(
           (tx) =>
               tx.date.month == widget.selectedMonth.month &&
@@ -51,7 +55,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final budgetPct =
         (totalExpense / Helpers.monthlyBudget * 100).clamp(0.0, 100.0);
 
-    final categoryBreakdown = Helpers.getExpenseCategories()
+    final activeIds = context.watch<UserPreferencesProvider>().activeCategories.toSet();
+    final categoryBreakdown = Helpers.getExpenseCategories(activeIds: activeIds)
         .map((cat) {
           final amount = monthTransactions
               .where(
@@ -71,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final todayStart = DateTime(now.year, now.month, now.day);
     final yesterdayStart = todayStart.subtract(const Duration(days: 1));
 
-    final allSorted = List<Transaction>.from(Transaction.transactions)
+    final allSorted = List<Transaction>.from(allTx)
       ..sort((a, b) => b.date.compareTo(a.date));
 
     final todayTxns = allSorted.where((tx) {

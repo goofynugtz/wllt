@@ -48,23 +48,29 @@ class Helpers {
   static Category getCategoryById(String id) => Category.getById(id);
 
   /// All categories treated as expense categories in this app.
-  static List<Category> getExpenseCategories() {
+  /// Pass [activeIds] to restrict to the user's selected subset.
+  static List<Category> getExpenseCategories({Set<String>? activeIds}) {
     const _expenseIds = {
       'shopping', 'restaurant', 'doctor', 'coffee', 'movies',
       'transport', 'groceries', 'utilities', 'music', 'travel',
       'fitness', 'education', 'home', 'phone', 'internet', 'gifts',
     };
-    return Category.categories
-        .where((c) => _expenseIds.contains(c.id))
-        .toList();
+    return Category.categories.where((c) {
+      if (!_expenseIds.contains(c.id)) return false;
+      if (activeIds != null && activeIds.isNotEmpty) return activeIds.contains(c.id);
+      return true;
+    }).toList();
   }
 
   /// Categories used for income transactions.
-  static List<Category> getIncomeCategories() {
+  /// Pass [activeIds] to restrict to the user's selected subset.
+  static List<Category> getIncomeCategories({Set<String>? activeIds}) {
     const _incomeIds = {'savings', 'work'};
-    return Category.categories
-        .where((c) => _incomeIds.contains(c.id))
-        .toList();
+    return Category.categories.where((c) {
+      if (!_incomeIds.contains(c.id)) return false;
+      if (activeIds != null && activeIds.isNotEmpty) return activeIds.contains(c.id);
+      return true;
+    }).toList();
   }
 
   /// Groups [transactions] into a date-descending `Map<"yyyy-MM-dd", List<Transaction>>`.

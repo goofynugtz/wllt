@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../models/models.dart';
-import '../theme/app_theme.dart';
+import '../providers/user_preferences_provider.dart';
 import '../widgets/category_icon_widget.dart';
 
 class EditCategoryScreen extends StatefulWidget {
@@ -20,14 +21,12 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
   late String _selectedColor;
   late IconData _selectedIcon;
 
-  // ── Palette — 20 colors (7 per row, fills full width via GridView) ───────
   static const _palette = [
     '#EBA9A9', '#E2B932', '#74A1DB', '#9D85E5', '#70C01F', '#86D9BC', '#8FC9E2',
     '#F4A261', '#E76F51', '#2A9D8F', '#FFB703', '#C77DFF', '#06D6A0', '#FB8500',
     '#FF6B6B', '#4CC9F0', '#A8DADC', '#E63946', '#457B9D', '#1D3557',
   ];
 
-  // ── 100 icons — 6 per row ─────────────────────────────────────────────────
   static const _icons = [
     // Shopping & Finance
     LucideIcons.shoppingBag,  LucideIcons.shoppingCart, LucideIcons.creditCard,
@@ -109,8 +108,50 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
         int.parse(hex.replaceFirst('#', ''), radix: 16) + 0xFF000000,
       );
 
+  Future<void> _deleteCategory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text(
+          'Delete "${widget.category.name}"? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await context
+        .read<UserPreferencesProvider>()
+        .deleteCustomCategory(widget.category.id);
+    if (mounted) Navigator.of(context).pop('deleted');
+  }
+
+  Future<void> _saveCategory() async {
+    final name = _nameController.text.trim();
+    final updated = Category(
+      id: widget.category.id,
+      name: name.isEmpty ? widget.category.name : name,
+      lucideIcon: _selectedIcon,
+      color: _selectedColor,
+      bg: widget.category.bg.isNotEmpty ? widget.category.bg : _selectedColor,
+    );
+    await context.read<UserPreferencesProvider>().saveCustomCategory(updated);
+    if (mounted) Navigator.of(context).pop(updated);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final accentColor = _parseColor(_selectedColor);
 
     final previewCategory = Category(
@@ -122,7 +163,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F6),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -136,43 +177,43 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                   children: [
                     GestureDetector(
                       onTap: () => Navigator.of(context).pop(),
-                      child: const SizedBox(
+                      child: SizedBox(
                         width: 40,
                         height: 40,
                         child: Icon(
                           LucideIcons.chevronLeft,
                           size: 22,
-                          color: AppTheme.textPrimary,
+                          color: cs.onSurface,
                         ),
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Edit Category',
                       style: TextStyle(
-                                                fontSize: 16,
-                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        color: cs.onSurface,
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: _saveCategory,
                       child: Container(
                         height: 40,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: AppTheme.textPrimary,
+                          color: cs.onSurface,
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(LucideIcons.check, size: 14, color: Colors.white),
-                            SizedBox(width: 6),
+                            Icon(LucideIcons.check, size: 14, color: cs.surface),
+                            const SizedBox(width: 6),
                             Text(
                               'Save',
                               style: TextStyle(
-                                                                fontSize: 14,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.white,
+                                color: cs.surface,
                               ),
                             ),
                           ],
@@ -184,7 +225,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
               ),
             ),
 
-            // ── Scrollable body (Save Changes lives here too) ──────────────
+            // ── Scrollable body ────────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -223,9 +264,9 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                               _nameController.text.isEmpty
                                   ? widget.category.name
                                   : _nameController.text,
-                              style: const TextStyle(
-                                                                fontSize: 18,
-                                color: AppTheme.textPrimary,
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: cs.onSurface,
                               ),
                             ),
                           ],
@@ -238,7 +279,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                     const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cs.surface,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -251,18 +292,18 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                       child: TextField(
                         controller: _nameController,
                         onChanged: (_) => setState(() {}),
-                        style: const TextStyle(
-                                                    fontSize: 17,
-                          color: AppTheme.textPrimary,
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: cs.onSurface,
                         ),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Category name',
                           hintStyle: TextStyle(
-                                                        fontSize: 17,
-                            color: AppTheme.textTertiary,
+                            fontSize: 17,
+                            color: cs.onSurfaceVariant,
                           ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 18,
                             vertical: 14,
                           ),
@@ -272,7 +313,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
                     const SizedBox(height: 24),
 
-                    // ── Color picker — GridView fills full width evenly ────
+                    // ── Color picker ───────────────────────────────────────
                     _SectionLabel('Color'),
                     const SizedBox(height: 12),
                     GridView.count(
@@ -306,7 +347,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
                     const SizedBox(height: 24),
 
-                    // ── Icon picker — 6 per row, 100 icons ────────────────
+                    // ── Icon picker ────────────────────────────────────────
                     _SectionLabel('Icon'),
                     const SizedBox(height: 12),
                     GridView.count(
@@ -322,7 +363,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 120),
                             decoration: BoxDecoration(
-                              color: isSelected ? accentColor : Colors.white,
+                              color: isSelected ? accentColor : cs.surface,
                               borderRadius: BorderRadius.circular(14),
                               boxShadow: [
                                 BoxShadow(
@@ -340,7 +381,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                                 size: 20,
                                 color: isSelected
                                     ? Colors.white
-                                    : AppTheme.textSecondary,
+                                    : cs.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -355,12 +396,12 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                       children: [
                         _SectionLabel('Monthly Budget'),
                         const SizedBox(width: 6),
-                        const Text(
+                        Text(
                           '(optional)',
                           style: TextStyle(
-                                                        fontSize: 12,
+                            fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: AppTheme.textTertiary,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -368,7 +409,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                     const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cs.surface,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -380,12 +421,12 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.only(left: 18),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 18),
                             child: Icon(
                               LucideIcons.indianRupee,
                               size: 18,
-                              color: AppTheme.textSecondary,
+                              color: cs.onSurfaceVariant,
                             ),
                           ),
                           Expanded(
@@ -395,18 +436,18 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
-                              style: const TextStyle(
-                                                                fontSize: 17,
-                                color: AppTheme.textPrimary,
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: cs.onSurface,
                               ),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 hintText: '0',
                                 hintStyle: TextStyle(
-                                                                    fontSize: 17,
-                                  color: AppTheme.textTertiary,
+                                  fontSize: 17,
+                                  color: cs.onSurfaceVariant,
                                 ),
                                 border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(
+                                contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 14,
                                 ),
@@ -417,26 +458,26 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
                       child: Text(
                         'Set a monthly spending limit for this category',
                         style: TextStyle(
-                                                    fontSize: 12,
-                          color: AppTheme.textTertiary,
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ),
 
                     const SizedBox(height: 24),
 
-                    // ── Save Changes — inside scroll, below all fields ─────
+                    // ── Save Changes ───────────────────────────────────────
                     GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: _saveCategory,
                       child: Container(
                         height: 56,
                         decoration: BoxDecoration(
-                          color: AppTheme.textPrimary,
+                          color: cs.onSurface,
                           borderRadius: BorderRadius.circular(999),
                           boxShadow: [
                             BoxShadow(
@@ -446,17 +487,46 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                             ),
                           ],
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(LucideIcons.check, size: 20, color: Colors.white),
-                            SizedBox(width: 8),
+                            Icon(LucideIcons.check, size: 20, color: cs.surface),
+                            const SizedBox(width: 8),
                             Text(
                               'Save Changes',
                               style: TextStyle(
-                                                                fontSize: 15,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.white,
+                                color: cs.surface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Delete Category ────────────────────────────────────
+                    GestureDetector(
+                      onTap: _deleteCategory,
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(LucideIcons.trash2, size: 20, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Delete Category',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.red,
                               ),
                             ),
                           ],
@@ -482,10 +552,10 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
-                fontSize: 12,
+      style: TextStyle(
+        fontSize: 12,
         fontWeight: FontWeight.w500,
-        color: AppTheme.onSurfaceColor,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         letterSpacing: 1.2,
       ),
     );

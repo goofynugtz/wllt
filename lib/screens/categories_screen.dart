@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../models/models.dart';
+import '../providers/user_preferences_provider.dart';
 import '../widgets/category_icon_badge.dart';
+import 'add_category_screen.dart';
 import 'category_detail_screen.dart';
 
 class CategoriesScreen extends StatefulWidget {
@@ -13,11 +16,35 @@ class CategoriesScreen extends StatefulWidget {
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
   late List<Category> _categories;
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _categories = List.of(Category.categories);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      _loadCategories();
+    }
+  }
+
+  void _loadCategories() {
+    final prefs = context.read<UserPreferencesProvider>();
+    final activeIds = prefs.activeCategories.toSet();
+    final customMap = {for (final c in prefs.customCategories) c.id: c};
+    final builtinIds = Category.categories.map((c) => c.id).toSet();
+    _categories = [
+      // Built-in categories, using custom overrides (edits) if saved
+      ...Category.categories
+          .where((c) => activeIds.isEmpty || activeIds.contains(c.id))
+          .map((c) => customMap[c.id] ?? c),
+      // Pure custom (user-created, not overriding a built-in)
+      ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
+    ];
+  }
+
+  void _reloadCategories() {
+    if (!mounted) return;
+    setState(_loadCategories);
   }
 
   @override
@@ -121,6 +148,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         key: ValueKey(category.id),
                         category: category,
                         index: index,
+                        onReturn: _reloadCategories,
                       );
                     },
                   ),
@@ -133,9 +161,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               right: 24,
               bottom: 24,
               child: GestureDetector(
-                onTap: () {
-                  // TODO: open add-category sheet
-                },
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AddCategoryScreen(),
+                  ),
+                ).then((_) => _reloadCategories()),
                 child: Container(
                   width: 64,
                   height: 64,
@@ -168,11 +199,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 class _CategoryListTile extends StatefulWidget {
   final Category category;
   final int index;
+  final VoidCallback? onReturn;
 
   const _CategoryListTile({
     required super.key,
     required this.category,
     required this.index,
+    this.onReturn,
   });
 
   @override
@@ -193,7 +226,7 @@ class _CategoryListTileState extends State<_CategoryListTile> {
           MaterialPageRoute(
             builder: (_) => CategoryDetailScreen(category: widget.category),
           ),
-        );
+        ).then((_) => widget.onReturn?.call());
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(

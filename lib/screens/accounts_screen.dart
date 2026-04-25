@@ -5,8 +5,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../models/ad_config.dart';
+import '../providers/account_provider.dart';
 import '../services/ad_config_service.dart';
 import '../utils/helpers.dart';
+import 'package:provider/provider.dart';
 import 'account_detail_screen.dart';
 
 // ── Bank brand colors ─────────────────────────────────────────────────────────
@@ -38,8 +40,9 @@ class AccountsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final assets = Account.accounts.where((a) => a.balance >= 0).toList();
-    final debts  = Account.accounts.where((a) => a.balance <  0).toList();
+    final accounts = context.watch<AccountProvider>().accounts;
+    final assets = accounts.where((a) => a.balance >= 0).toList();
+    final debts  = accounts.where((a) => a.balance <  0).toList();
     final totalAssets = assets.fold(0.0, (s, a) => s + a.balance);
     final totalDebt   = debts.fold(0.0, (s, a) => s + a.balance.abs());
     final netWorth    = totalAssets - totalDebt;

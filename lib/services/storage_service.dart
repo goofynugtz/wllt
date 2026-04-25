@@ -1,27 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/models.dart';
 
 class StorageService {
-  static const String _userPrefsBox = 'user_prefs';
-  static const String _categoriesBox = 'active_categories';
+  static const String _userPrefsBox    = 'user_prefs';
+  static const String _categoriesBox   = 'active_categories';
+  static const String _transactionsBox = 'transactions';
+  static const String _accountsBox     = 'accounts';
 
-  static const String keyCurrency = 'currency';
-  static const String keyAuthMode = 'auth_mode';
-  static const String keyGoogleUid = 'google_uid';
-  static const String keyGoogleEmail = 'google_email';
-  static const String keyCategories = 'categories';
+  static const String keyCurrency           = 'currency';
+  static const String keyAuthMode           = 'auth_mode';
+  static const String keyGoogleUid          = 'google_uid';
+  static const String keyGoogleEmail        = 'google_email';
+  static const String keyCategories         = 'categories';
   static const String keyOnboardingComplete = 'onboarding_complete';
   static const String keyThemeMode          = 'theme_mode';
   static const String keyColorSeed          = 'color_seed';
+  static const String keyDevMode            = 'dev_mode';
 
   late Box _userPrefs;
   late Box _categories;
+  late Box _transactions;
+  late Box _accounts;
   late SharedPreferences _prefs;
 
   Future<void> init() async {
-    _userPrefs = await Hive.openBox(_userPrefsBox);
-    _categories = await Hive.openBox(_categoriesBox);
+    _userPrefs    = await Hive.openBox(_userPrefsBox);
+    _categories   = await Hive.openBox(_categoriesBox);
+    _transactions = await Hive.openBox(_transactionsBox);
+    _accounts     = await Hive.openBox(_accountsBox);
     _prefs = await SharedPreferences.getInstance();
   }
 
@@ -87,14 +95,45 @@ class StorageService {
   Future<void> setColorSeed(Color color) =>
       _userPrefs.put(keyColorSeed, color.toARGB32());
 
+  // ── Dev mode ──────────────────────────────────────────────────────────
+  bool get devMode => (_userPrefs.get(keyDevMode) as bool?) ?? true;
+
+  Future<void> setDevMode(bool value) => _userPrefs.put(keyDevMode, value);
+
+  // ── Transactions ──────────────────────────────────────────────────────
+  List<Transaction> getTransactions() {
+    return _transactions.values
+        .map((v) => Transaction.fromJson(Map<String, dynamic>.from(v as Map)))
+        .toList();
+  }
+
+  Future<void> saveTransaction(Transaction tx) =>
+      _transactions.put(tx.id, tx.toJson());
+
+  Future<void> deleteTransaction(String id) => _transactions.delete(id);
+
+  // ── Accounts ──────────────────────────────────────────────────────────
+  List<Account> getAccounts() {
+    return _accounts.values
+        .map((v) => Account.fromJson(Map<String, dynamic>.from(v as Map)))
+        .toList();
+  }
+
+  Future<void> saveAccount(Account account) =>
+      _accounts.put(account.id, account.toJson());
+
+  Future<void> deleteAccount(String id) => _accounts.delete(id);
+
   // ── Reset ─────────────────────────────────────────────────────────────
   Future<void> clearAll() async {
     await _userPrefs.clear();
     await _categories.clear();
+    await _transactions.clear();
+    await _accounts.clear();
     await _prefs.remove(keyOnboardingComplete);
   }
 
-  // ── Categories ────────────────────────────────────────────────────────
+  // ── Active category IDs ───────────────────────────────────────────────
   List<String> get activeCategories {
     final raw = _categories.get(keyCategories);
     if (raw == null) return [];
@@ -103,4 +142,36 @@ class StorageService {
 
   Future<void> setActiveCategories(List<String> ids) =>
       _categories.put(keyCategories, ids);
+
+  // ── Custom categories ─────────────────────────────────────────────────
+  static const String _customCategoriesKey = 'custom_categories_v1';
+
+  List<Category> getCustomCategories() {
+    final raw = _categories.get(_customCategoriesKey);
+    if (raw == null) return [];
+    return (raw as List)
+        .map((v) => Category.fromJson(Map<String, dynamic>.from(v as Map)))
+        .toList();
+  }
+
+  Future<void> saveCustomCategory(Category category) {
+    final existing = getCustomCategories();
+    final updated = [
+      ...existing.where((c) => c.id != category.id),
+      category,
+    ];
+    return _categories.put(
+      _customCategoriesKey,
+      updated.map((c) => c.toJson()).toList(),
+    );
+  }
+
+  Future<void> deleteCustomCategory(String id) {
+    final existing = getCustomCategories();
+    final updated = existing.where((c) => c.id != id).toList();
+    return _categories.put(
+      _customCategoriesKey,
+      updated.map((c) => c.toJson()).toList(),
+    );
+  }
 }

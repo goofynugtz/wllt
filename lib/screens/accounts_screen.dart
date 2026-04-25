@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../models/ad_config.dart';
 import '../services/ad_config_service.dart';
 import '../utils/helpers.dart';
+import 'account_detail_screen.dart';
 
 // ── Bank brand colors ─────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ class AccountsScreen extends StatelessWidget {
               color: const Color(0xFF4DBA7E),
             ),
             const SizedBox(height: 8),
-            ...assets.map((a) => _AccountCard(account: a)),
+            ...assets.map((a) => _TappableAccountCard(account: a)),
 
             const SizedBox(height: 16),
 
@@ -77,7 +78,7 @@ class AccountsScreen extends StatelessWidget {
                 color: const Color(0xFFE76F51),
               ),
               const SizedBox(height: 8),
-              ...debts.map((a) => _AccountCard(account: a)),
+              ...debts.map((a) => _TappableAccountCard(account: a)),
               const SizedBox(height: 16),
             ],
 
@@ -349,6 +350,25 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ── Tappable account card ──────────────────────────────────────────────────────
+
+class _TappableAccountCard extends StatelessWidget {
+  final Account account;
+
+  const _TappableAccountCard({required this.account});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => AccountDetailScreen(account: account)),
+      ),
+      child: _AccountCard(account: account),
+    );
+  }
+}
+
 // ── Account card ───────────────────────────────────────────────────────────────
 
 class _AccountCard extends StatelessWidget {
@@ -367,6 +387,7 @@ class _AccountCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),

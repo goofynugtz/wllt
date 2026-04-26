@@ -31,7 +31,53 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  double _dragOffset = 0.0;
+  late AnimationController _snapController;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+  }
+
+  @override
+  void dispose() {
+    _snapController.dispose();
+    super.dispose();
+  }
+
+  static DateTime _addMonths(DateTime d, int n) {
+    var m = d.month + n;
+    var y = d.year;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1)  { m += 12; y--; }
+    return DateTime(y, m);
+  }
+
+  void _animateTo(double target, double cardWidth) {
+    _snapController.stop();
+    final start = _dragOffset;
+    final anim = Tween<double>(begin: start, end: target)
+        .chain(CurveTween(curve: Curves.easeOutCubic))
+        .animate(_snapController);
+    late VoidCallback listener;
+    listener = () => setState(() => _dragOffset = anim.value);
+    _snapController.addListener(listener);
+    _snapController.forward(from: 0).then((_) {
+      _snapController.removeListener(listener);
+      if (target.abs() >= cardWidth * 0.5) {
+        final dir = target < 0 ? 1 : -1;
+        setState(() => _dragOffset = 0.0);
+        widget.onMonthChanged?.call(dir);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final allTx = context.watch<TransactionProvider>().transactions;
@@ -89,21 +135,29 @@ class _HomeScreenState extends State<HomeScreen> {
       return d == yesterdayStart;
     }).toList();
 
-    final swipeColumn = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // TODO: Replace hardcoded values with real subscription state once
-        // the subscription service is wired up.
-        TrialBanner(
-          trialDaysLeft: 30,
-          onUpgrade: () {
-            // TODO: Navigate to upgrade/subscription screen.
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildBalanceCard(totalExpense, budgetPct, totalIncome),
-      ],
-    );
+    // ── 3-card sliding strip (prev / current / next month) ──────────────────
+    final prevMonth = _addMonths(widget.selectedMonth, -1);
+    final nextMonth = _addMonths(widget.selectedMonth, 1);
+
+    double monthExpense(DateTime m) => allTx
+        .where((t) =>
+            t.date.month == m.month &&
+            t.date.year == m.year &&
+            t.type == TransactionType.expense)
+        .fold(0.0, (s, t) => s + t.amount);
+    double monthIncome(DateTime m) => allTx
+        .where((t) =>
+            t.date.month == m.month &&
+            t.date.year == m.year &&
+            t.type == TransactionType.income)
+        .fold(0.0, (s, t) => s + t.amount);
+    double pct(double exp) =>
+        (exp / Helpers.monthlyBudget * 100).clamp(0.0, 100.0);
+
+    final prevExp  = monthExpense(prevMonth);
+    final nextExp  = monthExpense(nextMonth);
+    final prevInc  = monthIncome(prevMonth);
+    final nextInc  = monthIncome(nextMonth);
 
     return ColoredBox(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -111,53 +165,111 @@ class _HomeScreenState extends State<HomeScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              // No horizontal padding here — each section pads itself so the
+              // card strip can be truly full-width without escape hacks.
+              padding: const EdgeInsets.only(bottom: 24),
               child: ConstrainedBox(
-                // Forces the column to be at least as tall as the viewport.
-                // Subtract vertical padding (12+24=36) so total scrollable
-                // height = padding + minHeight = exactly constraints.maxHeight
-                // on sparse months — no over-scroll revealing the dark bg.
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 36,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── Trial banner ─────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: TrialBanner(
+                        trialDaysLeft: 30,
+                        onUpgrade: () {},
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── 3-card sliding strip ──────────────────────────────────
+                    // Stack + Transform: each card lays out at (0,0) so Stack
+                    // sizes to one card's height; Transform shifts visually only.
+                    // ClipRect hides the off-screen prev/next cards.
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onHorizontalDragStart: (_) {
-                        // Lock PageView so this drag is not stolen
+                        _snapController.stop();
                         widget.pageScrollEnabled?.value = false;
+                      },
+                      onHorizontalDragUpdate: (details) {
+                        setState(() => _dragOffset += details.delta.dx);
                       },
                       onHorizontalDragEnd: (details) {
                         widget.pageScrollEnabled?.value = true;
+                        final w = MediaQuery.of(context).size.width;
                         final v = details.primaryVelocity ?? 0;
-                        if (v < -100) {
-                          widget.onMonthChanged?.call(1);
-                        } else if (v > 100) {
-                          widget.onMonthChanged?.call(-1);
+                        if (v < -300 || _dragOffset < -w * 0.4) {
+                          _animateTo(-w, w);
+                        } else if (v > 300 || _dragOffset > w * 0.4) {
+                          _animateTo(w, w);
+                        } else {
+                          _animateTo(0, w);
                         }
                       },
                       onHorizontalDragCancel: () {
                         widget.pageScrollEnabled?.value = true;
+                        _animateTo(0, MediaQuery.of(context).size.width);
                       },
-                      child: swipeColumn,
+                      child: LayoutBuilder(builder: (ctx, box) {
+                        final w = box.maxWidth;
+                        return ClipRect(
+                          child: Stack(
+                            children: [
+                              Transform.translate(
+                                offset: Offset(_dragOffset - w, 0),
+                                child: SizedBox(width: w, child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  child: _buildBalanceCard(prevExp, pct(prevExp), prevInc, month: prevMonth),
+                                )),
+                              ),
+                              Transform.translate(
+                                offset: Offset(_dragOffset, 0),
+                                child: SizedBox(width: w, child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  child: _buildBalanceCard(totalExpense, budgetPct, totalIncome),
+                                )),
+                              ),
+                              Transform.translate(
+                                offset: Offset(_dragOffset + w, 0),
+                                child: SizedBox(width: w, child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  child: _buildBalanceCard(nextExp, pct(nextExp), nextInc, month: nextMonth),
+                                )),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ),
+
                     const SizedBox(height: 16),
-                    _buildInsightChips(categoryBreakdown, totalExpense),
+
+                    // ── Insight chips ─────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildInsightChips(categoryBreakdown, totalExpense),
+                    ),
+
                     const SizedBox(height: 16),
+
+                    // ── Inline ad ─────────────────────────────────────────────
                     ValueListenableBuilder<AdConfig>(
                       valueListenable: AdConfigService.instance.config,
                       builder: (_, cfg, child) => cfg.showInlineAd
-                          ? Column(
-                              children: [
-                                _buildInlineAd(),
-                                const SizedBox(height: 16),
-                              ],
+                          ? Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                              child: _buildInlineAd(),
                             )
                           : const SizedBox.shrink(),
                     ),
-                    _buildRecentTransactions(todayTxns, yesterdayTxns),
+
+                    // ── Recent transactions ───────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildRecentTransactions(todayTxns, yesterdayTxns),
+                    ),
                   ],
                 ),
               ),
@@ -184,10 +296,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBalanceCard(
     double totalExpense,
     double budgetPct,
-    double totalIncome,
-  ) {
-    final monthName = Helpers.months[widget.selectedMonth.month - 1];
-    final year = widget.selectedMonth.year;
+    double totalIncome, {
+    DateTime? month,
+  }) {
+    final m = month ?? widget.selectedMonth;
+    final monthName = Helpers.months[m.month - 1];
+    final year = m.year;
     final hasBudget = Helpers.monthlyBudget > 0;
 
     return Container(

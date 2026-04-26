@@ -362,7 +362,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
         },
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 8,
-        child: const Icon(LucideIcons.plus, size: 24, color: Colors.white),
+        child: Icon(LucideIcons.plus, size: 24, color: Theme.of(context).colorScheme.onPrimary),
       );
     }
 
@@ -407,7 +407,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
           child: AnimatedRotation(
             turns: _isFabExpanded ? 0.125 : 0,
             duration: const Duration(milliseconds: 200),
-            child: const Icon(LucideIcons.plus, size: 24, color: Colors.white),
+            child: Icon(LucideIcons.plus, size: 24, color: Theme.of(context).colorScheme.onPrimary),
           ),
         ),
       ],

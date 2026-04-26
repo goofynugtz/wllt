@@ -154,7 +154,7 @@ class Transaction {
     type: TransactionType.values.firstWhere((e) => e.name == json['type']),
     date: DateTime.parse(json['date'] as String),
     account: json['account'] as String,
-    tags: (json['tags'] as List).cast<String>(),
+    tags: ((json['tags'] as List?) ?? []).cast<String>(),
     note: json['note'] as String?,
   );
 

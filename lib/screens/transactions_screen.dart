@@ -229,7 +229,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5), width: 0.5),
               ),
               child: Column(
                 children: transactions.asMap().entries.map((entry) {
@@ -245,6 +245,35 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AmountBadge extends StatelessWidget {
+  final double amount;
+  final bool isIncome;
+
+  const _AmountBadge({required this.amount, required this.isIncome});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isIncome ? AppTheme.incomeColor : AppTheme.expenseColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '${isIncome ? '+' : '−'}${Helpers.formatINR(amount)}',
+        style: TextStyle(
+          fontFamily: 'Archia',
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          letterSpacing: -0.2,
+          color: color,
+        ),
       ),
     );
   }
@@ -296,7 +325,7 @@ class TransactionRow extends StatelessWidget {
                 ? null
                 : Border(
                     top: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
                       width: 0.5,
                     ),
                   ),
@@ -333,14 +362,9 @@ class TransactionRow extends StatelessWidget {
               ),
 
               // Amount
-              Text(
-                '${transaction.type == TransactionType.income ? '+' : '−'}${Helpers.formatINR(transaction.amount)}',
-                style: TextStyle(
-                                    fontSize: 13,
-                  color: transaction.type == TransactionType.income
-                      ? AppTheme.incomeColor
-                      : AppTheme.expenseColor,
-                ),
+              _AmountBadge(
+                amount: transaction.amount,
+                isIncome: transaction.type == TransactionType.income,
               ),
             ],
           ),

@@ -12,6 +12,7 @@ import '../services/ad_config_service.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/layout_screen.dart';
+import '../providers/app_settings_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final DateTime selectedMonth;
@@ -81,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final allTx = context.watch<TransactionProvider>().transactions;
+    context.watch<AppSettingsProvider>(); // rebuild on color/theme changes
 
     final monthTransactions = allTx
         .where(
@@ -282,8 +284,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Balance Card ──────────────────────────────────────────────────────────
 
-  List<Color> _buildCardGradient(Color primary) {
-    final hsl = HSLColor.fromColor(primary);
+  List<Color> _buildCardGradient(Color seed) {
+    final hsl = HSLColor.fromColor(seed);
     return [
       hsl.withLightness(0.08).toColor(),
       hsl.withLightness(0.27).toColor(),
@@ -312,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen>
         gradient: LinearGradient(
           begin: const Alignment(0.7, -1.0),
           end: const Alignment(-0.3, 1.0),
-          colors: _buildCardGradient(Theme.of(context).colorScheme.primary),
+          colors: _buildCardGradient(context.read<AppSettingsProvider>().colorSeed),
           stops: const [0.0, 0.55, 1.0],
         ),
         borderRadius: BorderRadius.circular(28),
@@ -708,8 +710,8 @@ class _HomeScreenState extends State<HomeScreen>
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              width: 1,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: 0.5,
             ),
           ),
           clipBehavior: Clip.hardEdge,
@@ -723,8 +725,8 @@ class _HomeScreenState extends State<HomeScreen>
                 children: [
                   if (isNotFirst)
                     Divider(
-                      height: 1,
-                      color: Theme.of(context).colorScheme.outlineVariant,
+                      height: 0.5,
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
                     ),
                   Material(
                     color: Colors.transparent,
@@ -776,14 +778,9 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                             // Amount
-                            Text(
-                              '${tx.type == TransactionType.income ? '+' : '−'}${Helpers.formatINR(tx.amount)}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: tx.type == TransactionType.income
-                                    ? AppTheme.incomeColor
-                                    : AppTheme.expenseColor,
-                              ),
+                            _AmountBadge(
+                              amount: tx.amount,
+                              isIncome: tx.type == TransactionType.income,
                             ),
                           ],
                         ),
@@ -877,6 +874,37 @@ class _InsightChip extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Amount badge ──────────────────────────────────────────────────────────────
+
+class _AmountBadge extends StatelessWidget {
+  final double amount;
+  final bool isIncome;
+
+  const _AmountBadge({required this.amount, required this.isIncome});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isIncome ? AppTheme.incomeColor : AppTheme.expenseColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '${isIncome ? '+' : '−'}${Helpers.formatINR(amount)}',
+        style: TextStyle(
+          fontFamily: 'Archia',
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          letterSpacing: -0.2,
+          color: color,
+        ),
       ),
     );
   }

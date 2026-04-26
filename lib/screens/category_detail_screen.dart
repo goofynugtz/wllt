@@ -31,9 +31,13 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     _selectedMonth = now.month;
   }
 
-  Color get _accentColor => Color(
-        int.parse(_category.color.substring(1), radix: 16) + 0xFF000000,
-      );
+  Color get _accentColor {
+    try {
+      return Color(int.parse(_category.color.substring(1), radix: 16) + 0xFF000000);
+    } catch (_) {
+      return const Color(0xFF6750A4);
+    }
+  }
 
   void _openEdit() {
     Navigator.push(

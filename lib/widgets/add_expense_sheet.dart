@@ -364,15 +364,15 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     final activeIds = prefs.activeCategories.toSet();
     final customMap = {for (final c in prefs.customCategories) c.id: c};
     final builtinIds = Category.categories.map((c) => c.id).toSet();
-    final displayCategories = isExpense
-        ? [
-            ...Helpers.getExpenseCategories(activeIds: activeIds)
-                .map((c) => customMap[c.id] ?? c),
-            ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
-          ]
-        : Helpers.getIncomeCategories(activeIds: activeIds)
-            .map((c) => customMap[c.id] ?? c)
-            .toList();
+    // Single source of truth: show what user picked in onboarding, for both
+    // expense and income. Fall back to all built-ins if nothing selected yet.
+    final baseCategories = activeIds.isEmpty
+        ? Category.categories
+        : Category.categories.where((c) => activeIds.contains(c.id)).toList();
+    final displayCategories = [
+      ...baseCategories.map((c) => customMap[c.id] ?? c),
+      ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,26 +472,29 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                   ),
                 )
               : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Category section
-                      _buildSectionHeader(
-                        context,
-                        LucideIcons.tag,
-                        'Category',
-                        showEdit: true,
-                        onEdit: () => Navigator.push(
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildSectionHeader(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const CategoriesScreen(),
+                          LucideIcons.tag,
+                          'Category',
+                          showEdit: true,
+                          onEdit: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CategoriesScreen(),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Row(
                           children: displayCategories.map((category) {
                             final isSelected = _selectedCategory == category.id;
@@ -568,88 +571,94 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       const SizedBox(height: 24),
 
                       // Created on section
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                LucideIcons.calendar,
-                                size: 16,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Created On',
-                                style: TextStyle(
-                                  fontSize: 13,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  LucideIcons.calendar,
+                                  size: 16,
                                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => _pickDate(),
-                                child: Text(
-                                  DateFormat('EEE d MMM').format(_selectedDate),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Created On',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6),
-                                child: Text(
-                                  '·',
-                                  style: TextStyle(
+                                    fontSize: 13,
                                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                              ),
-                              GestureDetector(
-                                onTap: () => _pickTime(),
-                                child: Text(
-                                  DateFormat('HH:mm').format(_selectedDate),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Theme.of(context).colorScheme.onSurface,
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _pickDate(),
+                                  child: Text(
+                                    DateFormat('EEE d MMM').format(_selectedDate),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  child: Text(
+                                    '·',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => _pickTime(),
+                                  child: Text(
+                                    DateFormat('HH:mm').format(_selectedDate),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
 
                       const SizedBox(height: 24),
 
                       // Pay with section
-                      _buildSectionHeader(
-                        context,
-                        LucideIcons.creditCard,
-                        'Pay with',
-                        showEdit: true,
-                        editLabel: 'Add',
-                        onEdit: () async {
-                          await Navigator.push<void>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AddAccountScreen(),
-                            ),
-                          );
-                          // Auto-select first account if none selected yet
-                          if (mounted && _account == null) {
-                            final updated = context.read<AccountProvider>().accounts;
-                            if (updated.isNotEmpty) {
-                              setState(() => _account = updated.first);
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildSectionHeader(
+                          context,
+                          LucideIcons.creditCard,
+                          'Pay with',
+                          showEdit: true,
+                          editLabel: 'Add',
+                          onEdit: () async {
+                            await Navigator.push<void>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AddAccountScreen(),
+                              ),
+                            );
+                            // Auto-select first account if none selected yet
+                            if (mounted && _account == null) {
+                              final updated = context.read<AccountProvider>().accounts;
+                              if (updated.isNotEmpty) {
+                                setState(() => _account = updated.first);
+                              }
                             }
-                          }
-                        },
+                          },
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Builder(builder: (context) {
@@ -664,7 +673,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                         }
                         if (providerAccounts.isEmpty) {
                           return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                             child: Text(
                               'No accounts yet — tap Add to create one',
                               style: TextStyle(
@@ -676,6 +685,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                         }
                         return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Row(
                           children: providerAccounts.map((account) {
                             final isSelected = account.id == _account?.id;
@@ -787,22 +797,29 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       const SizedBox(height: 24),
 
                       // Tags section
-                      _buildSectionHeader(
-                        context,
-                        LucideIcons.tags,
-                        'Tags',
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionHeader(
+                              context,
+                              LucideIcons.tags,
+                              'Tags',
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                ..._tags.map((tag) => _buildTagChip(context, tag)),
+                                _buildAddTagButton(context),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          ..._tags.map((tag) => _buildTagChip(context, tag)),
-                          _buildAddTagButton(context),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -1601,6 +1618,7 @@ class TransferForm extends StatelessWidget {
 
 extension StringExtension on String {
   String capitalize() {
+    if (isEmpty) return this;
     return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
   }
 }

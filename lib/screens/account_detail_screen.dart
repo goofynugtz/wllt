@@ -24,7 +24,7 @@ class AccountDetailScreen extends StatelessWidget {
 
   List<Transaction> get _transactions =>
       Transaction.dummyData
-          .where((t) => t.account == account.name)
+          .where((t) => t.account == account.displayName)
           .toList()
         ..sort((a, b) => b.date.compareTo(a.date));
 
@@ -33,228 +33,96 @@ class AccountDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = _brandColor;
-    final isNegative = account.balance < 0;
-
-    // Derive gradient stops from brand color
-    final colorDark = _adjustLightness(color, -0.18);
-    final colorMid  = _adjustLightness(color,  0.0);
+    final cs     = Theme.of(context).colorScheme;
+    final color  = _brandColor;
+    final topPad = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          // ── Hero ──────────────────────────────────────────────────────────────
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [colorDark, colorMid],
+      body: CustomScrollView(
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _HeroDelegate(
+              account:    account,
+              brandColor: color,
+              isNegative: account.balance < 0,
+              topPadding: topPad,
+              onBack: () => Navigator.pop(context),
+              onEdit: () async {
+                final result = await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddAccountScreen(initialAccount: account),
+                  ),
+                );
+                if (result == 'deleted' && context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Row(
+                children: [
+                  Text(
+                    'TRANSACTIONS',
+                    style: TextStyle(
+                      fontSize: 10,
+                      letterSpacing: 1.1,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Divider(height: 1, color: cs.outlineVariant)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_transactions.length}',
+                    style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                  ),
+                ],
               ),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(28),
-                bottomRight: Radius.circular(28),
+            ),
+          ),
+
+          if (_grouped.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.receipt, size: 32, color: cs.outlineVariant),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No transactions yet',
+                      style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(
+                  _grouped.entries
+                      .map((e) => _buildDayGroup(context, e.key, e.value))
+                      .toList(),
+                ),
               ),
             ),
-            child: Stack(
-              children: [
-                // Decorative circles
-                Positioned(
-                  top: -48,
-                  right: -40,
-                  child: Container(
-                    width: 160,
-                    height: 160,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.06),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -32,
-                  left: -56,
-                  child: Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-
-                SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Back + Edit row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _HeroButton(
-                              icon: LucideIcons.arrowLeft,
-                              onTap: () => Navigator.pop(context),
-                            ),
-                            _HeroButton(
-                              icon: LucideIcons.pencil,
-                              onTap: () async {
-                                final result = await Navigator.push<String>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AddAccountScreen(initialAccount: account),
-                                  ),
-                                );
-                                if (result == 'deleted' && context.mounted) {
-                                  Navigator.of(context).pop();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Bank badge + name
-                        Row(
-                          children: [
-                            _HeroBadge(account: account),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    account.name,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                      letterSpacing: -0.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    account.bank ?? _accountTypeLabel(account.type),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white.withOpacity(0.6),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (account.cardIdentifier != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '•••• ${account.cardIdentifier}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Balance label
-                        Text(
-                          account.type == AccountType.credit
-                              ? 'OUTSTANDING BALANCE'
-                              : 'AVAILABLE BALANCE',
-                          style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 1.2,
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-
-                        // Balance amount
-                        Text(
-                          '${isNegative ? '−' : ''}${Helpers.formatINR(account.balance.abs())}',
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            letterSpacing: -1.0,
-                            height: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Transactions ────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-            child: Row(
-              children: [
-                Text(
-                  'TRANSACTIONS',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 1.1,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: Divider(height: 1, color: cs.outlineVariant)),
-                const SizedBox(width: 8),
-                Text(
-                  '${_transactions.length}',
-                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: _grouped.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(LucideIcons.receipt, size: 32, color: cs.outlineVariant),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No transactions yet',
-                          style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                    children: _grouped.entries.map((entry) {
-                      return _buildDayGroup(context, entry.key, entry.value);
-                    }).toList(),
-                  ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildDayGroup(BuildContext context, String dateStr, List<Transaction> txs) {
-    final cs = Theme.of(context).colorScheme;
+  Widget _buildDayGroup(
+      BuildContext context, String dateStr, List<Transaction> txs) {
+    final cs         = Theme.of(context).colorScheme;
     final dayExpense = txs
         .where((t) => t.type == TransactionType.expense)
         .fold(0.0, (s, t) => s + t.amount);
@@ -269,11 +137,13 @@ class AccountDetailScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(Helpers.formatDateLabel(dateStr), style: AppTheme.trackingWideSecondary),
+                Text(Helpers.formatDateLabel(dateStr),
+                    style: AppTheme.trackingWideSecondary),
                 if (dayExpense > 0)
                   Text(
                     '−${Helpers.formatINR(dayExpense)}',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.expenseColor),
+                    style: const TextStyle(
+                        fontSize: 11, color: AppTheme.expenseColor),
                   ),
               ],
             ),
@@ -289,7 +159,8 @@ class AccountDetailScreen extends StatelessWidget {
               ),
               child: Column(
                 children: txs.asMap().entries.map((e) {
-                  return TransactionRow(transaction: e.value, isFirst: e.key == 0);
+                  return TransactionRow(
+                      transaction: e.value, isFirst: e.key == 0);
                 }).toList(),
               ),
             ),
@@ -298,6 +169,250 @@ class AccountDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Hero delegate ─────────────────────────────────────────────────────────────
+
+class _HeroDelegate extends SliverPersistentHeaderDelegate {
+  final Account account;
+  final Color brandColor;
+  final bool isNegative;
+  final double topPadding;
+  final VoidCallback onBack;
+  final VoidCallback onEdit;
+
+  // Layout constants (inner = below topPadding)
+  static const double _btnTop      = 12.0;  // button row inner top
+  static const double _btnH        = 40.0;  // button row height
+  static const double _contentGap  = 20.0;  // gap between buttons and content
+  static const double _badgeSize   = 44.0;
+  static const double _badgeLeft   = 20.0;
+  static const double _nameLeft    = _badgeLeft + _badgeSize + 14.0; // 78
+  static const double _contentTop  = _btnTop + _btnH + _contentGap;  // 72
+  static const double _innerExp    = 216.0; // expanded inner height
+  static const double _innerColl   = 68.0;
+
+  // Collapsed title positioning
+  static const double _collNameTop = 15.0;  // name inner top when collapsed
+  static const double _collAmtTop  = 33.0;  // amount inner top when collapsed
+  static const double _collLeft    = 68.0;  // left=20(btn)+40(btn)+8(gap)
+
+  // Expanded amount positioning
+  // inner: contentTop(72) + badgeSize(44) + gap(20) + label(14) + gap(6) = 156
+  static const double _expAmtTop   = 156.0;
+  static const double _expAmtLeft  = 20.0;
+
+  _HeroDelegate({
+    required this.account,
+    required this.brandColor,
+    required this.isNegative,
+    required this.topPadding,
+    required this.onBack,
+    required this.onEdit,
+  });
+
+  @override double get maxExtent => topPadding + _innerExp;
+  @override double get minExtent => topPadding + _innerColl;
+
+  @override
+  bool shouldRebuild(_HeroDelegate o) =>
+      o.account != account || o.brandColor != brandColor;
+
+  static double _l(double a, double b, double t) => a + (b - a) * t;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final t  = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
+    final cd = _adjustLightness(brandColor, -0.18);
+
+    final amountStr =
+        '${isNegative ? '−' : ''}${Helpers.formatINR(account.balance.abs())}';
+
+    // Animated values
+    final nameTop   = _l(_contentTop, _collNameTop, t);
+    final nameLeft  = _l(_nameLeft,   _collLeft,    t);
+    final nameFSize = _l(18.0,        14.0,         t);
+
+    final amtTop    = _l(_expAmtTop,  _collAmtTop,  t);
+    final amtLeft   = _l(_expAmtLeft, _collLeft,    t);
+    final amtFSize  = _l(36.0,        12.0,         t);
+    final amtLS     = _l(-1.0,         0.0,          t);
+
+    final badgeFade   = (1 - t * 3.0).clamp(0.0, 1.0);
+    final labelFade   = (1 - t * 2.5).clamp(0.0, 1.0);
+    final circlesFade = (1 - t * 2.0).clamp(0.0, 1.0);
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [cd, brandColor],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft:  Radius.circular(28.0 * (1 - t)),
+          bottomRight: Radius.circular(28.0 * (1 - t)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18 * t),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── Decorative circles ────────────────────────────────────────────
+          Opacity(
+            opacity: circlesFade,
+            child: Stack(children: [
+              Positioned(top: -48, right: -40, child: _circle(160, 0.06)),
+              Positioned(bottom: -32, left: -56, child: _circle(200, 0.05)),
+            ]),
+          ),
+
+          // ── Bank badge (fades out) ─────────────────────────────────────────
+          Positioned(
+            top:  topPadding + _contentTop,
+            left: _badgeLeft,
+            child: Opacity(
+              opacity: badgeFade,
+              child: _HeroBadge(account: account),
+            ),
+          ),
+
+          // ── Bank subtitle below display name (fades out) ──────────────────
+          if (account.bank != null)
+            Positioned(
+              top:  topPadding + _contentTop + 22, // below name line (~18px + 4 leading)
+              left: _nameLeft,
+              right: account.cardIdentifier != null ? 110 : 20,
+              child: Opacity(
+                opacity: badgeFade,
+                child: Text(
+                  account.bank!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+
+          // ── Card identifier chip (fades out) ─────────────────────────────
+          if (account.cardIdentifier != null)
+            Positioned(
+              top:   topPadding + _contentTop + 10,
+              right: 20,
+              child: Opacity(
+                opacity: badgeFade,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '•••• ${account.cardIdentifier}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.white,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Balance label (fades out) ─────────────────────────────────────
+          Positioned(
+            top:  topPadding + _contentTop + _badgeSize + _contentGap,
+            left: 20,
+            child: Opacity(
+              opacity: labelFade,
+              child: Text(
+                account.type == AccountType.credit
+                    ? 'OUTSTANDING BALANCE'
+                    : 'AVAILABLE BALANCE',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 1.2,
+                  color: Colors.white.withOpacity(0.5),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Bank name — animates from expanded to collapsed position ───────
+          Positioned(
+            top:   topPadding + nameTop,
+            left:  nameLeft,
+            right: 68,
+            child: Text(
+              account.displayName,
+              style: TextStyle(
+                fontSize:   nameFSize,
+                fontWeight: FontWeight.w600,
+                color:      Colors.white,
+                letterSpacing: -0.4,
+                height: 1.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
+          // ── Balance amount — animates from expanded to collapsed position ──
+          Positioned(
+            top:   topPadding + amtTop,
+            left:  amtLeft,
+            right: 68,
+            child: Text(
+              amountStr,
+              style: TextStyle(
+                fontFamily:    'Archia',
+                fontSize:      amtFSize,
+                fontWeight:    FontWeight.w600,
+                color:         Colors.white,
+                letterSpacing: amtLS,
+                height:        1.0,
+              ),
+            ),
+          ),
+
+          // ── Back + Edit buttons (fixed) ───────────────────────────────────
+          Positioned(
+            top:    topPadding + _btnTop,
+            left:   20,
+            right:  20,
+            height: _btnH,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _HeroButton(icon: LucideIcons.arrowLeft, onTap: onBack),
+                _HeroButton(icon: LucideIcons.pencil,    onTap: onEdit),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _circle(double size, double opacity) => Container(
+    width: size, height: size,
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(opacity),
+      shape: BoxShape.circle,
+    ),
+  );
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -315,7 +430,7 @@ Color _adjustLightness(Color color, double delta) {
   return hsl.withLightness((hsl.lightness + delta).clamp(0.0, 1.0)).toColor();
 }
 
-// ── Hero icon button (back / edit) ────────────────────────────────────────────
+// ── Hero icon button ──────────────────────────────────────────────────────────
 
 class _HeroButton extends StatelessWidget {
   final IconData icon;
@@ -343,7 +458,6 @@ class _HeroButton extends StatelessWidget {
 
 class _HeroBadge extends StatelessWidget {
   final Account account;
-
   const _HeroBadge({required this.account});
 
   @override
@@ -371,11 +485,10 @@ class _HeroBadge extends StatelessWidget {
       );
     }
 
-    // Initials fallback
-    final words = (account.bank ?? account.name).split(' ').where((w) => w.isNotEmpty).toList();
+    final words    = account.displayName.split(' ').where((w) => w.isNotEmpty).toList();
     final initials = words.length >= 2
         ? '${words[0][0]}${words[1][0]}'.toUpperCase()
-        : (account.bank ?? account.name).substring(0, 2).toUpperCase();
+        : account.displayName.substring(0, 2).toUpperCase();
 
     return Container(
       width: 44, height: 44,

@@ -1,6 +1,6 @@
 import 'dart:math' show min;
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
@@ -118,6 +118,7 @@ class _NetWorthCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
@@ -135,6 +136,7 @@ class _NetWorthCard extends StatelessWidget {
         ],
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           // Decorative circles
           Positioned(
@@ -183,6 +185,7 @@ class _NetWorthCard extends StatelessWidget {
                   Text(
                     '${netWorth >= 0 ? '' : '−'}${Helpers.formatINR(netWorth.abs())}',
                     style: const TextStyle(
+                      fontFamily: 'Archia',
                       fontSize: 36,
                       color: Colors.white,
                       letterSpacing: -0.9,
@@ -229,6 +232,7 @@ class _NetWorthCard extends StatelessWidget {
                       Text(
                         Helpers.formatINR(totalAssets),
                         style: const TextStyle(
+                          fontFamily: 'Archia',
                           fontSize: 16,
                           color: Color(0xFF4DBA7E),
                         ),
@@ -257,6 +261,7 @@ class _NetWorthCard extends StatelessWidget {
                       Text(
                         Helpers.formatINR(totalDebt),
                         style: const TextStyle(
+                          fontFamily: 'Archia',
                           fontSize: 16,
                           color: Color(0xFFE76F51),
                         ),
@@ -346,176 +351,180 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           Helpers.formatINR(total),
-          style: TextStyle(fontSize: 12, color: color),
+          style: TextStyle(fontFamily: 'Archia', fontSize: 12, color: color),
         ),
       ],
     );
   }
 }
 
-// ── Tappable account card ──────────────────────────────────────────────────────
+// ── Account card ───────────────────────────────────────────────────────────────
 
 class _TappableAccountCard extends StatelessWidget {
   final Account account;
-
   const _TappableAccountCard({required this.account});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => AccountDetailScreen(account: account)),
-      ),
-      child: _AccountCard(account: account),
-    );
-  }
-}
-
-// ── Account card ───────────────────────────────────────────────────────────────
-
-class _AccountCard extends StatelessWidget {
-  final Account account;
-
-  const _AccountCard({required this.account});
-
-  @override
-  Widget build(BuildContext context) {
     final isNegative = account.balance < 0;
-    final sparkColor = isNegative ? const Color(0xFFE76F51) : const Color(0xFF4DBA7E);
-    final bankColor  = _bankColor(account.bank);
+    final bankColor = _bankColor(account.bank);
+    final amountColor = isNegative
+        ? const Color(0xFFE76F51)
+        : Theme.of(context).colorScheme.onSurface;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 0.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 6,
             offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Top row: badge + name + sparkline
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Bank badge
-                _BankBadge(account: account, bankColor: bankColor),
-                const SizedBox(width: 12),
-                // Name + subtitle
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(17.5),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(17.5),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => AccountDetailScreen(account: account)),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Colored accent bar
+                  Container(
+                    width: 3.5,
+                    decoration: BoxDecoration(
+                      color: bankColor.withOpacity(0.6),
+                    ),
+                  ),
+
+                // Badge
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+                  child: _BankBadge(account: account, bankColor: bankColor),
+                ),
+
+                // Name + meta
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          account.displayName,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        const _CurrencyChip(symbol: '₹', country: 'India'),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Balance + chevron
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 14, 14, 14),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 2),
-                      Text(
-                        account.bank ?? account.name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${isNegative ? '−' : ''}${Helpers.formatINR(account.balance.abs())}',
+                            style: TextStyle(
+                              fontFamily: 'Archia',
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: amountColor,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            account.type == AccountType.credit
+                                ? 'Credit'
+                                : account.type == AccountType.cash
+                                    ? 'Cash'
+                                    : 'Savings',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        account.type == AccountType.cash
-                            ? 'Cash'
-                            : '🇮🇳 India',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        LucideIcons.chevronRight,
+                        size: 14,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withOpacity(0.5),
                       ),
                     ],
                   ),
                 ),
-                // Sparkline
-                SizedBox(
-                  width: 72,
-                  height: 32,
-                  child: LineChart(
-                    LineChartData(
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: account.sparkline
-                              .asMap()
-                              .entries
-                              .map((e) => FlSpot(e.key.toDouble(), e.value.abs()))
-                              .toList(),
-                          isCurved: true,
-                          color: sparkColor,
-                          barWidth: 1.8,
-                          dotData: const FlDotData(show: false),
-                          belowBarData: BarAreaData(show: false),
-                        ),
-                      ],
-                      lineTouchData: const LineTouchData(enabled: false),
-                      titlesData: const FlTitlesData(show: false),
-                      gridData: const FlGridData(show: false),
-                      borderData: FlBorderData(show: false),
-                      minY: account.sparkline.map((v) => v.abs()).reduce((a, b) => a < b ? a : b) * 0.9,
-                      maxY: account.sparkline.map((v) => v.abs()).reduce((a, b) => a > b ? a : b) * 1.1,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
 
-          // Divider
-          Divider(
-            height: 24,
-            indent: 16,
-            endIndent: 16,
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
+// ── Currency chip ──────────────────────────────────────────────────────────────
 
-          // Balance row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  account.type == AccountType.credit
-                      ? 'Outstanding balance'
-                      : 'Available balance',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Text(
-                      '${isNegative ? '−' : ''}${Helpers.formatINR(account.balance.abs())}',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      LucideIcons.chevronRight,
-                      size: 14,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+class _CurrencyChip extends StatelessWidget {
+  final String symbol;
+  final String? country;
+
+  const _CurrencyChip({required this.symbol, this.country});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final label = country != null ? '$symbol • $country' : symbol;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: muted.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: muted,
+        ),
       ),
     );
   }
@@ -533,33 +542,47 @@ class _BankBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (account.type == AccountType.cash) {
       return Container(
-        width: 48,
-        height: 48,
+        width: 46,
+        height: 46,
         decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withOpacity(0.13),
-          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.primaryColor.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(LucideIcons.wallet, size: 22, color: AppTheme.primaryColor),
+        child: const Icon(LucideIcons.wallet, size: 20, color: AppTheme.primaryColor),
       );
     }
+
+    final hasSvg = account.bankLogoPath != null;
+
     return Container(
-      width: 48,
-      height: 48,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
-        color: bankColor.withOpacity(0.13),
-        borderRadius: BorderRadius.circular(16),
+        color: hasSvg ? Colors.white : bankColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: hasSvg
+            ? Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                width: 0.5,
+              )
+            : null,
       ),
-      child: Center(
-        child: Text(
-          _bankInitials(account.bank),
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: bankColor,
-            letterSpacing: -0.5,
-          ),
-        ),
-      ),
+      child: hasSvg
+          ? Padding(
+              padding: const EdgeInsets.all(8),
+              child: SvgPicture.asset(account.bankLogoPath!),
+            )
+          : Center(
+              child: Text(
+                _bankInitials(account.bank),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: bankColor,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
     );
   }
 }

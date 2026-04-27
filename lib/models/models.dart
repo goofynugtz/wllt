@@ -166,7 +166,7 @@ class Transaction {
       amount: 1240,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 28),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['groceries'],
       note: 'Monthly groceries run',
     ),
@@ -177,7 +177,7 @@ class Transaction {
       amount: 380,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 28),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['doctor'],
     ),
     Transaction(
@@ -197,7 +197,7 @@ class Transaction {
       amount: 85000,
       type: TransactionType.income,
       date: DateTime(2026, 3, 27),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['savings'],
     ),
     Transaction(
@@ -207,7 +207,7 @@ class Transaction {
       amount: 450,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 27),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -217,7 +217,7 @@ class Transaction {
       amount: 180,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 26),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['transport'],
     ),
     Transaction(
@@ -227,7 +227,7 @@ class Transaction {
       amount: 649,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 26),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['movies'],
     ),
     Transaction(
@@ -237,7 +237,7 @@ class Transaction {
       amount: 349,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 25),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -247,7 +247,7 @@ class Transaction {
       amount: 1850,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 25),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['utilities'],
     ),
     Transaction(
@@ -257,7 +257,7 @@ class Transaction {
       amount: 2399,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 24),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['shopping'],
     ),
     Transaction(
@@ -267,7 +267,7 @@ class Transaction {
       amount: 3200,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 24),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['shopping'],
     ),
     Transaction(
@@ -287,7 +287,7 @@ class Transaction {
       amount: 380,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 22),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['movies'],
     ),
     Transaction(
@@ -297,7 +297,7 @@ class Transaction {
       amount: 2100,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 20),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['groceries'],
     ),
     Transaction(
@@ -307,7 +307,7 @@ class Transaction {
       amount: 1899,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 18),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['shopping'],
     ),
     Transaction(
@@ -327,7 +327,7 @@ class Transaction {
       amount: 650,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 17),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       note: 'Quick grocery run',
       tags: ['groceries'],
     ),
@@ -338,7 +338,7 @@ class Transaction {
       amount: 299,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 10),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['movies'],
     ),
     Transaction(
@@ -348,7 +348,7 @@ class Transaction {
       amount: 25000,
       type: TransactionType.income,
       date: DateTime(2026, 3, 15),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       note: 'UI design project',
       tags: ['savings'],
     ),
@@ -359,7 +359,7 @@ class Transaction {
       amount: 18000,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 1),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['home'],
     ),
     Transaction(
@@ -369,7 +369,7 @@ class Transaction {
       amount: 85000,
       type: TransactionType.income,
       date: DateTime(2026, 2, 27),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['savings'],
     ),
     Transaction(
@@ -379,7 +379,7 @@ class Transaction {
       amount: 380,
       type: TransactionType.expense,
       date: DateTime(2026, 2, 25),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -389,7 +389,7 @@ class Transaction {
       amount: 1890,
       type: TransactionType.expense,
       date: DateTime(2026, 2, 20),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['groceries'],
     ),
     Transaction(
@@ -399,7 +399,7 @@ class Transaction {
       amount: 420,
       type: TransactionType.expense,
       date: DateTime(2026, 2, 18),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['transport'],
     ),
     // Today & yesterday entries for Recent section demo
@@ -410,7 +410,7 @@ class Transaction {
       amount: 340,
       type: TransactionType.expense,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -420,7 +420,7 @@ class Transaction {
       amount: 299,
       type: TransactionType.expense,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['phone'],
     ),
     Transaction(
@@ -430,7 +430,7 @@ class Transaction {
       amount: 95000,
       type: TransactionType.income,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
-      account: 'HDFC Savings',
+      account: 'HDFC Bank',
       tags: ['work'],
     ),
     Transaction(
@@ -440,9 +440,132 @@ class Transaction {
       amount: 299,
       type: TransactionType.expense,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
-      account: 'ICICI Credit Card',
+      account: 'ICICI Bank',
       tags: ['movies'],
     ),
+
+    // ── April 2026 (current month) ──────────────────────────────────────────
+    Transaction(id: 'ta01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'ta02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 90000, type: TransactionType.income, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'ta03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2200, type: TransactionType.expense, date: DateTime(2026, 4, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'ta04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 520, type: TransactionType.expense, date: DateTime(2026, 4, 7), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'ta05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1750, type: TransactionType.expense, date: DateTime(2026, 4, 8), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'ta06', transactionTitle: 'Ola', categoryId: 'transport', amount: 210, type: TransactionType.expense, date: DateTime(2026, 4, 10), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'ta07', transactionTitle: 'Flipkart', categoryId: 'shopping', amount: 1890, type: TransactionType.expense, date: DateTime(2026, 4, 12), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'ta08', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 390, type: TransactionType.expense, date: DateTime(2026, 4, 14), account: 'HDFC Bank', tags: ['restaurant']),
+    Transaction(id: 'ta09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1650, type: TransactionType.expense, date: DateTime(2026, 4, 16), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'ta10', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2026, 4, 18), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'ta11', transactionTitle: 'Uber', categoryId: 'transport', amount: 340, type: TransactionType.expense, date: DateTime(2026, 4, 20), account: 'HDFC Bank', tags: ['transport']),
+    Transaction(id: 'ta12', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 720, type: TransactionType.expense, date: DateTime(2026, 4, 22), account: 'ICICI Bank', tags: ['groceries']),
+    Transaction(id: 'ta13', transactionTitle: 'Rapido', categoryId: 'transport', amount: 95, type: TransactionType.expense, date: DateTime(2026, 4, 24), account: 'Cash', tags: ['transport']),
+
+    // ── January 2026 ────────────────────────────────────────────────────────
+    Transaction(id: 'tj01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2026, 1, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tj02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 1, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tj03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1980, type: TransactionType.expense, date: DateTime(2026, 1, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tj04', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 460, type: TransactionType.expense, date: DateTime(2026, 1, 9), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tj05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 2100, type: TransactionType.expense, date: DateTime(2026, 1, 12), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tj06', transactionTitle: 'Amazon', categoryId: 'shopping', amount: 3100, type: TransactionType.expense, date: DateTime(2026, 1, 14), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tj07', transactionTitle: 'Hotstar', categoryId: 'movies', amount: 299, type: TransactionType.expense, date: DateTime(2026, 1, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tj08', transactionTitle: 'Ola', categoryId: 'transport', amount: 175, type: TransactionType.expense, date: DateTime(2026, 1, 18), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'tj09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1400, type: TransactionType.expense, date: DateTime(2026, 1, 22), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tj10', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 310, type: TransactionType.expense, date: DateTime(2026, 1, 26), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── December 2025 ────────────────────────────────────────────────────────
+    Transaction(id: 'td01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 12, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'td02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 12, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'td03', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 2450, type: TransactionType.expense, date: DateTime(2025, 12, 4), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'td04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 580, type: TransactionType.expense, date: DateTime(2025, 12, 8), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'td05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1950, type: TransactionType.expense, date: DateTime(2025, 12, 10), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'td06', transactionTitle: 'Myntra', categoryId: 'shopping', amount: 4200, type: TransactionType.expense, date: DateTime(2025, 12, 14), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'td07', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2025, 12, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'td08', transactionTitle: 'Uber', categoryId: 'transport', amount: 450, type: TransactionType.expense, date: DateTime(2025, 12, 18), account: 'HDFC Bank', tags: ['transport']),
+    Transaction(id: 'td09', transactionTitle: 'Amazon', categoryId: 'shopping', amount: 2800, type: TransactionType.expense, date: DateTime(2025, 12, 22), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'td10', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 420, type: TransactionType.expense, date: DateTime(2025, 12, 28), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── November 2025 ────────────────────────────────────────────────────────
+    Transaction(id: 'tn01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 11, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tn02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 11, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tn03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1750, type: TransactionType.expense, date: DateTime(2025, 11, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tn04', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 390, type: TransactionType.expense, date: DateTime(2025, 11, 9), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tn05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1680, type: TransactionType.expense, date: DateTime(2025, 11, 11), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tn06', transactionTitle: 'Decathlon', categoryId: 'shopping', amount: 2950, type: TransactionType.expense, date: DateTime(2025, 11, 16), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tn07', transactionTitle: 'Hotstar', categoryId: 'movies', amount: 299, type: TransactionType.expense, date: DateTime(2025, 11, 17), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tn08', transactionTitle: 'Rapido', categoryId: 'transport', amount: 130, type: TransactionType.expense, date: DateTime(2025, 11, 20), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'tn09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1320, type: TransactionType.expense, date: DateTime(2025, 11, 24), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tn10', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 280, type: TransactionType.expense, date: DateTime(2025, 11, 28), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── October 2025 ─────────────────────────────────────────────────────────
+    Transaction(id: 'to01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 10, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'to02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 10, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'to03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2100, type: TransactionType.expense, date: DateTime(2025, 10, 4), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'to04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 495, type: TransactionType.expense, date: DateTime(2025, 10, 8), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'to05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1820, type: TransactionType.expense, date: DateTime(2025, 10, 11), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'to06', transactionTitle: 'Amazon', categoryId: 'shopping', amount: 3500, type: TransactionType.expense, date: DateTime(2025, 10, 14), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'to07', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2025, 10, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'to08', transactionTitle: 'Ola', categoryId: 'transport', amount: 220, type: TransactionType.expense, date: DateTime(2025, 10, 19), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'to09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1600, type: TransactionType.expense, date: DateTime(2025, 10, 23), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'to10', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 350, type: TransactionType.expense, date: DateTime(2025, 10, 27), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── September 2025 ───────────────────────────────────────────────────────
+    Transaction(id: 'ts01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 9, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'ts02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 9, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'ts03', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1900, type: TransactionType.expense, date: DateTime(2025, 9, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'ts04', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 420, type: TransactionType.expense, date: DateTime(2025, 9, 9), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'ts05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 2200, type: TransactionType.expense, date: DateTime(2025, 9, 12), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'ts06', transactionTitle: 'Myntra', categoryId: 'shopping', amount: 1500, type: TransactionType.expense, date: DateTime(2025, 9, 15), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'ts07', transactionTitle: 'Hotstar', categoryId: 'movies', amount: 299, type: TransactionType.expense, date: DateTime(2025, 9, 17), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'ts08', transactionTitle: 'Uber', categoryId: 'transport', amount: 280, type: TransactionType.expense, date: DateTime(2025, 9, 21), account: 'HDFC Bank', tags: ['transport']),
+    Transaction(id: 'ts09', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1250, type: TransactionType.expense, date: DateTime(2025, 9, 25), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'ts10', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 330, type: TransactionType.expense, date: DateTime(2025, 9, 28), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── August 2025 ──────────────────────────────────────────────────────────
+    Transaction(id: 'tg01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 8, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tg02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 8, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tg03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2050, type: TransactionType.expense, date: DateTime(2025, 8, 3), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tg04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 510, type: TransactionType.expense, date: DateTime(2025, 8, 7), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tg05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 2380, type: TransactionType.expense, date: DateTime(2025, 8, 11), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tg06', transactionTitle: 'Amazon', categoryId: 'shopping', amount: 2700, type: TransactionType.expense, date: DateTime(2025, 8, 15), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tg07', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2025, 8, 16), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tg08', transactionTitle: 'Rapido', categoryId: 'transport', amount: 160, type: TransactionType.expense, date: DateTime(2025, 8, 20), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'tg09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1450, type: TransactionType.expense, date: DateTime(2025, 8, 24), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tg10', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 370, type: TransactionType.expense, date: DateTime(2025, 8, 28), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── July 2025 ────────────────────────────────────────────────────────────
+    Transaction(id: 'tl01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 7, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tl02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 7, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tl03', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1800, type: TransactionType.expense, date: DateTime(2025, 7, 4), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tl04', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 440, type: TransactionType.expense, date: DateTime(2025, 7, 8), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tl05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 2050, type: TransactionType.expense, date: DateTime(2025, 7, 12), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tl06', transactionTitle: 'Flipkart', categoryId: 'shopping', amount: 1650, type: TransactionType.expense, date: DateTime(2025, 7, 16), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tl07', transactionTitle: 'Hotstar', categoryId: 'movies', amount: 299, type: TransactionType.expense, date: DateTime(2025, 7, 18), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tl08', transactionTitle: 'Ola', categoryId: 'transport', amount: 190, type: TransactionType.expense, date: DateTime(2025, 7, 22), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'tl09', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1350, type: TransactionType.expense, date: DateTime(2025, 7, 25), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tl10', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 295, type: TransactionType.expense, date: DateTime(2025, 7, 29), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── June 2025 ────────────────────────────────────────────────────────────
+    Transaction(id: 'tu01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 6, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tu02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 6, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tu03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1920, type: TransactionType.expense, date: DateTime(2025, 6, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tu04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 470, type: TransactionType.expense, date: DateTime(2025, 6, 9), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tu05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1600, type: TransactionType.expense, date: DateTime(2025, 6, 12), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tu06', transactionTitle: 'Amazon', categoryId: 'shopping', amount: 2200, type: TransactionType.expense, date: DateTime(2025, 6, 15), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tu07', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2025, 6, 17), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tu08', transactionTitle: 'Rapido', categoryId: 'transport', amount: 145, type: TransactionType.expense, date: DateTime(2025, 6, 21), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'tu09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1280, type: TransactionType.expense, date: DateTime(2025, 6, 25), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tu10', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 310, type: TransactionType.expense, date: DateTime(2025, 6, 28), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── May 2025 ─────────────────────────────────────────────────────────────
+    Transaction(id: 'tm01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2025, 5, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tm02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2025, 5, 27), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tm03', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 2300, type: TransactionType.expense, date: DateTime(2025, 5, 4), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tm04', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 395, type: TransactionType.expense, date: DateTime(2025, 5, 8), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tm05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1720, type: TransactionType.expense, date: DateTime(2025, 5, 11), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tm06', transactionTitle: 'Myntra', categoryId: 'shopping', amount: 1800, type: TransactionType.expense, date: DateTime(2025, 5, 15), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tm07', transactionTitle: 'Hotstar', categoryId: 'movies', amount: 299, type: TransactionType.expense, date: DateTime(2025, 5, 17), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tm08', transactionTitle: 'Ola', categoryId: 'transport', amount: 200, type: TransactionType.expense, date: DateTime(2025, 5, 21), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'tm09', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1550, type: TransactionType.expense, date: DateTime(2025, 5, 25), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tm10', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 360, type: TransactionType.expense, date: DateTime(2025, 5, 29), account: 'HDFC Bank', tags: ['restaurant']),
   ];
 }
 
@@ -450,7 +573,6 @@ enum AccountType { bank, cash, credit }
 
 class Account {
   final String id;
-  final String name;
   final AccountType type;
   final double balance;
   final String? bank;
@@ -460,7 +582,6 @@ class Account {
 
   const Account({
     required this.id,
-    required this.name,
     required this.type,
     required this.balance,
     this.bank,
@@ -469,9 +590,10 @@ class Account {
     required this.sparkline,
   });
 
+  String get displayName => bank ?? (type == AccountType.cash ? 'Cash' : 'Account');
+
   Map<String, dynamic> toJson() => {
     'id': id,
-    'name': name,
     'type': type.name,
     'balance': balance,
     if (bank != null) 'bank': bank,
@@ -482,7 +604,6 @@ class Account {
 
   factory Account.fromJson(Map<String, dynamic> json) => Account(
     id: json['id'] as String,
-    name: json['name'] as String,
     type: AccountType.values.firstWhere((e) => e.name == json['type']),
     balance: (json['balance'] as num).toDouble(),
     bank: json['bank'] as String?,
@@ -494,7 +615,6 @@ class Account {
   static const List<Account> dummyData = [
     Account(
       id: 'a1',
-      name: 'HDFC Savings',
       type: AccountType.bank,
       balance: 42350,
       bank: 'HDFC Bank',
@@ -503,7 +623,6 @@ class Account {
     ),
     Account(
       id: 'a2',
-      name: 'ICICI Credit Card',
       type: AccountType.credit,
       balance: -8247,
       bank: 'ICICI Bank',
@@ -513,7 +632,6 @@ class Account {
     ),
     Account(
       id: 'a4',
-      name: 'SBI Savings',
       type: AccountType.bank,
       balance: 18640,
       bank: 'State Bank of India',
@@ -522,7 +640,6 @@ class Account {
     ),
     Account(
       id: 'a5',
-      name: 'Axis Bank',
       type: AccountType.bank,
       balance: 9820,
       bank: 'Axis Bank',
@@ -531,7 +648,6 @@ class Account {
     ),
     Account(
       id: 'a6',
-      name: 'Kotak Savings',
       type: AccountType.bank,
       balance: 27300,
       bank: 'Kotak Mahindra Bank',
@@ -540,7 +656,6 @@ class Account {
     ),
     Account(
       id: 'a7',
-      name: 'Canara Bank',
       type: AccountType.bank,
       balance: 5450,
       bank: 'Canara Bank',
@@ -549,7 +664,6 @@ class Account {
     ),
     Account(
       id: 'a8',
-      name: 'PNB Account',
       type: AccountType.bank,
       balance: 11200,
       bank: 'Punjab National Bank',
@@ -558,7 +672,6 @@ class Account {
     ),
     Account(
       id: 'a3',
-      name: 'Cash',
       type: AccountType.cash,
       balance: 3200,
       bankLogoPath: null,

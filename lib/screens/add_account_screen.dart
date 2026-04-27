@@ -83,7 +83,6 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
     final balance = double.tryParse(_balanceController.text) ?? 0.0;
     final account = Account(
       id: widget.initialAccount?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _selectedBank!.name,
       type: AccountType.bank,
       balance: balance,
       bank: _selectedBank!.name,

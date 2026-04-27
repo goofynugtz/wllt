@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
@@ -13,6 +14,8 @@ import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/layout_screen.dart';
 import '../providers/app_settings_provider.dart';
+
+enum _TrendRange { m1, m6, y1 }
 
 class HomeScreen extends StatefulWidget {
   final DateTime selectedMonth;
@@ -36,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   double _dragOffset = 0.0;
   late AnimationController _snapController;
+  _TrendRange _trendRange = _TrendRange.m6;
 
   @override
   void initState() {
@@ -246,6 +250,22 @@ class _HomeScreenState extends State<HomeScreen>
                       }),
                     ),
 
+                    const SizedBox(height: 16),
+
+                    // ── Category Breakdown ────────────────────────────────────
+                    if (categoryBreakdown.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildCategoryBreakdown(categoryBreakdown, totalExpense),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // ── Spending Trend ────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildSpendingTrend(allTx),
+                    ),
                     const SizedBox(height: 16),
 
                     // ── Insight chips ─────────────────────────────────────────
@@ -474,6 +494,273 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // ── Category Breakdown ────────────────────────────────────────────────────
+
+  Widget _buildCategoryBreakdown(
+    List<CategoryData> breakdown,
+    double totalExpense,
+  ) {
+    return _SectionCard(
+      title: 'Category Breakdown',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 110,
+            height: 110,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 26,
+                sections: breakdown.take(5).map((cd) {
+                  return PieChartSectionData(
+                    color: Color(
+                      int.parse(
+                            cd.category.color.substring(1),
+                            radix: 16,
+                          ) +
+                          0xFF000000,
+                    ),
+                    value: cd.amount,
+                    title: '',
+                    radius: 26,
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: breakdown.take(5).map((cd) {
+                final pct = totalExpense > 0
+                    ? (cd.amount / totalExpense * 100).round()
+                    : 0;
+                final color = Color(
+                  int.parse(cd.category.color.substring(1), radix: 16) +
+                      0xFF000000,
+                );
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          cd.category.name,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        Helpers.formatINR(cd.amount),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 30,
+                        child: Text(
+                          '$pct%',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Spending Trend ────────────────────────────────────────────────────────
+
+  Widget _buildSpendingTrend(List<Transaction> allTx) {
+    final List<({String label, double amount})> bars;
+
+    if (_trendRange == _TrendRange.m1) {
+      final daysInMonth = DateTime(
+        widget.selectedMonth.year, widget.selectedMonth.month + 1, 0).day;
+      bars = List.generate(daysInMonth, (i) {
+        final day = i + 1;
+        final amount = allTx
+            .where((t) =>
+                t.type == TransactionType.expense &&
+                t.date.year == widget.selectedMonth.year &&
+                t.date.month == widget.selectedMonth.month &&
+                t.date.day == day)
+            .fold(0.0, (s, t) => s + t.amount);
+        return (label: '$day', amount: amount);
+      });
+    } else if (_trendRange == _TrendRange.m6) {
+      bars = List.generate(6, (i) {
+        var m = widget.selectedMonth.month - 5 + i;
+        var y = widget.selectedMonth.year;
+        while (m < 1) { m += 12; y--; }
+        final amount = allTx
+            .where((t) =>
+                t.type == TransactionType.expense &&
+                t.date.month == m &&
+                t.date.year == y)
+            .fold(0.0, (s, t) => s + t.amount);
+        return (label: Helpers.months[m - 1], amount: amount);
+      });
+    } else {
+      bars = List.generate(12, (i) {
+        var m = widget.selectedMonth.month - 11 + i;
+        var y = widget.selectedMonth.year;
+        while (m < 1) { m += 12; y--; }
+        final amount = allTx
+            .where((t) =>
+                t.type == TransactionType.expense &&
+                t.date.month == m &&
+                t.date.year == y)
+            .fold(0.0, (s, t) => s + t.amount);
+        return (label: Helpers.months[m - 1], amount: amount);
+      });
+    }
+
+    final maxY = bars.isEmpty
+        ? 100.0
+        : bars.map((b) => b.amount).reduce((a, b) => a > b ? a : b);
+
+    return _SectionCard(
+      titleWidget: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Spending Trend',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          Row(
+            children: [
+              for (final range in _TrendRange.values)
+                _TrendPill(
+                  label: switch (range) {
+                    _TrendRange.m1 => '1M',
+                    _TrendRange.m6 => '6M',
+                    _TrendRange.y1 => '1Y',
+                  },
+                  selected: _trendRange == range,
+                  onTap: () => setState(() => _trendRange = range),
+                ),
+            ],
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final n = bars.length;
+          const gap = 4.0;
+          final barWidth = n > 1
+              ? (constraints.maxWidth - gap * (n - 1)) / n
+              : constraints.maxWidth;
+          return SizedBox(
+            height: 120,
+            child: BarChart(
+              BarChartData(
+                maxY: maxY > 0 ? maxY * 1.2 : 100,
+                barGroups: bars.asMap().entries.map((e) {
+                  return BarChartGroupData(
+                    x: e.key,
+                    barRods: [
+                      BarChartRodData(
+                        toY: e.value.amount,
+                        color: AppTheme.primaryColor,
+                        width: barWidth,
+                        borderRadius: BorderRadius.circular(
+                          barWidth > 6 ? 4 : 2,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= bars.length) {
+                          return const SizedBox.shrink();
+                        }
+                        if (_trendRange == _TrendRange.m1 && i % 7 != 0) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            bars[i].label,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                        BarTooltipItem(
+                      Helpers.formatINR(rod.toY),
+                      TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // ── Insight Chips ─────────────────────────────────────────────────────────
 
   Widget _buildInsightChips(
@@ -487,53 +774,31 @@ class _HomeScreenState extends State<HomeScreen>
     final daysInMonth =
         DateTime(widget.selectedMonth.year, widget.selectedMonth.month + 1, 0).day;
     final dayOfMonth = isCurrentMonth ? now.day : daysInMonth;
-    final daysLeft = isCurrentMonth ? daysInMonth - dayOfMonth : 0;
-    final dailyAvg =
-        dayOfMonth > 0 ? totalExpense / dayOfMonth : 0.0;
+    final dailyAvg = dayOfMonth > 0 ? totalExpense / dayOfMonth : 0.0;
     final topCategory = breakdown.isNotEmpty ? breakdown.first : null;
-    final budgetOk = totalExpense <= Helpers.monthlyBudget;
 
-    final chips = <_InsightChipData>[
-      if (topCategory != null)
-        _InsightChipData(
-          icon: LucideIcons.flame,
-          label: 'Top Spender',
-          value: topCategory.category.name,
-          sub: '${Helpers.formatINR(topCategory.amount)} this month',
+    return Row(
+      children: [
+        Expanded(
+          child: _InsightChip(data: _InsightChipData(
+            icon: LucideIcons.flame,
+            label: 'Top Spender',
+            value: topCategory?.category.name ?? '—',
+            sub: topCategory != null
+                ? '${Helpers.formatINR(topCategory.amount)} this month'
+                : 'No expenses yet',
+          )),
         ),
-      _InsightChipData(
-        icon: LucideIcons.shieldCheck,
-        label: 'Budget Health',
-        value: budgetOk ? 'All on track' : 'Over budget',
-        sub: budgetOk ? 'No overspending 🎉' : 'Review spending',
-      ),
-      if (isCurrentMonth)
-        _InsightChipData(
-          icon: LucideIcons.calendar,
-          label: 'Month Progress',
-          value: '${daysLeft}d left',
-          sub: 'Day $dayOfMonth of $daysInMonth',
+        const SizedBox(width: 12),
+        Expanded(
+          child: _InsightChip(data: _InsightChipData(
+            icon: LucideIcons.barChart2,
+            label: 'Daily Average',
+            value: Helpers.formatINR(dailyAvg),
+            sub: 'per day so far',
+          )),
         ),
-      _InsightChipData(
-        icon: LucideIcons.barChart2,
-        label: 'Daily Average',
-        value: Helpers.formatINR(dailyAvg),
-        sub: 'per day so far',
-      ),
-    ];
-
-    // Extra height lets box-shadows render without clipping.
-    // clipBehavior: none on the ListView so shadows bleed out of list bounds.
-    return SizedBox(
-      height: 96,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        itemCount: chips.length,
-        separatorBuilder: (context, i) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => _InsightChip(data: chips[i]),
-      ),
+      ],
     );
   }
 
@@ -799,6 +1064,44 @@ class _HomeScreenState extends State<HomeScreen>
 
 // ── Supporting widgets ────────────────────────────────────────────────────────
 
+class _SectionCard extends StatelessWidget {
+  final String? title;
+  final Widget? titleWidget;
+  final Widget child;
+
+  const _SectionCard({this.title, this.titleWidget, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          titleWidget ??
+              Text(
+                title ?? '',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
 
 class _InsightChipData {
   final IconData icon;
@@ -822,12 +1125,15 @@ class _InsightChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 148,
       height: 86,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.07),
@@ -874,6 +1180,54 @@ class _InsightChip extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Trend range pill ─────────────────────────────────────────────────────────
+
+class _TrendPill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TrendPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.primaryColor.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.outlineVariant,
+            width: 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }

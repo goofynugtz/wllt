@@ -164,7 +164,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       if (accounts.isNotEmpty) {
         final tx = widget.editTransaction;
         _account = tx != null
-            ? accounts.firstWhere((a) => a.name == tx.account, orElse: () => accounts.first)
+            ? accounts.firstWhere((a) => a.displayName == tx.account, orElse: () => accounts.first)
             : accounts.first;
       }
       _accountInitialized = true;
@@ -193,7 +193,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       amount: amountValue,
       type: _type,
       date: _selectedDate,
-      account: _account?.name ?? '',
+      account: _account?.displayName ?? '',
       tags: List.from(_tags),
     );
 
@@ -747,7 +747,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    account.name,
+                                                    account.displayName,
                                                     style: TextStyle(
                                                       color: Theme.of(context).colorScheme.onPrimary,
                                                       fontSize: 13,
@@ -778,7 +778,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                   ),
                                                 )
                                               : Text(
-                                                  _accountInitials(account.name),
+                                                  _accountInitials(account.displayName),
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w600,

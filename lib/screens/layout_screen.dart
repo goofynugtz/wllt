@@ -7,7 +7,6 @@ import '../services/ad_config_service.dart';
 import '../services/auth_service.dart';
 import '../screens/home_screen.dart';
 import '../screens/transactions_screen.dart';
-import '../screens/analytics_screen.dart';
 import '../screens/accounts_screen.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/ad_banner.dart';
@@ -81,7 +80,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
   }
 
   Widget _buildTopHeader(BuildContext context) {
-    final showMonthPicker = _currentIndex <= 2;
+    final showMonthPicker = _currentIndex <= 1;
     final monthLabel =
         '${Helpers.months[_selectedMonth.month - 1]} ${_selectedMonth.year}';
 
@@ -108,7 +107,6 @@ class _LayoutScreenState extends State<LayoutScreen> {
             const [
               '',
               'Transactions',
-              'Analytics',
               'Accounts',
               'Settings',
             ][_currentIndex],
@@ -346,14 +344,11 @@ class _LayoutScreenState extends State<LayoutScreen> {
   }
 
   Widget? _buildFab() {
-    // Analytics — nothing to add here
-    if (_currentIndex == 2) return null;
-
     // Settings — no FAB
-    if (_currentIndex == 4) return null;
+    if (_currentIndex == 3) return null;
 
     // Accounts — navigate to add account
-    if (_currentIndex == 3) {
+    if (_currentIndex == 2) {
       return FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
@@ -417,7 +412,6 @@ class _LayoutScreenState extends State<LayoutScreen> {
   final List<NavItem> _navItems = [
     const NavItem(icon: LucideIcons.layoutDashboard, label: 'Home'),
     const NavItem(icon: LucideIcons.arrowLeftRight, label: 'History'),
-    const NavItem(icon: LucideIcons.barChart2, label: 'Analytics'),
     const NavItem(icon: LucideIcons.wallet, label: 'Accounts'),
     const NavItem(icon: LucideIcons.settings, label: 'Settings'),
   ];
@@ -498,7 +492,6 @@ class _LayoutScreenState extends State<LayoutScreen> {
                         pageScrollEnabled: _pageScrollEnabled,
                       ),
                       TransactionsScreen(selectedMonth: _selectedMonth),
-                      AnalyticsScreen(selectedMonth: _selectedMonth),
                       const AccountsScreen(),
                       const SettingsScreen(),
                     ],

@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../data/currencies.dart';
 import '../providers/user_preferences_provider.dart';
-import '../theme/app_theme.dart';
 
 class CurrencyPickerScreen extends StatefulWidget {
   const CurrencyPickerScreen({super.key});
@@ -43,72 +42,105 @@ class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final filtered = _filtered;
+
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppTheme.backgroundLight,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.chevronLeft),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Currency',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      ),
+      backgroundColor: cs.surface,
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: TextField(
-              onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText: 'Search currencies...',
-                hintStyle: const TextStyle(
-                  fontSize: 15,
-                  color: AppTheme.textTertiary,
-                ),
-                prefixIcon: const Icon(
-                  LucideIcons.search,
-                  size: 18,
-                  color: AppTheme.textSecondary,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 18,
-                ),
+          // ── Fixed header ──────────────────────────────────────────────────
+          ColoredBox(
+            color: cs.surface,
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainerHighest,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              LucideIcons.arrowLeft,
+                              size: 18,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Text(
+                          'Currency',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _query = v),
+                      style: TextStyle(fontSize: 15, color: cs.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Search currencies...',
+                        hintStyle: TextStyle(
+                          fontSize: 15,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        prefixIcon: Icon(
+                          LucideIcons.search,
+                          size: 18,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        filled: true,
+                        fillColor: cs.surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+
+          // ── Scrollable list ───────────────────────────────────────────────
           Expanded(
             child: filtered.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           LucideIcons.searchX,
                           size: 36,
-                          color: AppTheme.textTertiary,
+                          color: cs.onSurfaceVariant,
                         ),
                         const SizedBox(height: 12),
                         Text(
                           'No results for "$_query"',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: AppTheme.textTertiary,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -149,22 +181,61 @@ class _CurrencyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 66,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF5EFF7) : Colors.transparent,
+          color: isSelected
+              ? cs.secondaryContainer.withValues(alpha: 0.5)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            CountryFlag.fromCountryCode(
-              currency.countryCode,
-              height: 24,
-              width: 34,
-              shape: const RoundedRectangle(4),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: Text(
+                        currency.symbol,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -4,
+                    right: -4,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: cs.surface, width: 1.5),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: CountryFlag.fromCountryCode(
+                        currency.countryCode,
+                        height: 20,
+                        width: 20,
+                        shape: const Circle(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -174,17 +245,17 @@ class _CurrencyRow extends StatelessWidget {
                 children: [
                   Text(
                     currency.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 15,
-                      color: AppTheme.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   Text(
-                    '${currency.code} · ${currency.symbol} · ${currency.country}',
-                    style: const TextStyle(
+                    '${currency.code} · ${currency.country}',
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textTertiary,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -194,14 +265,14 @@ class _CurrencyRow extends StatelessWidget {
               Container(
                 width: 24,
                 height: 24,
-                decoration: const BoxDecoration(
-                  color: AppTheme.primaryColor,
+                decoration: BoxDecoration(
+                  color: cs.primary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   LucideIcons.check,
                   size: 14,
-                  color: Colors.white,
+                  color: cs.onPrimary,
                 ),
               ),
           ],

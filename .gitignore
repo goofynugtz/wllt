@@ -16,6 +16,7 @@ AGENTS.md
 design/
 android/app/google-services.json
 boards/
+.superpowers/
 # IntelliJ related
 *.iml
 *.ipr

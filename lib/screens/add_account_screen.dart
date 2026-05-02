@@ -173,14 +173,11 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                       ],
                     ),
                   ),
-                  // Delete icon when editing, bank badge when creating
                   if (widget.initialAccount != null)
                     IconButton(
                       icon: Icon(LucideIcons.trash2, color: Theme.of(context).colorScheme.error, size: 20),
                       onPressed: _confirmDelete,
-                    )
-                  else
-                    _BankLogoBox(bank: _selectedBank, size: 36, borderRadius: 14),
+                    ),
                 ],
               ),
             ),
@@ -214,25 +211,6 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                                         : cs.onSurfaceVariant,
                                   ),
                                 ),
-                                if (_selectedBank != null)
-                                  Row(
-                                    children: [
-                                      CountryFlag.fromCountryCode(
-                                        _selectedBank!.countryCode,
-                                        height: 12,
-                                        width: 18,
-                                        shape: const RoundedRectangle(2),
-                                      ),
-                                      const SizedBox(width: 5),
-                                      Text(
-                                        _selectedBank!.country,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: cs.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                               ],
                             ),
                           ),
@@ -249,17 +227,57 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                     Consumer<UserPreferencesProvider>(
                       builder: (_, prefs, __) {
                         final code = prefs.currency;
+                        final currencyInfo = _currencyInfo(code);
                         return _FieldCard(
                           onTap: _pickCurrency,
                           child: Row(
                             children: [
-                              Container(
-                                width: 36, height: 36,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withOpacity(0.13),
-                                  borderRadius: BorderRadius.circular(14),
+                              SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor.withOpacity(0.13),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          currencyInfo?.symbol ?? code,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (currencyInfo != null)
+                                      Positioned(
+                                        bottom: -4,
+                                        right: -4,
+                                        child: Container(
+                                          width: 18,
+                                          height: 18,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Theme.of(context).colorScheme.surface, width: 1.5),
+                                          ),
+                                          clipBehavior: Clip.antiAlias,
+                                          child: CountryFlag.fromCountryCode(
+                                            currencyInfo.countryCode,
+                                            height: 18,
+                                            width: 18,
+                                            shape: const Circle(),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                                child: const Icon(LucideIcons.globe, size: 17, color: AppTheme.primaryColor),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -469,6 +487,14 @@ String _currencyName(String code) {
     return kCurrencies.firstWhere((c) => c.code == code).name;
   } catch (_) {
     return code;
+  }
+}
+
+CurrencyInfo? _currencyInfo(String code) {
+  try {
+    return kCurrencies.firstWhere((c) => c.code == code);
+  } catch (_) {
+    return null;
   }
 }
 

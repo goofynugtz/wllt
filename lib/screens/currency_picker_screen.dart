@@ -91,29 +91,21 @@ class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                    child: TextField(
-                      onChanged: (v) => setState(() => _query = v),
-                      style: TextStyle(fontSize: 15, color: cs.onSurface),
-                      decoration: InputDecoration(
-                        hintText: 'Search currencies...',
-                        hintStyle: TextStyle(
-                          fontSize: 15,
-                          color: cs.onSurfaceVariant,
-                        ),
-                        prefixIcon: Icon(
-                          LucideIcons.search,
-                          size: 18,
-                          color: cs.onSurfaceVariant,
-                        ),
-                        filled: true,
-                        fillColor: cs.surfaceContainerHighest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 18,
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        onChanged: (v) => setState(() => _query = v),
+                        style: TextStyle(fontSize: 14, color: cs.onSurface),
+                        decoration: InputDecoration(
+                          hintText: 'Search currencies...',
+                          hintStyle: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+                          prefixIcon: Icon(LucideIcons.search, size: 16, color: cs.onSurfaceVariant),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 13),
                         ),
                       ),
                     ),

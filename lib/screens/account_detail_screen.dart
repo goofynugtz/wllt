@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../models/models.dart';
+import '../providers/account_provider.dart';
+import '../providers/transaction_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/helpers.dart';
 import '../screens/transactions_screen.dart';
@@ -13,29 +16,20 @@ class AccountDetailScreen extends StatelessWidget {
 
   const AccountDetailScreen({super.key, required this.account});
 
-  Color get _brandColor {
-    if (account.type == AccountType.cash) return AppTheme.primaryColor;
-    try {
-      return kAllBanks.firstWhere((b) => b.name == account.bank).brandColor;
-    } catch (_) {
-      return AppTheme.primaryColor;
-    }
-  }
-
-  List<Transaction> get _transactions =>
-      Transaction.dummyData
-          .where((t) => t.account == account.displayName)
-          .toList()
-        ..sort((a, b) => b.date.compareTo(a.date));
-
-  Map<String, List<Transaction>> get _grouped =>
-      Helpers.groupByDate(_transactions);
-
   @override
   Widget build(BuildContext context) {
+    final live = context.watch<AccountProvider>().accounts
+        .firstWhere((a) => a.id == account.id, orElse: () => account);
+
     final cs     = Theme.of(context).colorScheme;
-    final color  = _brandColor;
+    final color  = _brandColorFor(live);
     final topPad = MediaQuery.of(context).padding.top;
+
+    final transactions = context.watch<TransactionProvider>().transactions
+        .where((t) => t.account == live.displayName)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final grouped = Helpers.groupByDate(transactions);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -44,16 +38,16 @@ class AccountDetailScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: _HeroDelegate(
-              account:    account,
+              account:    live,
               brandColor: color,
-              isNegative: account.balance < 0,
+              isNegative: live.balance < 0,
               topPadding: topPad,
               onBack: () => Navigator.pop(context),
               onEdit: () async {
                 final result = await Navigator.push<String>(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AddAccountScreen(initialAccount: account),
+                    builder: (_) => AddAccountScreen(initialAccount: live),
                   ),
                 );
                 if (result == 'deleted' && context.mounted) {
@@ -80,7 +74,7 @@ class AccountDetailScreen extends StatelessWidget {
                   Expanded(child: Divider(height: 1, color: cs.outlineVariant)),
                   const SizedBox(width: 8),
                   Text(
-                    '${_transactions.length}',
+                    '${transactions.length}',
                     style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                   ),
                 ],
@@ -88,7 +82,7 @@ class AccountDetailScreen extends StatelessWidget {
             ),
           ),
 
-          if (_grouped.isEmpty)
+          if (grouped.isEmpty)
             SliverFillRemaining(
               child: Center(
                 child: Column(
@@ -109,7 +103,7 @@ class AccountDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate(
-                  _grouped.entries
+                  grouped.entries
                       .map((e) => _buildDayGroup(context, e.key, e.value))
                       .toList(),
                 ),
@@ -118,6 +112,15 @@ class AccountDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Color _brandColorFor(Account account) {
+    if (account.type == AccountType.cash) return AppTheme.primaryColor;
+    try {
+      return kAllBanks.firstWhere((b) => b.name == account.bank).brandColor;
+    } catch (_) {
+      return AppTheme.primaryColor;
+    }
   }
 
   Widget _buildDayGroup(

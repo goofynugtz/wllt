@@ -1,5 +1,4 @@
 import 'dart:math' show min;
-import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -68,32 +67,22 @@ class _BankPickerScreenState extends State<BankPickerScreen> {
     if (_query.isEmpty) return kAllBanks;
     final q = _query.toLowerCase();
     return kAllBanks
-        .where((b) =>
-            b.name.toLowerCase().contains(q) ||
-            b.country.toLowerCase().contains(q))
+        .where((b) => b.name.toLowerCase().contains(q))
         .toList();
-  }
-
-  Map<String, List<BankEntry>> get _grouped {
-    final result = <String, List<BankEntry>>{};
-    for (final b in _filtered) {
-      result.putIfAbsent(b.country, () => []).add(b);
-    }
-    return result;
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final grouped = _grouped;
+    final banks = _filtered;
 
     return Scaffold(
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header + search
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
               child: Row(
                 children: [
                   GestureDetector(
@@ -109,75 +98,67 @@ class _BankPickerScreenState extends State<BankPickerScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: TextField(
-                        autofocus: true,
-                        onChanged: (v) => setState(() => _query = v),
-                        style: TextStyle(fontSize: 14, color: cs.onSurface),
-                        decoration: InputDecoration(
-                          hintText: 'Search banks...',
-                          hintStyle: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
-                          prefixIcon: Icon(LucideIcons.search, size: 16, color: cs.onSurfaceVariant),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Bank',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.55,
+                          color: cs.onSurface,
                         ),
                       ),
-                    ),
+                      Text(
+                        '${kAllBanks.length} banks available',
+                        style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // List
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  autofocus: true,
+                  onChanged: (v) => setState(() => _query = v),
+                  style: TextStyle(fontSize: 14, color: cs.onSurface),
+                  decoration: InputDecoration(
+                    hintText: 'Search banks...',
+                    hintStyle: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+                    prefixIcon: Icon(LucideIcons.search, size: 16, color: cs.onSurfaceVariant),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                ),
+              ),
+            ),
+
             Expanded(
-              child: grouped.isEmpty
+              child: banks.isEmpty
                   ? Center(
                       child: Text(
                         'No banks found',
                         style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                       ),
                     )
-                  : ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      children: [
-                        for (final entry in grouped.entries) ...[
-                          _CountryHeader(
-                            countryCode: entry.value.first.countryCode,
-                            country: entry.key.toUpperCase(),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: cs.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.06),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: entry.value.asMap().entries.map((e) {
-                                final isLast = e.key == entry.value.length - 1;
-                                return _BankRow(
-                                  bank: e.value,
-                                  showDivider: !isLast,
-                                  onTap: () => Navigator.pop(context, e.value),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ],
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      itemCount: banks.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _BankRow(
+                        bank: banks[i],
+                        onTap: () => Navigator.pop(context, banks[i]),
+                      ),
                     ),
             ),
           ],
@@ -187,121 +168,75 @@ class _BankPickerScreenState extends State<BankPickerScreen> {
   }
 }
 
-// ── Country header ─────────────────────────────────────────────────────────────
-
-class _CountryHeader extends StatelessWidget {
-  final String countryCode;
-  final String country;
-
-  const _CountryHeader({required this.countryCode, required this.country});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        children: [
-          CountryFlag.fromCountryCode(
-            countryCode,
-            height: 12,
-            width: 18,
-            shape: const RoundedRectangle(2),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            country,
-            style: TextStyle(
-              fontSize: 10,
-              letterSpacing: 1.0,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Bank row ───────────────────────────────────────────────────────────────────
 
 class _BankRow extends StatelessWidget {
   final BankEntry bank;
-  final bool showDivider;
   final VoidCallback onTap;
 
-  const _BankRow({
-    required this.bank,
-    required this.showDivider,
-    required this.onTap,
-  });
+  const _BankRow({required this.bank, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                // Badge: SVG or initials
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: bank.logoPath != null
-                        ? cs.surface
-                        : bank.brandColor.withOpacity(0.13),
-                    borderRadius: BorderRadius.circular(14),
-                    border: bank.logoPath != null
-                        ? Border.all(color: cs.outlineVariant, width: 0.5)
-                        : null,
-                  ),
-                  padding: bank.logoPath != null ? const EdgeInsets.all(7) : null,
-                  child: bank.logoPath != null
-                      ? SvgPicture.asset(
-                          bank.logoPath!,
-                          fit: BoxFit.contain,
-                        )
-                      : Center(
-                          child: Text(
-                            bank.initials,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: bank.brandColor,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: bank.logoPath != null
+                    ? cs.surface
+                    : bank.brandColor.withOpacity(0.13),
+                borderRadius: BorderRadius.circular(14),
+                border: bank.logoPath != null
+                    ? Border.all(color: cs.outlineVariant, width: 0.5)
+                    : null,
+              ),
+              padding: bank.logoPath != null ? const EdgeInsets.all(7) : null,
+              child: bank.logoPath != null
+                  ? SvgPicture.asset(bank.logoPath!, fit: BoxFit.contain)
+                  : Center(
+                      child: Text(
+                        bank.initials,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: bank.brandColor,
+                          letterSpacing: -0.5,
                         ),
-                ),
-                const SizedBox(width: 12),
-                // Name
-                Expanded(
-                  child: Text(
-                    bank.name,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: cs.onSurface,
+                      ),
                     ),
-                  ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                bank.name,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurface,
                 ),
-              ],
+              ),
             ),
-          ),
-          if (showDivider)
-            Divider(
-              height: 1,
-              indent: 68,
-              endIndent: 16,
-              color: cs.outlineVariant,
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -96,6 +96,7 @@ flutter:
 
   assets:
     - assets/icons/banks/
+    - assets/icons/networks/
 
   fonts:
     - family: Archia

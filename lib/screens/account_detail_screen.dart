@@ -26,10 +26,14 @@ class AccountDetailScreen extends StatelessWidget {
     final topPad = MediaQuery.of(context).padding.top;
 
     final transactions = context.watch<TransactionProvider>().transactions
-        .where((t) => t.account == live.displayName)
+        .where((t) => t.account == live.id)
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
     final grouped = Helpers.groupByDate(transactions);
+
+    final txIncome  = transactions.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + t.amount);
+    final txExpense = transactions.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + t.amount);
+    final effectiveBalance = live.balance + txIncome - txExpense;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -38,10 +42,11 @@ class AccountDetailScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: _HeroDelegate(
-              account:    live,
-              brandColor: color,
-              isNegative: live.balance < 0,
-              topPadding: topPad,
+              account:          live,
+              brandColor:       color,
+              effectiveBalance: effectiveBalance,
+              isNegative:       effectiveBalance < 0,
+              topPadding:       topPad,
               onBack: () => Navigator.pop(context),
               onEdit: () async {
                 final result = await Navigator.push<String>(
@@ -179,6 +184,7 @@ class AccountDetailScreen extends StatelessWidget {
 class _HeroDelegate extends SliverPersistentHeaderDelegate {
   final Account account;
   final Color brandColor;
+  final double effectiveBalance;
   final bool isNegative;
   final double topPadding;
   final VoidCallback onBack;
@@ -208,6 +214,7 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
   _HeroDelegate({
     required this.account,
     required this.brandColor,
+    required this.effectiveBalance,
     required this.isNegative,
     required this.topPadding,
     required this.onBack,
@@ -219,7 +226,7 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_HeroDelegate o) =>
-      o.account != account || o.brandColor != brandColor;
+      o.account != account || o.brandColor != brandColor || o.effectiveBalance != effectiveBalance;
 
   static double _l(double a, double b, double t) => a + (b - a) * t;
 
@@ -230,7 +237,7 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
     final cd = _adjustLightness(brandColor, -0.18);
 
     final amountStr =
-        '${isNegative ? '−' : ''}${Helpers.formatINR(account.balance.abs())}';
+        '${isNegative ? '−' : ''}${Helpers.formatINR(effectiveBalance.abs())}';
 
     // Animated values
     final nameTop   = _l(_contentTop, _collNameTop, t);
@@ -293,7 +300,7 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
             Positioned(
               top:  topPadding + _contentTop + 22, // below name line (~18px + 4 leading)
               left: _nameLeft,
-              right: account.cardIdentifier != null ? 110 : 20,
+              right: account.cards.isNotEmpty || account.cardIdentifier != null ? 110 : 20,
               child: Opacity(
                 opacity: badgeFade,
                 child: Text(
@@ -308,16 +315,30 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
               ),
             ),
 
-          // ── Card identifier chip (fades out) ─────────────────────────────
-          if (account.cardIdentifier != null)
+          // ── Card chips (fades out) ────────────────────────────────────────
+          if (account.cards.isNotEmpty)
+            Positioned(
+              top:   topPadding + _contentTop + 8,
+              right: 20,
+              child: Opacity(
+                opacity: badgeFade,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: account.cards.map((c) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _CardChip(card: c),
+                  )).toList(),
+                ),
+              ),
+            )
+          else if (account.cardIdentifier != null)
             Positioned(
               top:   topPadding + _contentTop + 10,
               right: 20,
               child: Opacity(
                 opacity: badgeFade,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -417,6 +438,43 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
     ),
   );
 }
+
+// ── Card chip ─────────────────────────────────────────────────────────────────
+
+class _CardChip extends StatelessWidget {
+  final CardEntry card;
+  const _CardChip({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    final logoPath = _networkLogoPath(card.network);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (logoPath != null)
+            SvgPicture.asset(logoPath, height: 11, fit: BoxFit.contain,
+                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))
+          else
+            Text(card.network,
+                style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700)),
+          const SizedBox(width: 6),
+          Text(
+            '•••• ${card.last4}',
+            style: const TextStyle(fontSize: 11, color: Colors.white, letterSpacing: 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String? _networkLogoPath(String network) => Helpers.networkLogoPath(network);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

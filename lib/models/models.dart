@@ -571,6 +571,34 @@ class Transaction {
 
 enum AccountType { bank, cash, credit }
 
+class CardEntry {
+  final String type;
+  final String last4;
+  final String network;
+  final double? creditLimit;
+
+  const CardEntry({
+    required this.type,
+    required this.last4,
+    required this.network,
+    this.creditLimit,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'last4': last4,
+    'network': network,
+    if (creditLimit != null) 'creditLimit': creditLimit,
+  };
+
+  factory CardEntry.fromJson(Map<String, dynamic> json) => CardEntry(
+    type: json['type'] as String,
+    last4: json['last4'] as String,
+    network: json['network'] as String,
+    creditLimit: (json['creditLimit'] as num?)?.toDouble(),
+  );
+}
+
 class Account {
   final String id;
   final AccountType type;
@@ -579,6 +607,7 @@ class Account {
   final String? bankLogoPath;
   final String? cardIdentifier;
   final List<double> sparkline;
+  final List<CardEntry> cards;
 
   const Account({
     required this.id,
@@ -588,6 +617,7 @@ class Account {
     this.bankLogoPath,
     this.cardIdentifier,
     required this.sparkline,
+    this.cards = const [],
   });
 
   String get displayName => bank ?? (type == AccountType.cash ? 'Cash' : 'Account');
@@ -600,6 +630,7 @@ class Account {
     if (bankLogoPath != null) 'bankLogoPath': bankLogoPath,
     if (cardIdentifier != null) 'cardIdentifier': cardIdentifier,
     'sparkline': sparkline,
+    if (cards.isNotEmpty) 'cards': cards.map((c) => c.toJson()).toList(),
   };
 
   factory Account.fromJson(Map<String, dynamic> json) => Account(
@@ -610,6 +641,7 @@ class Account {
     bankLogoPath: json['bankLogoPath'] as String?,
     cardIdentifier: json['cardIdentifier'] as String?,
     sparkline: (json['sparkline'] as List).cast<num>().map((e) => e.toDouble()).toList(),
+    cards: (json['cards'] as List?)?.map((e) => CardEntry.fromJson(e as Map<String, dynamic>)).toList() ?? [],
   );
 
   static const List<Account> dummyData = [

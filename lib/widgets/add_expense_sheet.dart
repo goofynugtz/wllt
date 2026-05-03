@@ -115,6 +115,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   DateTime _selectedDate = DateTime.now();
   final List<String> _tags = [];
   Account? _account;
+  CardEntry? _selectedCard;
   bool _accountInitialized = false;
   bool _showCalculator = false;
   late TextEditingController _titleController;
@@ -164,7 +165,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       if (accounts.isNotEmpty) {
         final tx = widget.editTransaction;
         _account = tx != null
-            ? accounts.firstWhere((a) => a.displayName == tx.account, orElse: () => accounts.first)
+            ? accounts.firstWhere((a) => a.id == tx.account, orElse: () => accounts.first)
             : accounts.first;
       }
       _accountInitialized = true;
@@ -193,7 +194,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       amount: amountValue,
       type: _type,
       date: _selectedDate,
-      account: _account?.displayName ?? '',
+      account: _account?.id ?? '',
       tags: List.from(_tags),
     );
 
@@ -205,9 +206,11 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     if (mounted) Navigator.of(context).pop();
   }
 
-  void _selectAccount(Account account) {
-    if (account.id == _account?.id) return;
-    setState(() => _account = account);
+  void _selectPaymentMethod(Account account, CardEntry? card) {
+    setState(() {
+      _account = account;
+      _selectedCard = card;
+    });
   }
 
   void _openCalculator() {
@@ -683,119 +686,172 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                             ),
                           );
                         }
-                        return SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          children: providerAccounts.map((account) {
-                            final isSelected = account.id == _account?.id;
+                        // Flatten accounts into payable items:
+                        // accounts without cards → account chip
+                        // accounts with cards    → one chip per card
+                        final items = <({Account account, CardEntry? card})>[];
+                        for (final a in providerAccounts) {
+                          if (a.cards.isEmpty) {
+                            items.add((account: a, card: null));
+                          } else {
+                            for (final c in a.cards) {
+                              items.add((account: a, card: c));
+                            }
+                          }
+                        }
 
-                            return Padding(
-                              key: ValueKey(account.id),
-                              padding: const EdgeInsets.only(right: 10),
-                              child: GestureDetector(
-                                onTap: () => _selectAccount(account),
-                                child: AnimatedSize(
-                                  duration: const Duration(milliseconds: 280),
-                                  curve: Curves.easeInOut,
-                                  child: Container(
-                                    height: 56,
-                                    width: isSelected ? null : 56.0,
-                                    clipBehavior: Clip.hardEdge,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? Theme.of(context).colorScheme.primary
-                                          : Theme.of(context).colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: isSelected
-                                          ? null
-                                          : Border.all(
-                                              color: Theme.of(context).colorScheme.outlineVariant,
-                                              width: 0.5,
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: items.map((item) {
+                              final account = item.account;
+                              final card    = item.card;
+                              final isSelected = account.id == _account?.id &&
+                                  (card == null
+                                      ? _selectedCard == null
+                                      : _selectedCard?.last4 == card.last4 && _selectedCard?.network == card.network);
+                              final networkPath = card != null ? Helpers.networkLogoPath(card.network) : null;
+
+                              return Padding(
+                                key: ValueKey(card == null ? account.id : '${account.id}_${card.last4}'),
+                                padding: const EdgeInsets.only(right: 10),
+                                child: GestureDetector(
+                                  onTap: () => _selectPaymentMethod(account, card),
+                                  child: AnimatedSize(
+                                    duration: const Duration(milliseconds: 280),
+                                    curve: Curves.easeInOut,
+                                    child: Container(
+                                      height: 56,
+                                      width: isSelected ? null : 56.0,
+                                      clipBehavior: Clip.hardEdge,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: isSelected
+                                            ? null
+                                            : Border.all(
+                                                color: Theme.of(context).colorScheme.outlineVariant,
+                                                width: 0.5,
+                                              ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Theme.of(context).colorScheme.shadow.withValues(
+                                              alpha: isSelected ? 0.15 : 0.06,
                                             ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Theme.of(context).colorScheme.shadow.withValues(
-                                            alpha: isSelected ? 0.15 : 0.06,
+                                            blurRadius: 4,
                                           ),
-                                          blurRadius: 4,
-                                        ),
-                                      ],
-                                    ),
-                                    child: isSelected
-                                        ? Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                if (account.bankLogoPath != null)
-                                                  Container(
-                                                    width: 30,
-                                                    height: 30,
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white,
-                                                      borderRadius: BorderRadius.circular(6),
-                                                    ),
-                                                    padding: const EdgeInsets.all(4),
-                                                    child: SvgPicture.asset(
-                                                      account.bankLogoPath!,
-                                                      fit: BoxFit.contain,
-                                                    ),
-                                                  ),
-                                                const SizedBox(width: 10),
-                                                Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      account.displayName,
-                                                      style: TextStyle(
-                                                        color: Theme.of(context).colorScheme.onPrimary,
-                                                        fontSize: 13,
-                                                        fontWeight: FontWeight.w500,
+                                        ],
+                                      ),
+                                      child: isSelected
+                                          ? Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (account.bankLogoPath != null)
+                                                    Container(
+                                                      width: 28,
+                                                      height: 28,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white,
+                                                        borderRadius: BorderRadius.circular(6),
                                                       ),
+                                                      padding: const EdgeInsets.all(4),
+                                                      child: SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
                                                     ),
-                                                    if (account.cardIdentifier != null)
-                                                      Text(
-                                                        '**** ${account.cardIdentifier}',
-                                                        style: TextStyle(
-                                                          fontFamily: 'Archia',
-                                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.65),
-                                                          fontSize: 10,
+                                                  const SizedBox(width: 10),
+                                                  Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      if (card != null) ...[
+                                                        Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            if (networkPath != null)
+                                                              SvgPicture.asset(networkPath, height: 11, fit: BoxFit.contain,
+                                                                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))
+                                                            else
+                                                              Text(card.network,
+                                                                  style: TextStyle(
+                                                                    fontSize: 9,
+                                                                    fontWeight: FontWeight.w700,
+                                                                    color: Theme.of(context).colorScheme.onPrimary,
+                                                                  )),
+                                                            const SizedBox(width: 5),
+                                                            Text(
+                                                              '•••• ${card.last4}',
+                                                              style: TextStyle(
+                                                                fontFamily: 'Archia',
+                                                                fontSize: 12,
+                                                                color: Theme.of(context).colorScheme.onPrimary,
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ),
-                                                      ),
-                                                  ],
-                                                ),
-                                                const SizedBox(width: 4),
-                                              ],
-                                            ),
-                                          )
-                                        : Center(
-                                            child: account.bankLogoPath != null
-                                                ? Padding(
-                                                    padding: const EdgeInsets.all(12),
-                                                    child: SvgPicture.asset(
-                                                      account.bankLogoPath!,
-                                                      fit: BoxFit.contain,
-                                                    ),
-                                                  )
-                                                : Text(
-                                                    _accountInitials(account.displayName),
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: Theme.of(context).colorScheme.onSurface,
-                                                    ),
+                                                        Text(
+                                                          account.displayName,
+                                                          style: TextStyle(
+                                                            fontSize: 10,
+                                                            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.65),
+                                                          ),
+                                                        ),
+                                                      ] else ...[
+                                                        Text(
+                                                          account.displayName,
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight: FontWeight.w500,
+                                                            color: Theme.of(context).colorScheme.onPrimary,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ],
                                                   ),
-                                          ),
+                                                  const SizedBox(width: 4),
+                                                ],
+                                              ),
+                                            )
+                                          : Center(
+                                              child: card != null
+                                                  ? (networkPath != null
+                                                      ? Padding(
+                                                          padding: const EdgeInsets.all(14),
+                                                          child: SvgPicture.asset(networkPath, fit: BoxFit.contain),
+                                                        )
+                                                      : Text(
+                                                          card.network.substring(0, 2).toUpperCase(),
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: Theme.of(context).colorScheme.onSurface,
+                                                          ),
+                                                        ))
+                                                  : (account.bankLogoPath != null
+                                                      ? Padding(
+                                                          padding: const EdgeInsets.all(12),
+                                                          child: SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
+                                                        )
+                                                      : Text(
+                                                          _accountInitials(account.displayName),
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: Theme.of(context).colorScheme.onSurface,
+                                                          ),
+                                                        )),
+                                            ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      );
+                              );
+                            }).toList(),
+                          ),
+                        );
                       }),
 
                       const SizedBox(height: 24),

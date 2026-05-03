@@ -3,22 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
-
-// ── Card entry model ───────────────────────────────────────────────────────────
-
-class CardEntry {
-  final String type;    // 'debit' or 'credit'
-  final String last4;
-  final String network; // 'Visa', 'Mastercard', 'RuPay', 'Amex'
-  final double? creditLimit;
-
-  const CardEntry({
-    required this.type,
-    required this.last4,
-    required this.network,
-    this.creditLimit,
-  });
-}
+import '../models/models.dart';
 
 // ── Network definition ─────────────────────────────────────────────────────────
 

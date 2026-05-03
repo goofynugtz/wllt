@@ -9,6 +9,7 @@ import '../data/currencies.dart';
 import '../providers/user_preferences_provider.dart';
 import '../models/models.dart';
 import '../providers/account_provider.dart';
+import '../utils/helpers.dart';
 import 'add_card_screen.dart';
 import 'bank_picker_screen.dart';
 import 'currency_picker_screen.dart';
@@ -28,7 +29,7 @@ class AddAccountScreen extends StatefulWidget {
 class _AddAccountScreenState extends State<AddAccountScreen> {
   BankEntry? _selectedBank;
   late final TextEditingController _balanceController;
-  final List<CardEntry> _cards = [];
+  late final List<CardEntry> _cards;
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
           ? acct.balance.abs().toStringAsFixed(acct.balance.truncateToDouble() == acct.balance ? 0 : 2)
           : '',
     );
+    _cards = List<CardEntry>.from(acct?.cards ?? []);
     if (acct?.bank != null) {
       try {
         _selectedBank = kAllBanks.firstWhere((b) => b.name == acct!.bank);
@@ -57,7 +59,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
   Future<void> _pickBank() async {
     final result = await Navigator.push<BankEntry>(
       context,
-      MaterialPageRoute(builder: (_) => const BankPickerScreen()),
+      MaterialPageRoute(builder: (_) => BankPickerScreen(selectedBank: _selectedBank)),
     );
     if (result != null) setState(() => _selectedBank = result);
   }
@@ -88,6 +90,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
       bank: _selectedBank!.name,
       bankLogoPath: _selectedBank!.logoPath,
       sparkline: widget.initialAccount?.sparkline ?? [balance],
+      cards: _cards,
     );
     final provider = context.read<AccountProvider>();
     if (widget.initialAccount != null) {
@@ -480,6 +483,10 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
   }
 }
 
+// ── Helper: network logo ──────────────────────────────────────────────────────
+
+String? _networkLogoPath(String network) => Helpers.networkLogoPath(network);
+
 // ── Helper: currency name ─────────────────────────────────────────────────────
 
 String _currencyName(String code) {
@@ -587,22 +594,28 @@ class _FieldCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cs.surface,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.07),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Material(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.07),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: child,
+          ),
         ),
-        child: child,
       ),
     );
   }
@@ -640,17 +653,24 @@ class _CardChip extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: cs.onSurface),
           ),
           const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE3F2FD),
-              borderRadius: BorderRadius.circular(4),
+          if (_networkLogoPath(card.network) != null)
+            SvgPicture.asset(
+              _networkLogoPath(card.network)!,
+              height: 14,
+              fit: BoxFit.contain,
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                card.network,
+                style: const TextStyle(fontSize: 9, color: Color(0xFF097ACA)),
+              ),
             ),
-            child: Text(
-              card.network,
-              style: const TextStyle(fontSize: 9, color: Color(0xFF097ACA)),
-            ),
-          ),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: onRemove,

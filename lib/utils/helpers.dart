@@ -89,4 +89,13 @@ class Helpers {
     final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
     return {for (final k in keys) k: grouped[k]!};
   }
+
+  static const _networkLogos = <String, String>{
+    'Visa':       'assets/icons/networks/visa.svg',
+    'Mastercard': 'assets/icons/networks/mastercard.svg',
+    'RuPay':      'assets/icons/networks/rupay.svg',
+    'Amex':       'assets/icons/networks/amex.svg',
+  };
+
+  static String? networkLogoPath(String network) => _networkLogos[network];
 }

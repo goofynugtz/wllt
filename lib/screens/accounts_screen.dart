@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../models/ad_config.dart';
 import '../providers/account_provider.dart';
 import '../services/ad_config_service.dart';
+import '../providers/transaction_provider.dart';
 import '../utils/helpers.dart';
 import 'package:provider/provider.dart';
 import 'account_detail_screen.dart';
@@ -40,11 +41,20 @@ class AccountsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accounts = context.watch<AccountProvider>().accounts;
-    final assets = accounts.where((a) => a.balance >= 0).toList();
-    final debts  = accounts.where((a) => a.balance <  0).toList();
-    final totalAssets = assets.fold(0.0, (s, a) => s + a.balance);
-    final totalDebt   = debts.fold(0.0, (s, a) => s + a.balance.abs());
+    final accounts     = context.watch<AccountProvider>().accounts;
+    final transactions = context.watch<TransactionProvider>().transactions;
+
+    double effectiveBalance(Account a) {
+      final txs = transactions.where((t) => t.account == a.id);
+      final income  = txs.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + t.amount);
+      final expense = txs.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + t.amount);
+      return a.balance + income - expense;
+    }
+
+    final assets = accounts.where((a) => effectiveBalance(a) >= 0).toList();
+    final debts  = accounts.where((a) => effectiveBalance(a) <  0).toList();
+    final totalAssets = assets.fold(0.0, (s, a) => s + effectiveBalance(a));
+    final totalDebt   = debts.fold(0.0, (s, a) => s + effectiveBalance(a).abs());
     final netWorth    = totalAssets - totalDebt;
 
     return Scaffold(
@@ -69,7 +79,7 @@ class AccountsScreen extends StatelessWidget {
               color: const Color(0xFF4DBA7E),
             ),
             const SizedBox(height: 8),
-            ...assets.map((a) => _TappableAccountCard(account: a)),
+            ...assets.map((a) => _TappableAccountCard(account: a, effectiveBalance: effectiveBalance(a))),
 
             const SizedBox(height: 16),
 
@@ -81,7 +91,7 @@ class AccountsScreen extends StatelessWidget {
                 color: const Color(0xFFE76F51),
               ),
               const SizedBox(height: 8),
-              ...debts.map((a) => _TappableAccountCard(account: a)),
+              ...debts.map((a) => _TappableAccountCard(account: a, effectiveBalance: effectiveBalance(a))),
               const SizedBox(height: 16),
             ],
 
@@ -362,11 +372,12 @@ class _SectionHeader extends StatelessWidget {
 
 class _TappableAccountCard extends StatelessWidget {
   final Account account;
-  const _TappableAccountCard({required this.account});
+  final double effectiveBalance;
+  const _TappableAccountCard({required this.account, required this.effectiveBalance});
 
   @override
   Widget build(BuildContext context) {
-    final isNegative = account.balance < 0;
+    final isNegative = effectiveBalance < 0;
     final bankColor = _bankColor(account.bank);
     final amountColor = isNegative
         ? const Color(0xFFE76F51)
@@ -453,7 +464,7 @@ class _TappableAccountCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '${isNegative ? '−' : ''}${Helpers.formatINR(account.balance.abs())}',
+                            '${isNegative ? '−' : ''}${Helpers.formatINR(effectiveBalance.abs())}',
                             style: TextStyle(
                               fontFamily: 'Archia',
                               fontSize: 17,

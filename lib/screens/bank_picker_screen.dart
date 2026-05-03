@@ -54,7 +54,8 @@ const List<BankEntry> kAllBanks = [
 // ── Screen ─────────────────────────────────────────────────────────────────────
 
 class BankPickerScreen extends StatefulWidget {
-  const BankPickerScreen({super.key});
+  final BankEntry? selectedBank;
+  const BankPickerScreen({super.key, this.selectedBank});
 
   @override
   State<BankPickerScreen> createState() => _BankPickerScreenState();
@@ -151,12 +152,18 @@ class _BankPickerScreenState extends State<BankPickerScreen> {
                         style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                       ),
                     )
-                  : ListView.separated(
+                  : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 6,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1,
+                      ),
                       itemCount: banks.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _BankRow(
+                      itemBuilder: (_, i) => _BankTile(
                         bank: banks[i],
+                        isSelected: banks[i].name == widget.selectedBank?.name,
                         onTap: () => Navigator.pop(context, banks[i]),
                       ),
                     ),
@@ -168,13 +175,14 @@ class _BankPickerScreenState extends State<BankPickerScreen> {
   }
 }
 
-// ── Bank row ───────────────────────────────────────────────────────────────────
+// ── Bank tile ──────────────────────────────────────────────────────────────────
 
-class _BankRow extends StatelessWidget {
+class _BankTile extends StatelessWidget {
   final BankEntry bank;
+  final bool isSelected;
   final VoidCallback onTap;
 
-  const _BankRow({required this.bank, required this.onTap});
+  const _BankTile({required this.bank, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -182,61 +190,56 @@ class _BankRow extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: bank.logoPath != null ? cs.surface : bank.brandColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: isSelected
+                  ? Border.all(color: Colors.green, width: 2)
+                  : bank.logoPath != null
+                      ? Border.all(color: cs.outlineVariant, width: 0.5)
+                      : null,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 6,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: bank.logoPath != null
-                    ? cs.surface
-                    : bank.brandColor.withOpacity(0.13),
-                borderRadius: BorderRadius.circular(14),
-                border: bank.logoPath != null
-                    ? Border.all(color: cs.outlineVariant, width: 0.5)
-                    : null,
-              ),
-              padding: bank.logoPath != null ? const EdgeInsets.all(7) : null,
-              child: bank.logoPath != null
-                  ? SvgPicture.asset(bank.logoPath!, fit: BoxFit.contain)
-                  : Center(
-                      child: Text(
-                        bank.initials,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: bank.brandColor,
-                          letterSpacing: -0.5,
-                        ),
+            padding: const EdgeInsets.all(14),
+            child: bank.logoPath != null
+                ? SvgPicture.asset(bank.logoPath!, fit: BoxFit.contain)
+                : Center(
+                    child: Text(
+                      bank.initials,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: bank.brandColor,
+                        letterSpacing: -0.5,
                       ),
                     ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                bank.name,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: cs.onSurface,
+                  ),
+          ),
+          if (isSelected)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.check, size: 10, color: Colors.white),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

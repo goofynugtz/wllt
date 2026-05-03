@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../utils/helpers.dart';
 import '../widgets/category_icon_badge.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/account_provider.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../screens/layout_screen.dart';
 
@@ -302,6 +303,11 @@ class TransactionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final category = Helpers.getCategoryById(transaction.categoryId);
+    final accounts = context.watch<AccountProvider>().accounts;
+    Account? _resolvedAccount;
+    try { _resolvedAccount = accounts.firstWhere((a) => a.id == transaction.account); } catch (_) {}
+    _resolvedAccount ??= accounts.cast<Account?>().firstWhere((a) => a!.displayName == transaction.account, orElse: () => null);
+    final accountName = _resolvedAccount?.displayName ?? transaction.account;
 
     return Material(
       color: Colors.transparent,
@@ -351,7 +357,7 @@ class TransactionRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${category.name} · ${transaction.account}',
+                      '${category.name} · $accountName',
                       style: TextStyle(
                         fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

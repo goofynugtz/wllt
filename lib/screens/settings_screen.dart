@@ -549,7 +549,6 @@ class _SettingsCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
@@ -559,8 +558,12 @@ class _SettingsCard extends StatelessWidget {
           ),
         ],
       ),
-      clipBehavior: Clip.hardEdge,
-      child: child,
+      child: Material(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.hardEdge,
+        child: child,
+      ),
     );
   }
 }

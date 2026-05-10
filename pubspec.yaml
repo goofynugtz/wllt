@@ -64,6 +64,13 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
+  # Ads
+  google_mobile_ads: ^5.1.0
+
+  # Subscriptions
+  purchases_flutter: ^8.10.1
+  purchases_ui_flutter: ^8.10.1
+
   # Auth & Cloud
   google_sign_in: ^6.2.0
   firebase_core: ^3.6.0

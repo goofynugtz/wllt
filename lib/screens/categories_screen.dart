@@ -220,13 +220,15 @@ class _CategoryListTileState extends State<_CategoryListTile> {
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
-        setState(() => _pressed = false);
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => CategoryDetailScreen(category: widget.category),
           ),
-        ).then((_) => widget.onReturn?.call());
+        ).then((_) {
+          if (mounted) setState(() => _pressed = false);
+          widget.onReturn?.call();
+        });
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
@@ -234,21 +236,6 @@ class _CategoryListTileState extends State<_CategoryListTile> {
         margin: EdgeInsets.zero,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          boxShadow: _pressed
-              ? [
-                  BoxShadow(
-                    color: Color(
-                      int.parse(
-                            widget.category.color.substring(1),
-                            radix: 16,
-                          ) +
-                          0xFF000000,
-                    ).withValues(alpha: 0.18),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [],
           color: _pressed
               ? Theme.of(context).colorScheme.surface
               : Colors.transparent,

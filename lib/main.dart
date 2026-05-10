@@ -1,16 +1,19 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/account_provider.dart';
 import 'providers/app_settings_provider.dart';
+import 'providers/subscription_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/user_preferences_provider.dart';
 import 'screens/layout_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'services/auth_service.dart';
+import 'services/purchase_service.dart';
 import 'services/storage_service.dart';
 import 'services/system_font_service.dart';
 import 'theme/app_theme.dart';
@@ -18,6 +21,8 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await MobileAds.instance.initialize();
+  await PurchaseService.instance.initialize();
   await Hive.initFlutter();
 
   final storage = StorageService();
@@ -51,6 +56,9 @@ class WalletApp extends StatelessWidget {
         ChangeNotifierProxyProvider<AppSettingsProvider, AccountProvider>(
           create: (_) => AccountProvider(storage, devMode: storage.devMode),
           update: (_, settings, prev) => prev!..reloadIfNeeded(settings.devMode),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => SubscriptionProvider()..init(),
         ),
         Provider<AuthService>(
           create: (_) => AuthService(),

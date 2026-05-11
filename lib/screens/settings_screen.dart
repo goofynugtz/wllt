@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_flavor.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/categories_screen.dart';
 import '../screens/currency_picker_screen.dart';
 import '../screens/onboarding/onboarding_flow.dart';
+import '../screens/custom_paywall_screen.dart';
 import '../screens/paywall_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -368,25 +370,21 @@ class SettingsScreen extends StatelessWidget {
             indent: 16,
             endIndent: 16,
           ),
-          Divider(
-            height: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant,
-            indent: 16,
-            endIndent: 16,
-          ),
-          _SettingsSwitchRow(
-            icon: LucideIcons.flaskConical,
-            label: 'Dev mode',
-            subtitle: 'Show sample data instead of real data',
-            value: settings.devMode,
-            onChanged: (v) => context.read<AppSettingsProvider>().setDevMode(v),
-          ),
-          Divider(
-            height: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant,
-            indent: 16,
-            endIndent: 16,
-          ),
+          if (kFlavor != AppFlavor.release) ...[
+            _SettingsSwitchRow(
+              icon: LucideIcons.flaskConical,
+              label: 'Dev mode',
+              subtitle: 'Show sample data instead of real data',
+              value: settings.devMode,
+              onChanged: (v) => context.read<AppSettingsProvider>().setDevMode(v),
+            ),
+            Divider(
+              height: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant,
+              indent: 16,
+              endIndent: 16,
+            ),
+          ],
           _SettingsTappableRow(
             icon: LucideIcons.trash2,
             label: 'Reset all data',
@@ -439,15 +437,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _openPaywall(BuildContext context) {
-    PaywallScreen.showModal().then((_) {
-      if (context.mounted) context.read<SubscriptionProvider>().refresh();
-    }).catchError((_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Paywall not available. Configure it in the RevenueCat dashboard.')),
-        );
-      }
-    });
+    CustomPaywallScreen.show(context);
   }
 
   void _openCustomerCenter(BuildContext context) {

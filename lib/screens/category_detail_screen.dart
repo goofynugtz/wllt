@@ -3,7 +3,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+
 import '../models/models.dart';
+import '../providers/transaction_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/category_icon_widget.dart';
 import 'edit_category_screen.dart';
@@ -55,8 +58,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     });
   }
 
-  List<Transaction> _monthTransactions(int year, int month) {
-    return Transaction.dummyData
+  List<Transaction> _monthTransactions(List<Transaction> all, int year, int month) {
+    return all
         .where((t) =>
             t.categoryId == _category.id &&
             t.date.year == year &&
@@ -100,14 +103,15 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final txs = _monthTransactions(_selectedYear, _selectedMonth);
+    final allTransactions = context.watch<TransactionProvider>().transactions;
+    final txs = _monthTransactions(allTransactions, _selectedYear, _selectedMonth);
     final totalSpent = txs.fold<double>(0, (sum, t) => sum + t.amount);
     final txCount = txs.length;
 
     // Previous month comparison
     final prevMonth = _selectedMonth == 1 ? 12 : _selectedMonth - 1;
     final prevYear = _selectedMonth == 1 ? _selectedYear - 1 : _selectedYear;
-    final prevTxs = _monthTransactions(prevYear, prevMonth);
+    final prevTxs = _monthTransactions(allTransactions, prevYear, prevMonth);
     final prevSpent = prevTxs.fold<double>(0, (sum, t) => sum + t.amount);
 
     // Daily average
@@ -139,7 +143,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         m += 12;
         y--;
       }
-      final monthTxs = _monthTransactions(y, m);
+      final monthTxs = _monthTransactions(allTransactions, y, m);
       sixMonthAmounts.add(monthTxs.fold<double>(0, (s, t) => s + t.amount));
       sixMonthLabels.add(DateFormat('MMM').format(DateTime(y, m)));
     }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -96,7 +97,7 @@ class StorageService {
       _userPrefs.put(keyColorSeed, color.toARGB32());
 
   // ── Dev mode ──────────────────────────────────────────────────────────
-  bool get devMode => (_userPrefs.get(keyDevMode) as bool?) ?? true;
+  bool get devMode => kReleaseMode ? false : ((_userPrefs.get(keyDevMode) as bool?) ?? false);
 
   Future<void> setDevMode(bool value) => _userPrefs.put(keyDevMode, value);
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/exchange_rate_service.dart';
 import '../services/storage_service.dart';
 
 class AppSettingsProvider extends ChangeNotifier {
@@ -22,6 +23,7 @@ class AppSettingsProvider extends ChangeNotifier {
 
   Future<void> setDevMode(bool value) async {
     await _storage.setDevMode(value);
+    if (value) await ExchangeRateService.instance.seedDevModeRates();
     notifyListeners();
   }
 

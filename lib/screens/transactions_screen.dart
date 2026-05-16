@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../data/currencies.dart';
+import '../providers/user_preferences_provider.dart';
+import '../services/exchange_rate_service.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../utils/helpers.dart';
@@ -22,13 +25,18 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   final TextEditingController _searchController = TextEditingController();
   TransactionFilter _filter = TransactionFilter.all;
+
+  String? _prefetchCurrency;
+  bool? _prefetchConvert;
+  int? _prefetchTxCount;
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  List<Transaction> _filteredTransactions(List<Transaction> source) {
+  List<Transaction> _filteredTransactions(List<Transaction> source, String currencySymbol) {
     final query = _searchController.text.toLowerCase().trim();
     return source.where((tx) {
       final matchMonth =
@@ -39,7 +47,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           tx.transactionTitle.toLowerCase().contains(query) ||
           category.name.toLowerCase().contains(query) ||
           tx.amount.toString().contains(query) ||
-          Helpers.formatINR(tx.amount).toLowerCase().contains(query);
+          Helpers.formatAmount(tx.amount, currencySymbol).toLowerCase().contains(query);
       final matchType =
           _filter == TransactionFilter.all || tx.type.name == _filter.name;
       return matchMonth && matchSearch && matchType;
@@ -49,10 +57,40 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     final allTx = context.watch<TransactionProvider>().transactions;
-    final filtered = _filteredTransactions(allTx);
+    final prefs = context.watch<UserPreferencesProvider>();
+    context.watch<ExchangeRateService>();
+
+    final displayCurrency = prefs.currency;
+    final convertHistory = prefs.convertHistoricalCurrency;
+
+    if (_prefetchCurrency != displayCurrency ||
+        _prefetchConvert != convertHistory ||
+        _prefetchTxCount != allTx.length) {
+      _prefetchCurrency = displayCurrency;
+      _prefetchConvert = convertHistory;
+      _prefetchTxCount = allTx.length;
+      final txSnapshot = allTx;
+      final currencySnapshot = displayCurrency;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ExchangeRateService.instance
+            .prefetchForTransactions(txSnapshot, currencySnapshot);
+      });
+    }
+
+    final currencySymbol = kCurrencies
+        .firstWhere((c) => c.code == displayCurrency,
+            orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+        .symbol;
+    final filtered = _filteredTransactions(allTx, currencySymbol);
     final grouped = Helpers.groupByDate(filtered);
-    final total = filtered.fold(0.0, (sum, tx) =>
-        sum + (tx.type == TransactionType.expense ? -tx.amount : tx.amount));
+    final total = filtered.fold(0.0, (sum, tx) {
+      final snap = ExchangeRateService.instance.getCachedSnapshot(tx.baseCurrency, tx.date);
+      final resolved = (convertHistory || tx.baseCurrency == displayCurrency)
+          ? Helpers.convertAmount(tx.amount, tx.baseCurrency, displayCurrency, snap?.rates)
+          : tx.amount;
+      return sum + (tx.type == TransactionType.expense ? -resolved : resolved);
+    });
     return Scaffold(
       body: Column(
         children: [
@@ -155,7 +193,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${total >= 0 ? '+' : '−'}${Helpers.formatINR(total.abs())}',
+                    '${total >= 0 ? '+' : '−'}${Helpers.formatAmount(total.abs(), currencySymbol)}',
                     style: TextStyle(
                       fontSize: 12,
                       color: total >= 0
@@ -182,7 +220,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 : ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     children: grouped.entries.map((entry) {
-                      return _buildDayGroup(entry.key, entry.value);
+                      return _buildDayGroup(entry.key, entry.value, currencySymbol);
                     }).toList(),
                   ),
           ),
@@ -191,10 +229,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _buildDayGroup(String dateStr, List<Transaction> transactions) {
+  Widget _buildDayGroup(String dateStr, List<Transaction> transactions, String currencySymbol) {
+    final prefs = context.watch<UserPreferencesProvider>();
+    final displayCurrency = prefs.currency;
+    final convertHistory = prefs.convertHistoricalCurrency;
+
+    double _resolved(Transaction t) {
+      if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
+      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+      return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+    }
+
     final dayExpense = transactions
         .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (sum, t) => sum + _resolved(t));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -212,7 +260,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ),
                 if (dayExpense > 0)
                   Text(
-                    '−${Helpers.formatINR(dayExpense)}',
+                    '−${Helpers.formatAmount(dayExpense, currencySymbol)}',
                     style: const TextStyle(
                                             fontSize: 11,
                       color: AppTheme.expenseColor,
@@ -254,8 +302,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 class _AmountBadge extends StatelessWidget {
   final double amount;
   final bool isIncome;
+  final String symbol;
 
-  const _AmountBadge({required this.amount, required this.isIncome});
+  const _AmountBadge({
+    required this.amount,
+    required this.isIncome,
+    required this.symbol,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +320,7 @@ class _AmountBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '${isIncome ? '+' : '−'}${Helpers.formatINR(amount)}',
+        '${isIncome ? '+' : '−'}${Helpers.formatAmount(amount, symbol)}',
         style: TextStyle(
           fontFamily: 'Archia',
           fontWeight: FontWeight.w700,
@@ -308,6 +361,34 @@ class TransactionRow extends StatelessWidget {
     try { _resolvedAccount = accounts.firstWhere((a) => a.id == transaction.account); } catch (_) {}
     _resolvedAccount ??= accounts.cast<Account?>().firstWhere((a) => a!.displayName == transaction.account, orElse: () => null);
     final accountName = _resolvedAccount?.displayName ?? transaction.account;
+
+    final prefs = context.watch<UserPreferencesProvider>();
+    final displayCurrency = prefs.currency;
+    final convertHistory = prefs.convertHistoricalCurrency;
+
+    final double displayAmount;
+    final String displaySymbol;
+
+    if (convertHistory || transaction.baseCurrency == displayCurrency) {
+      final snapshot = ExchangeRateService.instance
+          .getCachedSnapshot(transaction.baseCurrency, transaction.date);
+      displayAmount = Helpers.convertAmount(
+        transaction.amount,
+        transaction.baseCurrency,
+        displayCurrency,
+        snapshot?.rates,
+      );
+      displaySymbol = kCurrencies
+          .firstWhere((c) => c.code == displayCurrency,
+              orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+          .symbol;
+    } else {
+      displayAmount = transaction.amount;
+      displaySymbol = kCurrencies
+          .firstWhere((c) => c.code == transaction.baseCurrency,
+              orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+          .symbol;
+    }
 
     return Material(
       color: Colors.transparent,
@@ -369,8 +450,9 @@ class TransactionRow extends StatelessWidget {
 
               // Amount
               _AmountBadge(
-                amount: transaction.amount,
+                amount: displayAmount,
                 isIncome: transaction.type == TransactionType.income,
+                symbol: displaySymbol,
               ),
             ],
           ),

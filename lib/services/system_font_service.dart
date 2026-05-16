@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 /// This bypasses Flutter/minikin's name-based font resolution, which does not
 /// reflect OEM font overrides (e.g. Samsung's custom font settings).
 class SystemFontService {
-  static const _channel = MethodChannel('com.example.wllt/system_font');
+  static const _channel = MethodChannel('com.goofynugtz.wllt/system_font');
 
   /// The font family name registered with Flutter's FontLoader.
   static const familyName = 'SystemDefault';

@@ -73,7 +73,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${_categories.length} categories',
+                        '${_categories.length} ${_categories.length == 1 ? 'category' : 'categories'}',
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -168,8 +168,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   ),
                 ).then((_) => _reloadCategories()),
                 child: Container(
-                  width: 64,
-                  height: 64,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(16),
@@ -181,9 +181,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(
+                  child: Icon(
                     LucideIcons.plus,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 28,
                   ),
                 ),

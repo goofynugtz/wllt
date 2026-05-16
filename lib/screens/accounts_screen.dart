@@ -5,9 +5,12 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../models/ad_config.dart';
+import '../data/currencies.dart';
 import '../providers/account_provider.dart';
+import '../providers/user_preferences_provider.dart';
 import '../services/ad_config_service.dart';
 import '../providers/transaction_provider.dart';
+import '../services/exchange_rate_service.dart';
 import '../utils/helpers.dart';
 import 'package:provider/provider.dart';
 import 'account_detail_screen.dart';
@@ -43,11 +46,20 @@ class AccountsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final accounts     = context.watch<AccountProvider>().accounts;
     final transactions = context.watch<TransactionProvider>().transactions;
+    final prefs        = context.watch<UserPreferencesProvider>();
+    final displayCurrency = prefs.currency;
+    final convertHistory  = prefs.convertHistoricalCurrency;
+
+    double resolveAmount(Transaction t) {
+      if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
+      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+      return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+    }
 
     double effectiveBalance(Account a) {
       final txs = transactions.where((t) => t.account == a.id);
-      final income  = txs.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + t.amount);
-      final expense = txs.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + t.amount);
+      final income  = txs.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + resolveAmount(t));
+      final expense = txs.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + resolveAmount(t));
       return a.balance + income - expense;
     }
 
@@ -124,6 +136,11 @@ class _NetWorthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final assetPct = totalAssets > 0 ? (totalAssets / (totalAssets + totalDebt)).clamp(0.0, 1.0) : 1.0;
+    final prefs = context.watch<UserPreferencesProvider>();
+    final currencySymbol = kCurrencies
+        .firstWhere((c) => c.code == prefs.currency,
+            orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+        .symbol;
 
     return Container(
       width: double.infinity,
@@ -193,7 +210,7 @@ class _NetWorthCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    '${netWorth >= 0 ? '' : '−'}${Helpers.formatINR(netWorth.abs())}',
+                    '${netWorth >= 0 ? '' : '−'}${Helpers.formatAmount(netWorth.abs(), currencySymbol)}',
                     style: const TextStyle(
                       fontFamily: 'Archia',
                       fontSize: 36,
@@ -240,7 +257,7 @@ class _NetWorthCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        Helpers.formatINR(totalAssets),
+                        Helpers.formatAmount(totalAssets, currencySymbol),
                         style: const TextStyle(
                           fontFamily: 'Archia',
                           fontSize: 16,
@@ -269,7 +286,7 @@ class _NetWorthCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        Helpers.formatINR(totalDebt),
+                        Helpers.formatAmount(totalDebt, currencySymbol),
                         style: const TextStyle(
                           fontFamily: 'Archia',
                           fontSize: 16,
@@ -360,7 +377,12 @@ class _SectionHeader extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          Helpers.formatINR(total),
+          Helpers.formatAmount(total, kCurrencies
+              .firstWhere(
+                (c) => c.code == context.watch<UserPreferencesProvider>().currency,
+                orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'),
+              )
+              .symbol),
           style: TextStyle(fontFamily: 'Archia', fontSize: 12, color: color),
         ),
       ],
@@ -382,6 +404,11 @@ class _TappableAccountCard extends StatelessWidget {
     final amountColor = isNegative
         ? const Color(0xFFE76F51)
         : Theme.of(context).colorScheme.onSurface;
+    final prefs = context.watch<UserPreferencesProvider>();
+    final currencyInfo = kCurrencies.firstWhere(
+        (c) => c.code == prefs.currency,
+        orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'));
+    final currencySymbol = currencyInfo.symbol;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -446,7 +473,7 @@ class _TappableAccountCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        const _CurrencyChip(symbol: '₹', country: 'India'),
+                        _CurrencyChip(symbol: currencyInfo.symbol, country: currencyInfo.country),
                       ],
                     ),
                   ),
@@ -464,7 +491,7 @@ class _TappableAccountCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '${isNegative ? '−' : ''}${Helpers.formatINR(effectiveBalance.abs())}',
+                            '${isNegative ? '−' : ''}${Helpers.formatAmount(effectiveBalance.abs(), currencySymbol)}',
                             style: TextStyle(
                               fontFamily: 'Archia',
                               fontSize: 17,

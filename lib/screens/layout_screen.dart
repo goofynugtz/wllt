@@ -23,7 +23,6 @@ class LayoutScreen extends StatefulWidget {
 
 class _LayoutScreenState extends State<LayoutScreen> {
   int _currentIndex = 0;
-  bool _isFabExpanded = false;
   bool _bannerAdDismissed = false;
   late DateTime _selectedMonth;
 
@@ -47,7 +46,6 @@ class _LayoutScreenState extends State<LayoutScreen> {
   }
 
   void _navigateToTab(int index) {
-    if (_isFabExpanded) setState(() => _isFabExpanded = false);
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -361,51 +359,12 @@ class _LayoutScreenState extends State<LayoutScreen> {
       );
     }
 
-    // Home + Transactions — expandable transaction FAB
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (_isFabExpanded) ...[
-          _buildFabOption(
-            icon: LucideIcons.arrowLeftRight,
-            label: 'Transfer',
-            onTap: () {
-              setState(() => _isFabExpanded = false);
-              _handleAddTransaction(AddTransactionMethod.transfer);
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildFabOption(
-            icon: LucideIcons.trendingUp,
-            label: 'Income',
-            onTap: () {
-              setState(() => _isFabExpanded = false);
-              _handleAddTransaction(AddTransactionMethod.income);
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildFabOption(
-            icon: LucideIcons.trendingDown,
-            label: 'Expense',
-            onTap: () {
-              setState(() => _isFabExpanded = false);
-              _handleAddTransaction(AddTransactionMethod.expense);
-            },
-          ),
-          const SizedBox(height: 12),
-        ],
-        FloatingActionButton(
-          onPressed: () => setState(() => _isFabExpanded = !_isFabExpanded),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          elevation: 8,
-          child: AnimatedRotation(
-            turns: _isFabExpanded ? 0.125 : 0,
-            duration: const Duration(milliseconds: 200),
-            child: Icon(LucideIcons.plus, size: 24, color: Theme.of(context).colorScheme.onPrimary),
-          ),
-        ),
-      ],
+    // Home + Transactions — directly open add transaction
+    return FloatingActionButton(
+      onPressed: () => _handleAddTransaction(AddTransactionMethod.expense),
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      elevation: 8,
+      child: Icon(LucideIcons.plus, size: 24, color: Theme.of(context).colorScheme.onPrimary),
     );
   }
 
@@ -434,30 +393,6 @@ class _LayoutScreenState extends State<LayoutScreen> {
     }
   }
 
-  Widget _buildFabOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      height: 56,
-      child: FloatingActionButton.extended(
-        onPressed: onTap,
-        backgroundColor: Colors.white,
-        elevation: 4,
-        icon: Icon(icon, size: 18, color: AppTheme.textPrimary),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -482,7 +417,6 @@ class _LayoutScreenState extends State<LayoutScreen> {
                         : const NeverScrollableScrollPhysics(),
                     onPageChanged: (index) => setState(() {
                       _currentIndex = index;
-                      _isFabExpanded = false;
                     }),
                     children: [
                       HomeScreen(

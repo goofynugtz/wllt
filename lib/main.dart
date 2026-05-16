@@ -13,6 +13,7 @@ import 'providers/user_preferences_provider.dart';
 import 'screens/layout_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'services/auth_service.dart';
+import 'services/exchange_rate_service.dart';
 import 'services/purchase_service.dart';
 import 'services/storage_service.dart';
 import 'services/system_font_service.dart';
@@ -27,6 +28,7 @@ void main() async {
 
   final storage = StorageService();
   await storage.init();
+  await ExchangeRateService.instance.init();
 
   final systemFont = await SystemFontService.loadSystemFont();
 
@@ -59,6 +61,9 @@ class WalletApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => SubscriptionProvider()..init(),
+        ),
+        ChangeNotifierProvider<ExchangeRateService>.value(
+          value: ExchangeRateService.instance,
         ),
         Provider<AuthService>(
           create: (_) => AuthService(),

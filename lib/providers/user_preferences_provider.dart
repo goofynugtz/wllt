@@ -11,6 +11,7 @@ class UserPreferencesProvider extends ChangeNotifier {
   UserPreferencesProvider(this._storage);
 
   String get currency => _storage.currency;
+  bool get convertHistoricalCurrency => _storage.convertHistoricalCurrency;
   List<String> get activeCategories => _storage.activeCategories;
   String get authMode => _storage.authMode;
   String? get googleUid => _storage.googleUid;
@@ -36,6 +37,11 @@ class UserPreferencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setConvertHistoricalCurrency(bool value) async {
+    await _storage.setConvertHistoricalCurrency(value);
+    notifyListeners();
+  }
+
   Future<void> setCategories(List<String> ids) async {
     await _storage.setActiveCategories(ids);
     _syncService?.syncPreferences();
@@ -51,6 +57,14 @@ class UserPreferencesProvider extends ChangeNotifier {
 
   Future<void> deleteCustomCategory(String id) async {
     await _storage.deleteCustomCategory(id);
+    final builtinIds = Category.categories.map((c) => c.id).toSet();
+    if (builtinIds.contains(id)) {
+      final current = _storage.activeCategories;
+      final base = current.isEmpty ? builtinIds.toList() : current;
+      await _storage.setActiveCategories(
+        base.where((cId) => cId != id).toList(),
+      );
+    }
     notifyListeners();
   }
 

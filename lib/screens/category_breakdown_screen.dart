@@ -1,0 +1,343 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+import '../data/currencies.dart';
+import '../models/models.dart';
+import '../providers/transaction_provider.dart';
+import '../providers/user_preferences_provider.dart';
+import '../services/exchange_rate_service.dart';
+import '../utils/helpers.dart';
+import '../widgets/category_icon_badge.dart';
+import 'category_detail_screen.dart';
+
+class CategoryBreakdownScreen extends StatefulWidget {
+  final DateTime selectedMonth;
+
+  const CategoryBreakdownScreen({super.key, required this.selectedMonth});
+
+  @override
+  State<CategoryBreakdownScreen> createState() =>
+      _CategoryBreakdownScreenState();
+}
+
+class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
+  late int _selectedYear;
+  late int _selectedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedYear = widget.selectedMonth.year;
+    _selectedMonth = widget.selectedMonth.month;
+  }
+
+  void _previousMonth() {
+    setState(() {
+      if (_selectedMonth == 1) {
+        _selectedMonth = 12;
+        _selectedYear--;
+      } else {
+        _selectedMonth--;
+      }
+    });
+  }
+
+  void _nextMonth() {
+    final now = DateTime.now();
+    if (_selectedYear < now.year ||
+        (_selectedYear == now.year && _selectedMonth < now.month)) {
+      setState(() {
+        if (_selectedMonth == 12) {
+          _selectedMonth = 1;
+          _selectedYear++;
+        } else {
+          _selectedMonth++;
+        }
+      });
+    }
+  }
+
+  bool get _isCurrentMonth {
+    final now = DateTime.now();
+    return _selectedYear == now.year && _selectedMonth == now.month;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final allTx = context.watch<TransactionProvider>().transactions;
+    final prefs = context.watch<UserPreferencesProvider>();
+    final activeIds = prefs.activeCategories.toSet();
+    final displayCurrency = prefs.currency;
+    final convertHistory = prefs.convertHistoricalCurrency;
+    final currencySymbol = kCurrencies
+        .firstWhere((c) => c.code == displayCurrency,
+            orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+        .symbol;
+
+    double resolveAmount(Transaction t) {
+      if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
+      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+      return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+    }
+
+    final monthTx = allTx.where((t) =>
+        t.type == TransactionType.expense &&
+        t.date.year == _selectedYear &&
+        t.date.month == _selectedMonth);
+
+    final totalExpense = monthTx.fold(0.0, (s, t) => s + resolveAmount(t));
+
+    final breakdown = Helpers.getExpenseCategories(activeIds: activeIds)
+        .map((cat) {
+          final amount = monthTx
+              .where((t) => t.categoryId == cat.id)
+              .fold(0.0, (s, t) => s + resolveAmount(t));
+          return _CategoryData(cat, amount);
+        })
+        .where((cd) => cd.amount > 0)
+        .toList()
+      ..sort((a, b) => b.amount.compareTo(a.amount));
+
+    final monthLabel =
+        '${Helpers.months[_selectedMonth - 1]} $_selectedYear';
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Top bar ──────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SizedBox(
+                height: 44,
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(LucideIcons.chevronLeft, size: 22),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Spending by Category',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: cs.onSurface),
+                      ),
+                    ),
+                    const SizedBox(width: 40),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Month navigator ───────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    GestureDetector(
+                      onTap: _previousMonth,
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Icon(LucideIcons.chevronLeft,
+                            size: 20, color: cs.onSurface),
+                      ),
+                    ),
+                    Text(
+                      monthLabel,
+                      style: TextStyle(fontSize: 15, color: cs.onSurface),
+                    ),
+                    Opacity(
+                      opacity: _isCurrentMonth ? 0.3 : 1.0,
+                      child: GestureDetector(
+                        onTap: _nextMonth,
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: Icon(LucideIcons.chevronRight,
+                              size: 20, color: cs.onSurface),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Category list ─────────────────────────────────────────────
+            Expanded(
+              child: breakdown.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No expenses this month',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: cs.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: cs.outlineVariant.withValues(alpha: 0.5),
+                            width: 0.5,
+                          ),
+                        ),
+                        clipBehavior: Clip.hardEdge,
+                        child: Column(
+                          children: breakdown.asMap().entries.map((entry) {
+                            final isNotFirst = entry.key > 0;
+                            final cd = entry.value;
+                            final pct = totalExpense > 0
+                                ? cd.amount / totalExpense
+                                : 0.0;
+                            final catColor = Color(
+                              int.parse(
+                                    cd.category.color.substring(1),
+                                    radix: 16,
+                                  ) +
+                                  0xFF000000,
+                            );
+
+                            return Column(
+                              children: [
+                                if (isNotFirst)
+                                  Divider(
+                                    height: 0.5,
+                                    color: cs.outlineVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => CategoryDetailScreen(
+                                          category: cd.category,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          16, 14, 16, 14),
+                                      child: Row(
+                                        children: [
+                                          CategoryIconBadge(
+                                              category: cd.category, size: 40),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Text(
+                                                      cd.category.name,
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: cs.onSurface,
+                                                      ),
+                                                    ),
+                                                    Row(
+                                                      children: [
+                                                        Text(
+                                                          Helpers.formatAmount(
+                                                              cd.amount, currencySymbol),
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            color: cs.onSurface,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                        SizedBox(
+                                                          width: 32,
+                                                          child: Text(
+                                                            '${(pct * 100).round()}%',
+                                                            textAlign:
+                                                                TextAlign.right,
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              color: cs
+                                                                  .onSurfaceVariant,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(99),
+                                                  child:
+                                                      LinearProgressIndicator(
+                                                    value: pct,
+                                                    minHeight: 4,
+                                                    backgroundColor: catColor
+                                                        .withValues(alpha: 0.15),
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation(
+                                                            catColor),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(
+                                            LucideIcons.chevronRight,
+                                            size: 16,
+                                            color: cs.onSurfaceVariant,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryData {
+  final Category category;
+  final double amount;
+  _CategoryData(this.category, this.amount);
+}

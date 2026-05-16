@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../data/currencies.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../models/ad_config.dart';
@@ -10,9 +11,11 @@ import '../widgets/category_icon_badge.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/trial_banner.dart';
 import '../services/ad_config_service.dart';
+import '../services/exchange_rate_service.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/layout_screen.dart';
+import '../screens/category_breakdown_screen.dart';
 import '../providers/app_settings_provider.dart';
 
 enum _TrendRange { m1, m6, y1 }
@@ -40,6 +43,10 @@ class _HomeScreenState extends State<HomeScreen>
   double _dragOffset = 0.0;
   late AnimationController _snapController;
   _TrendRange _trendRange = _TrendRange.m6;
+
+  String? _prefetchCurrency;
+  bool? _prefetchConvert;
+  int? _prefetchTxCount;
 
   @override
   void initState() {
@@ -87,6 +94,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     final allTx = context.watch<TransactionProvider>().transactions;
     context.watch<AppSettingsProvider>(); // rebuild on color/theme changes
+    context.watch<ExchangeRateService>(); // rebuild when new rates arrive
 
     final monthTransactions = allTx
         .where(
@@ -96,18 +104,48 @@ class _HomeScreenState extends State<HomeScreen>
         )
         .toList();
 
+    final prefs = context.watch<UserPreferencesProvider>();
+    final activeIds = prefs.activeCategories.toSet();
+    final displayCurrency = prefs.currency;
+    final convertHistory = prefs.convertHistoricalCurrency;
+
+    if (_prefetchCurrency != displayCurrency ||
+        _prefetchConvert != convertHistory ||
+        _prefetchTxCount != allTx.length) {
+      _prefetchCurrency = displayCurrency;
+      _prefetchConvert = convertHistory;
+      _prefetchTxCount = allTx.length;
+      final txSnapshot = allTx;
+      final currencySnapshot = displayCurrency;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ExchangeRateService.instance
+            .prefetchForTransactions(txSnapshot, currencySnapshot);
+      });
+    }
+
+    final currencySymbol = kCurrencies
+        .firstWhere((c) => c.code == displayCurrency,
+            orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+        .symbol;
+
+    double resolveAmount(Transaction t) {
+      if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
+      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+      return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+    }
+
     final totalExpense = monthTransactions
         .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (sum, t) => sum + resolveAmount(t));
 
     final totalIncome = monthTransactions
         .where((t) => t.type == TransactionType.income)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (sum, t) => sum + resolveAmount(t));
 
     final budgetPct =
         (totalExpense / Helpers.monthlyBudget * 100).clamp(0.0, 100.0);
 
-    final activeIds = context.watch<UserPreferencesProvider>().activeCategories.toSet();
     final categoryBreakdown = Helpers.getExpenseCategories(activeIds: activeIds)
         .map((cat) {
           final amount = monthTransactions
@@ -116,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen>
                     t.type == TransactionType.expense &&
                     t.categoryId == cat.id,
               )
-              .fold(0.0, (sum, t) => sum + t.amount);
+              .fold(0.0, (sum, t) => sum + resolveAmount(t));
           return CategoryData(cat, amount);
         })
         .where((cd) => cd.amount > 0)
@@ -150,13 +188,13 @@ class _HomeScreenState extends State<HomeScreen>
             t.date.month == m.month &&
             t.date.year == m.year &&
             t.type == TransactionType.expense)
-        .fold(0.0, (s, t) => s + t.amount);
+        .fold(0.0, (s, t) => s + resolveAmount(t));
     double monthIncome(DateTime m) => allTx
         .where((t) =>
             t.date.month == m.month &&
             t.date.year == m.year &&
             t.type == TransactionType.income)
-        .fold(0.0, (s, t) => s + t.amount);
+        .fold(0.0, (s, t) => s + resolveAmount(t));
     double pct(double exp) =>
         (exp / Helpers.monthlyBudget * 100).clamp(0.0, 100.0);
 
@@ -227,21 +265,21 @@ class _HomeScreenState extends State<HomeScreen>
                                 offset: Offset(_dragOffset - w, 0),
                                 child: SizedBox(width: w, child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: _buildBalanceCard(prevExp, pct(prevExp), prevInc, month: prevMonth),
+                                  child: _buildBalanceCard(prevExp, pct(prevExp), prevInc, currencySymbol, month: prevMonth),
                                 )),
                               ),
                               Transform.translate(
                                 offset: Offset(_dragOffset, 0),
                                 child: SizedBox(width: w, child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: _buildBalanceCard(totalExpense, budgetPct, totalIncome),
+                                  child: _buildBalanceCard(totalExpense, budgetPct, totalIncome, currencySymbol),
                                 )),
                               ),
                               Transform.translate(
                                 offset: Offset(_dragOffset + w, 0),
                                 child: SizedBox(width: w, child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: _buildBalanceCard(nextExp, pct(nextExp), nextInc, month: nextMonth),
+                                  child: _buildBalanceCard(nextExp, pct(nextExp), nextInc, currencySymbol, month: nextMonth),
                                 )),
                               ),
                             ],
@@ -256,7 +294,16 @@ class _HomeScreenState extends State<HomeScreen>
                     if (categoryBreakdown.isNotEmpty) ...[
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: _buildCategoryBreakdown(categoryBreakdown, totalExpense),
+                        child: GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CategoryBreakdownScreen(
+                                selectedMonth: widget.selectedMonth,
+                              ),
+                            ),
+                          ),
+                          child: _buildCategoryBreakdown(categoryBreakdown, totalExpense, currencySymbol),
+                        ),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -264,14 +311,14 @@ class _HomeScreenState extends State<HomeScreen>
                     // ── Spending Trend ────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildSpendingTrend(allTx),
+                      child: _buildSpendingTrend(allTx, currencySymbol),
                     ),
                     const SizedBox(height: 16),
 
                     // ── Insight chips ─────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildInsightChips(categoryBreakdown, totalExpense),
+                      child: _buildInsightChips(categoryBreakdown, totalExpense, currencySymbol),
                     ),
 
                     const SizedBox(height: 16),
@@ -318,7 +365,8 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildBalanceCard(
     double totalExpense,
     double budgetPct,
-    double totalIncome, {
+    double totalIncome,
+    String currencySymbol, {
     DateTime? month,
   }) {
     final m = month ?? widget.selectedMonth;
@@ -391,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                     // Amount
                     Text(
-                      Helpers.formatINR(totalExpense),
+                      Helpers.formatAmount(totalExpense, currencySymbol),
                       style: const TextStyle(
                         fontSize: 38,
                         color: Colors.white,
@@ -416,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Budget ${Helpers.formatINR(Helpers.monthlyBudget)}',
+                            'Budget ${Helpers.formatAmount(Helpers.monthlyBudget, currencySymbol)}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.white.withValues(alpha: 0.4),
@@ -499,6 +547,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildCategoryBreakdown(
     List<CategoryData> breakdown,
     double totalExpense,
+    String currencySymbol,
   ) {
     return _SectionCard(
       title: 'Category Breakdown',
@@ -567,7 +616,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       Text(
-                        Helpers.formatINR(cd.amount),
+                        Helpers.formatAmount(cd.amount, currencySymbol),
                         style: TextStyle(
                           fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurface,
@@ -600,7 +649,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Spending Trend ────────────────────────────────────────────────────────
 
-  Widget _buildSpendingTrend(List<Transaction> allTx) {
+  Widget _buildSpendingTrend(List<Transaction> allTx, String currencySymbol) {
     final List<({String label, double amount})> bars;
 
     if (_trendRange == _TrendRange.m1) {
@@ -745,7 +794,7 @@ class _HomeScreenState extends State<HomeScreen>
                     getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) =>
                         BarTooltipItem(
-                      Helpers.formatINR(rod.toY),
+                      Helpers.formatAmount(rod.toY, currencySymbol),
                       TextStyle(
                         fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurface,
@@ -766,6 +815,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildInsightChips(
     List<CategoryData> breakdown,
     double totalExpense,
+    String currencySymbol,
   ) {
     final now = DateTime.now();
     final isCurrentMonth =
@@ -785,7 +835,7 @@ class _HomeScreenState extends State<HomeScreen>
             label: 'Top Spender',
             value: topCategory?.category.name ?? '—',
             sub: topCategory != null
-                ? '${Helpers.formatINR(topCategory.amount)} this month'
+                ? '${Helpers.formatAmount(topCategory.amount, currencySymbol)} this month'
                 : 'No expenses yet',
           )),
         ),
@@ -794,7 +844,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: _InsightChip(data: _InsightChipData(
             icon: LucideIcons.barChart2,
             label: 'Daily Average',
-            value: Helpers.formatINR(dailyAvg),
+            value: Helpers.formatAmount(dailyAvg, currencySymbol),
             sub: 'per day so far',
           )),
         ),
@@ -960,6 +1010,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildDateGroup(String label, List<Transaction> txns) {
+    final prefs = context.watch<UserPreferencesProvider>();
+    final displayCurrency = prefs.currency;
+    final convertHistory = prefs.convertHistoricalCurrency;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -985,6 +1039,25 @@ class _HomeScreenState extends State<HomeScreen>
               final isNotFirst = entry.key > 0;
               final tx = entry.value;
               final category = Helpers.getCategoryById(tx.categoryId);
+
+              final double displayAmount;
+              final String displaySymbol;
+              if (convertHistory || tx.baseCurrency == displayCurrency) {
+                final snap = ExchangeRateService.instance
+                    .getCachedSnapshot(tx.baseCurrency, tx.date);
+                displayAmount = Helpers.convertAmount(
+                    tx.amount, tx.baseCurrency, displayCurrency, snap?.rates);
+                displaySymbol = kCurrencies
+                    .firstWhere((c) => c.code == displayCurrency,
+                        orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+                    .symbol;
+              } else {
+                displayAmount = tx.amount;
+                displaySymbol = kCurrencies
+                    .firstWhere((c) => c.code == tx.baseCurrency,
+                        orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+                    .symbol;
+              }
 
               return Column(
                 children: [
@@ -1044,7 +1117,8 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                             // Amount
                             _AmountBadge(
-                              amount: tx.amount,
+                              amount: displayAmount,
+                              symbol: displaySymbol,
                               isIncome: tx.type == TransactionType.income,
                             ),
                           ],
@@ -1134,13 +1208,6 @@ class _InsightChip extends StatelessWidget {
           color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
           width: 0.5,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 8,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1237,9 +1304,14 @@ class _TrendPill extends StatelessWidget {
 
 class _AmountBadge extends StatelessWidget {
   final double amount;
+  final String symbol;
   final bool isIncome;
 
-  const _AmountBadge({required this.amount, required this.isIncome});
+  const _AmountBadge({
+    required this.amount,
+    required this.symbol,
+    required this.isIncome,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1251,7 +1323,7 @@ class _AmountBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '${isIncome ? '+' : '−'}${Helpers.formatINR(amount)}',
+        '${isIncome ? '+' : '−'}${Helpers.formatAmount(amount, symbol)}',
         style: TextStyle(
           fontFamily: 'Archia',
           fontWeight: FontWeight.w700,

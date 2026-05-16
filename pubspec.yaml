@@ -67,6 +67,9 @@ dependencies:
   # Ads
   google_mobile_ads: ^5.1.0
 
+  # HTTP client
+  http: ^1.2.0
+
   # Subscriptions
   purchases_flutter: ^8.10.1
   purchases_ui_flutter: ^8.10.1

@@ -3,6 +3,143 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 enum TransactionType { expense, income }
 
+class ExchangeRateSnapshot {
+  final String key;            // "YYYY-MM-DD_BASE"
+  final String baseCurrency;
+  final Map<String, double> rates;
+  final String fetchedAt;      // ISO-8601
+
+  const ExchangeRateSnapshot({
+    required this.key,
+    required this.baseCurrency,
+    required this.rates,
+    required this.fetchedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'key': key,
+    'baseCurrency': baseCurrency,
+    'rates': rates,
+    'fetchedAt': fetchedAt,
+  };
+
+  factory ExchangeRateSnapshot.fromJson(Map<String, dynamic> json) =>
+      ExchangeRateSnapshot(
+        key: json['key'] as String,
+        baseCurrency: json['baseCurrency'] as String,
+        rates: Map<String, double>.from(
+          (json['rates'] as Map).map((k, v) => MapEntry(k as String, (v as num).toDouble())),
+        ),
+        fetchedAt: json['fetchedAt'] as String,
+      );
+}
+
+// All Lucide icons selectable in the category picker, keyed by codePoint.
+// Values are existing LucideIcons.* constants — no runtime IconData construction —
+// so the release-build tree shaker can statically determine which glyphs to keep.
+final Map<int, IconData> _kLucideIconByCodePoint = {
+  LucideIcons.shoppingBag.codePoint:   LucideIcons.shoppingBag,
+  LucideIcons.shoppingCart.codePoint:  LucideIcons.shoppingCart,
+  LucideIcons.creditCard.codePoint:    LucideIcons.creditCard,
+  LucideIcons.wallet.codePoint:        LucideIcons.wallet,
+  LucideIcons.banknote.codePoint:      LucideIcons.banknote,
+  LucideIcons.coins.codePoint:         LucideIcons.coins,
+  LucideIcons.receipt.codePoint:       LucideIcons.receipt,
+  LucideIcons.tag.codePoint:           LucideIcons.tag,
+  LucideIcons.store.codePoint:         LucideIcons.store,
+  LucideIcons.gift.codePoint:          LucideIcons.gift,
+  LucideIcons.package.codePoint:       LucideIcons.package,
+  LucideIcons.landmark.codePoint:      LucideIcons.landmark,
+  LucideIcons.indianRupee.codePoint:   LucideIcons.indianRupee,
+  LucideIcons.piggyBank.codePoint:     LucideIcons.piggyBank,
+  LucideIcons.briefcase.codePoint:     LucideIcons.briefcase,
+  LucideIcons.laptop.codePoint:        LucideIcons.laptop,
+  LucideIcons.monitor.codePoint:       LucideIcons.monitor,
+  LucideIcons.cpu.codePoint:           LucideIcons.cpu,
+  LucideIcons.printer.codePoint:       LucideIcons.printer,
+  LucideIcons.mail.codePoint:          LucideIcons.mail,
+  LucideIcons.phone.codePoint:         LucideIcons.phone,
+  LucideIcons.smartphone.codePoint:    LucideIcons.smartphone,
+  LucideIcons.building.codePoint:      LucideIcons.building,
+  LucideIcons.building2.codePoint:     LucideIcons.building2,
+  LucideIcons.coffee.codePoint:        LucideIcons.coffee,
+  LucideIcons.utensils.codePoint:      LucideIcons.utensils,
+  LucideIcons.pizza.codePoint:         LucideIcons.pizza,
+  LucideIcons.beer.codePoint:          LucideIcons.beer,
+  LucideIcons.wine.codePoint:          LucideIcons.wine,
+  LucideIcons.apple.codePoint:         LucideIcons.apple,
+  LucideIcons.banana.codePoint:        LucideIcons.banana,
+  LucideIcons.egg.codePoint:           LucideIcons.egg,
+  LucideIcons.cookie.codePoint:        LucideIcons.cookie,
+  LucideIcons.candy.codePoint:         LucideIcons.candy,
+  LucideIcons.fish.codePoint:          LucideIcons.fish,
+  LucideIcons.milk.codePoint:          LucideIcons.milk,
+  LucideIcons.drumstick.codePoint:     LucideIcons.drumstick,
+  LucideIcons.cake.codePoint:          LucideIcons.cake,
+  LucideIcons.beef.codePoint:          LucideIcons.beef,
+  LucideIcons.iceCream.codePoint:      LucideIcons.iceCream,
+  LucideIcons.croissant.codePoint:     LucideIcons.croissant,
+  LucideIcons.sandwich.codePoint:      LucideIcons.sandwich,
+  LucideIcons.car.codePoint:           LucideIcons.car,
+  LucideIcons.bus.codePoint:           LucideIcons.bus,
+  LucideIcons.bike.codePoint:          LucideIcons.bike,
+  LucideIcons.plane.codePoint:         LucideIcons.plane,
+  LucideIcons.train.codePoint:         LucideIcons.train,
+  LucideIcons.ship.codePoint:          LucideIcons.ship,
+  LucideIcons.truck.codePoint:         LucideIcons.truck,
+  LucideIcons.fuel.codePoint:          LucideIcons.fuel,
+  LucideIcons.navigation.codePoint:    LucideIcons.navigation,
+  LucideIcons.activity.codePoint:      LucideIcons.activity,
+  LucideIcons.dumbbell.codePoint:      LucideIcons.dumbbell,
+  LucideIcons.heartPulse.codePoint:    LucideIcons.heartPulse,
+  LucideIcons.stethoscope.codePoint:   LucideIcons.stethoscope,
+  LucideIcons.pill.codePoint:          LucideIcons.pill,
+  LucideIcons.thermometer.codePoint:   LucideIcons.thermometer,
+  LucideIcons.cross.codePoint:         LucideIcons.cross,
+  LucideIcons.baby.codePoint:          LucideIcons.baby,
+  LucideIcons.heart.codePoint:         LucideIcons.heart,
+  LucideIcons.film.codePoint:          LucideIcons.film,
+  LucideIcons.music.codePoint:         LucideIcons.music,
+  LucideIcons.headphones.codePoint:    LucideIcons.headphones,
+  LucideIcons.camera.codePoint:        LucideIcons.camera,
+  LucideIcons.mic.codePoint:           LucideIcons.mic,
+  LucideIcons.gamepad2.codePoint:      LucideIcons.gamepad2,
+  LucideIcons.tv.codePoint:            LucideIcons.tv,
+  LucideIcons.star.codePoint:          LucideIcons.star,
+  LucideIcons.trophy.codePoint:        LucideIcons.trophy,
+  LucideIcons.award.codePoint:         LucideIcons.award,
+  LucideIcons.home.codePoint:          LucideIcons.home,
+  LucideIcons.lamp.codePoint:          LucideIcons.lamp,
+  LucideIcons.armchair.codePoint:      LucideIcons.armchair,
+  LucideIcons.bed.codePoint:           LucideIcons.bed,
+  LucideIcons.bath.codePoint:          LucideIcons.bath,
+  LucideIcons.wrench.codePoint:        LucideIcons.wrench,
+  LucideIcons.hammer.codePoint:        LucideIcons.hammer,
+  LucideIcons.plug.codePoint:          LucideIcons.plug,
+  LucideIcons.zap.codePoint:           LucideIcons.zap,
+  LucideIcons.wifi.codePoint:          LucideIcons.wifi,
+  LucideIcons.bookOpen.codePoint:      LucideIcons.bookOpen,
+  LucideIcons.graduationCap.codePoint: LucideIcons.graduationCap,
+  LucideIcons.library.codePoint:       LucideIcons.library,
+  LucideIcons.microscope.codePoint:    LucideIcons.microscope,
+  LucideIcons.pencil.codePoint:        LucideIcons.pencil,
+  LucideIcons.school.codePoint:        LucideIcons.school,
+  LucideIcons.newspaper.codePoint:     LucideIcons.newspaper,
+  LucideIcons.luggage.codePoint:       LucideIcons.luggage,
+  LucideIcons.hotel.codePoint:         LucideIcons.hotel,
+  LucideIcons.mapPin.codePoint:        LucideIcons.mapPin,
+  LucideIcons.compass.codePoint:       LucideIcons.compass,
+  LucideIcons.globe.codePoint:         LucideIcons.globe,
+  LucideIcons.flag.codePoint:          LucideIcons.flag,
+  LucideIcons.mountain.codePoint:      LucideIcons.mountain,
+  LucideIcons.sun.codePoint:           LucideIcons.sun,
+  LucideIcons.umbrella.codePoint:      LucideIcons.umbrella,
+  LucideIcons.gem.codePoint:           LucideIcons.gem,
+  LucideIcons.diamond.codePoint:       LucideIcons.diamond,
+  LucideIcons.crown.codePoint:         LucideIcons.crown,
+  LucideIcons.leaf.codePoint:          LucideIcons.leaf,
+};
+
 class Category {
   final String id;
   final String name;
@@ -42,14 +179,10 @@ class Category {
   };
 
   factory Category.fromJson(Map<String, dynamic> json) {
-    IconData? lucideIcon;
-    if (json['iconCodePoint'] != null) {
-      lucideIcon = IconData(
-        json['iconCodePoint'] as int,
-        fontFamily: json['iconFontFamily'] as String?,
-        fontPackage: json['iconFontPackage'] as String?,
-      );
-    }
+    final IconData? lucideIcon = json['iconCodePoint'] != null
+        ? _kLucideIconByCodePoint[json['iconCodePoint'] as int] ??
+            LucideIcons.shoppingBag
+        : null;
     return Category(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -99,6 +232,7 @@ class Transaction {
   final String account;
   final List<String> tags;
   final String? note;
+  final String baseCurrency;
 
   const Transaction({
     required this.id,
@@ -110,6 +244,7 @@ class Transaction {
     required this.account,
     required this.tags,
     this.note,
+    this.baseCurrency = 'USD',
   });
 
   Transaction copyWith({
@@ -122,6 +257,7 @@ class Transaction {
     String? account,
     List<String>? tags,
     String? note,
+    String? baseCurrency,
   }) => Transaction(
     id: id ?? this.id,
     transactionTitle: transactionTitle ?? this.transactionTitle,
@@ -132,6 +268,7 @@ class Transaction {
     account: account ?? this.account,
     tags: tags ?? this.tags,
     note: note ?? this.note,
+    baseCurrency: baseCurrency ?? this.baseCurrency,
   );
 
   Map<String, dynamic> toJson() => {
@@ -143,6 +280,7 @@ class Transaction {
     'date': date.toIso8601String(),
     'account': account,
     'tags': tags,
+    'baseCurrency': baseCurrency,
     if (note != null) 'note': note,
   };
 
@@ -156,9 +294,13 @@ class Transaction {
     account: json['account'] as String,
     tags: ((json['tags'] as List?) ?? []).cast<String>(),
     note: json['note'] as String?,
+    baseCurrency: json['baseCurrency'] as String? ?? 'USD',
   );
 
-  static List<Transaction> dummyData = [
+  static List<Transaction> get dummyData =>
+      _dummyDataSource.map((tx) => tx.copyWith(baseCurrency: 'INR')).toList();
+
+  static final List<Transaction> _dummyDataSource = [
     Transaction(
       id: 't1',
       transactionTitle: 'Big Bazaar',
@@ -166,7 +308,7 @@ class Transaction {
       amount: 1240,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 28),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['groceries'],
       note: 'Monthly groceries run',
     ),
@@ -177,7 +319,7 @@ class Transaction {
       amount: 380,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 28),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['doctor'],
     ),
     Transaction(
@@ -187,7 +329,7 @@ class Transaction {
       amount: 220,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 28),
-      account: 'Cash',
+      account: 'a3',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -197,7 +339,7 @@ class Transaction {
       amount: 85000,
       type: TransactionType.income,
       date: DateTime(2026, 3, 27),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['savings'],
     ),
     Transaction(
@@ -207,7 +349,7 @@ class Transaction {
       amount: 450,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 27),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -217,7 +359,7 @@ class Transaction {
       amount: 180,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 26),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['transport'],
     ),
     Transaction(
@@ -227,7 +369,7 @@ class Transaction {
       amount: 649,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 26),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['movies'],
     ),
     Transaction(
@@ -237,7 +379,7 @@ class Transaction {
       amount: 349,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 25),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -247,7 +389,7 @@ class Transaction {
       amount: 1850,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 25),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['utilities'],
     ),
     Transaction(
@@ -257,7 +399,7 @@ class Transaction {
       amount: 2399,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 24),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['shopping'],
     ),
     Transaction(
@@ -267,7 +409,7 @@ class Transaction {
       amount: 3200,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 24),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['shopping'],
     ),
     Transaction(
@@ -277,7 +419,7 @@ class Transaction {
       amount: 35,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 23),
-      account: 'Cash',
+      account: 'a3',
       tags: ['transport'],
     ),
     Transaction(
@@ -287,7 +429,7 @@ class Transaction {
       amount: 380,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 22),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['movies'],
     ),
     Transaction(
@@ -297,7 +439,7 @@ class Transaction {
       amount: 2100,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 20),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['groceries'],
     ),
     Transaction(
@@ -307,7 +449,7 @@ class Transaction {
       amount: 1899,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 18),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['shopping'],
     ),
     Transaction(
@@ -317,7 +459,7 @@ class Transaction {
       amount: 90,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 19),
-      account: 'Cash',
+      account: 'a3',
       tags: ['transport'],
     ),
     Transaction(
@@ -327,7 +469,7 @@ class Transaction {
       amount: 650,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 17),
-      account: 'ICICI Bank',
+      account: 'a2',
       note: 'Quick grocery run',
       tags: ['groceries'],
     ),
@@ -338,7 +480,7 @@ class Transaction {
       amount: 299,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 10),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['movies'],
     ),
     Transaction(
@@ -348,7 +490,7 @@ class Transaction {
       amount: 25000,
       type: TransactionType.income,
       date: DateTime(2026, 3, 15),
-      account: 'HDFC Bank',
+      account: 'a1',
       note: 'UI design project',
       tags: ['savings'],
     ),
@@ -359,7 +501,7 @@ class Transaction {
       amount: 18000,
       type: TransactionType.expense,
       date: DateTime(2026, 3, 1),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['home'],
     ),
     Transaction(
@@ -369,7 +511,7 @@ class Transaction {
       amount: 85000,
       type: TransactionType.income,
       date: DateTime(2026, 2, 27),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['savings'],
     ),
     Transaction(
@@ -379,7 +521,7 @@ class Transaction {
       amount: 380,
       type: TransactionType.expense,
       date: DateTime(2026, 2, 25),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -389,7 +531,7 @@ class Transaction {
       amount: 1890,
       type: TransactionType.expense,
       date: DateTime(2026, 2, 20),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['groceries'],
     ),
     Transaction(
@@ -399,7 +541,7 @@ class Transaction {
       amount: 420,
       type: TransactionType.expense,
       date: DateTime(2026, 2, 18),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['transport'],
     ),
     // Today & yesterday entries for Recent section demo
@@ -410,7 +552,7 @@ class Transaction {
       amount: 340,
       type: TransactionType.expense,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['restaurant'],
     ),
     Transaction(
@@ -420,17 +562,17 @@ class Transaction {
       amount: 299,
       type: TransactionType.expense,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['phone'],
     ),
     Transaction(
       id: 't27',
       transactionTitle: 'Salary Credit',
       categoryId: 'work',
-      amount: 95000,
+      amount: 85000,
       type: TransactionType.income,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
-      account: 'HDFC Bank',
+      account: 'a1',
       tags: ['work'],
     ),
     Transaction(
@@ -440,13 +582,13 @@ class Transaction {
       amount: 299,
       type: TransactionType.expense,
       date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
-      account: 'ICICI Bank',
+      account: 'a2',
       tags: ['movies'],
     ),
 
     // ── April 2026 (current month) ──────────────────────────────────────────
     Transaction(id: 'ta01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['home']),
-    Transaction(id: 'ta02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 90000, type: TransactionType.income, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'ta02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['savings']),
     Transaction(id: 'ta03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2200, type: TransactionType.expense, date: DateTime(2026, 4, 5), account: 'HDFC Bank', tags: ['groceries']),
     Transaction(id: 'ta04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 520, type: TransactionType.expense, date: DateTime(2026, 4, 7), account: 'ICICI Bank', tags: ['restaurant']),
     Transaction(id: 'ta05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1750, type: TransactionType.expense, date: DateTime(2026, 4, 8), account: 'HDFC Bank', tags: ['utilities']),
@@ -652,6 +794,9 @@ class Account {
       bank: 'HDFC Bank',
       bankLogoPath: 'assets/icons/banks/hdfc.svg',
       sparkline: [38000, 55200, 42000, 48000, 36200, 42350],
+      cards: [
+        CardEntry(type: 'debit', last4: '4242', network: 'Visa'),
+      ],
     ),
     Account(
       id: 'a2',

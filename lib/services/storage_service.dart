@@ -10,15 +10,16 @@ class StorageService {
   static const String _transactionsBox = 'transactions';
   static const String _accountsBox     = 'accounts';
 
-  static const String keyCurrency           = 'currency';
-  static const String keyAuthMode           = 'auth_mode';
-  static const String keyGoogleUid          = 'google_uid';
-  static const String keyGoogleEmail        = 'google_email';
-  static const String keyCategories         = 'categories';
-  static const String keyOnboardingComplete = 'onboarding_complete';
-  static const String keyThemeMode          = 'theme_mode';
-  static const String keyColorSeed          = 'color_seed';
-  static const String keyDevMode            = 'dev_mode';
+  static const String keyCurrency                   = 'currency';
+  static const String keyAuthMode                   = 'auth_mode';
+  static const String keyGoogleUid                  = 'google_uid';
+  static const String keyGoogleEmail                = 'google_email';
+  static const String keyCategories                 = 'categories';
+  static const String keyOnboardingComplete         = 'onboarding_complete';
+  static const String keyThemeMode                  = 'theme_mode';
+  static const String keyColorSeed                  = 'color_seed';
+  static const String keyDevMode                    = 'dev_mode';
+  static const String keyConvertHistoricalCurrency  = 'convertHistoricalCurrency';
 
   late Box _userPrefs;
   late Box _categories;
@@ -47,6 +48,13 @@ class StorageService {
 
   Future<void> setCurrency(String code) =>
       _userPrefs.put(keyCurrency, code);
+
+  // ── Convert historical currency ────────────────────────────────────────
+  bool get convertHistoricalCurrency =>
+      (_userPrefs.get(keyConvertHistoricalCurrency) as bool?) ?? true;
+
+  Future<void> setConvertHistoricalCurrency(bool value) =>
+      _userPrefs.put(keyConvertHistoricalCurrency, value);
 
   // ── Auth ──────────────────────────────────────────────────────────────
   String get authMode =>

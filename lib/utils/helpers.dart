@@ -28,6 +28,30 @@ class Helpers {
   /// Formats [amount] as an Indian-locale currency string, e.g. "₹1,28,452".
   static String formatINR(double amount) => _inrFormat.format(amount);
 
+  /// Formats [amount] with the given currency [symbol], e.g. "$1,234".
+  static String formatAmount(double amount, String symbol) {
+    return NumberFormat.currency(
+      locale: 'en',
+      symbol: symbol,
+      decimalDigits: 0,
+    ).format(amount);
+  }
+
+  /// Converts [amount] from [baseCurrency] to [targetCurrency] using [rates].
+  /// Returns the original amount when currencies match, rates is null, or the
+  /// target rate is not found in the snapshot.
+  static double convertAmount(
+    double amount,
+    String baseCurrency,
+    String targetCurrency,
+    Map<String, double>? rates,
+  ) {
+    if (baseCurrency == targetCurrency || rates == null) return amount;
+    final rate = rates[targetCurrency];
+    if (rate == null) return amount;
+    return amount * rate;
+  }
+
   /// Converts an ISO-8601 date key ("yyyy-MM-dd") into a human label.
   /// Returns "Today", "Yesterday", or "MMM d" (e.g. "Mar 28").
   static String formatDateLabel(String dateStr) {

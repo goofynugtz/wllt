@@ -3,11 +3,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../data/currencies.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../providers/account_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
+import '../services/exchange_rate_service.dart';
 import '../utils/helpers.dart';
 import 'category_icon_widget.dart';
 import '../screens/add_account_screen.dart';
@@ -15,7 +17,7 @@ import '../screens/layout_screen.dart';
 import '../screens/categories_screen.dart';
 import 'amount_calculator.dart';
 
-class AddTransactionPage extends StatelessWidget {
+class AddTransactionPage extends StatefulWidget {
   final AddTransactionMethod method;
   final Transaction? editTransaction;
 
@@ -26,43 +28,116 @@ class AddTransactionPage extends StatelessWidget {
   });
 
   @override
+  State<AddTransactionPage> createState() => _AddTransactionPageState();
+}
+
+class _AddTransactionPageState extends State<AddTransactionPage> {
+  static const _methods = [
+    AddTransactionMethod.expense,
+    AddTransactionMethod.income,
+    AddTransactionMethod.transfer,
+  ];
+  static const _labels = ['Expense', 'Income', 'Transfer'];
+
+  late AddTransactionMethod _method;
+  late final PageController _methodController;
+  bool _isScrollerPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final tx = widget.editTransaction;
+    if (tx != null) {
+      _method = tx.type == TransactionType.income
+          ? AddTransactionMethod.income
+          : AddTransactionMethod.expense;
+    } else {
+      _method = widget.method;
+    }
+    _methodController = PageController(
+      initialPage: _methods.indexOf(_method).clamp(0, 2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _methodController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isEdit = editTransaction != null;
+    final isEdit = widget.editTransaction != null;
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEdit ? 'Edit Transaction' : 'Add Transaction',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(
-                        LucideIcons.x,
-                        size: 13,
-                        color: Theme.of(context).colorScheme.onSecondaryContainer,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        isEdit ? 'Edit ' : 'Add ',
+                        style: TextStyle(
+                          color: cs.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      padding: EdgeInsets.zero,
-                    ),
+                      _buildMethodScroller(context),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      if (isEdit) ...[
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: cs.errorContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: () async {
+                              final provider = context.read<TransactionProvider>();
+                              await provider.deleteTransaction(widget.editTransaction!.id);
+                              if (context.mounted) Navigator.of(context).pop();
+                            },
+                            icon: Icon(
+                              LucideIcons.trash2,
+                              size: 13,
+                              color: cs.onErrorContainer,
+                            ),
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: cs.secondaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: Icon(
+                            LucideIcons.x,
+                            size: 13,
+                            color: cs.onSecondaryContainer,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -74,17 +149,79 @@ class AddTransactionPage extends StatelessWidget {
     );
   }
 
+  Widget _buildMethodScroller(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final labelColor = _isScrollerPressed ? Colors.white : cs.primary;
+    final textStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: labelColor,
+    );
+
+    return Listener(
+      onPointerDown: (_) => setState(() => _isScrollerPressed = true),
+      onPointerUp: (_) => setState(() => _isScrollerPressed = false),
+      onPointerCancel: (_) => setState(() => _isScrollerPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: _isScrollerPressed ? Colors.black : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Stack sizes to the invisible "Transfer" label (widest word),
+            // PageView fills that rect and scrolls vertically one line at a time.
+            Stack(
+              children: [
+                Opacity(
+                  opacity: 0,
+                  child: Text('Transfer', style: textStyle),
+                ),
+                Positioned.fill(
+                  child: PageView.builder(
+                    controller: _methodController,
+                    scrollDirection: Axis.vertical,
+                    itemCount: _labels.length,
+                    onPageChanged: (i) => setState(() => _method = _methods[i]),
+                    itemBuilder: (_, i) => Text(
+                      _labels[i],
+                      style: textStyle,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 3),
+            Icon(
+              LucideIcons.chevronsUpDown,
+              size: 11,
+              color: _isScrollerPressed
+                  ? Colors.white.withValues(alpha: 0.75)
+                  : cs.primary.withValues(alpha: 0.55),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFormContent() {
-    switch (method) {
+    switch (_method) {
       case AddTransactionMethod.expense:
         return ManualEntryForm(
+          key: const ValueKey('expense'),
           initialType: TransactionType.expense,
-          editTransaction: editTransaction,
+          editTransaction: widget.editTransaction,
         );
       case AddTransactionMethod.income:
         return ManualEntryForm(
+          key: const ValueKey('income'),
           initialType: TransactionType.income,
-          editTransaction: editTransaction,
+          editTransaction: widget.editTransaction,
         );
       case AddTransactionMethod.transfer:
         return const TransferForm();
@@ -117,6 +254,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   Account? _account;
   CardEntry? _selectedCard;
   bool _accountInitialized = false;
+  bool _amountConverted = false;
   bool _showCalculator = false;
   late TextEditingController _titleController;
   final FocusNode _titleFocusNode = FocusNode();
@@ -133,7 +271,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     super.initState();
     final tx = widget.editTransaction;
     if (tx != null) {
-      _type = tx.type;
+      _type = widget.initialType;
       final amt = tx.amount;
       _amount = amt == amt.truncate() ? amt.toInt().toString() : amt.toStringAsFixed(2);
       _selectedCategory = tx.categoryId;
@@ -170,6 +308,21 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       }
       _accountInitialized = true;
     }
+    if (!_amountConverted && widget.editTransaction != null) {
+      final tx = widget.editTransaction!;
+      final currentCurrency = context.read<UserPreferencesProvider>().currency;
+      if (tx.baseCurrency != currentCurrency) {
+        final snapshot = ExchangeRateService.instance.getCachedSnapshot(tx.baseCurrency, tx.date);
+        final rate = snapshot?.rates[currentCurrency];
+        if (rate != null) {
+          final converted = tx.amount * rate;
+          _amount = converted == converted.truncate()
+              ? converted.toInt().toString()
+              : converted.toStringAsFixed(2);
+        }
+      }
+      _amountConverted = true;
+    }
   }
 
   @override
@@ -186,6 +339,25 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     if (amountValue == null || amountValue <= 0) return;
     if (_merchant.trim().isEmpty) return;
 
+    final currentCurrency =
+        context.read<UserPreferencesProvider>().currency;
+
+    debugPrint(
+      '[AddExpense] Saving transaction: '
+      'title="${_merchant.trim()}" '
+      'amount=$amountValue '
+      'type=${_type.name} '
+      'date=${_selectedDate.toIso8601String()} '
+      'baseCurrency=$currentCurrency '
+      'account=${_account?.id ?? "none"}',
+    );
+
+    // Fire-and-forget: caches the snapshot so display layer can read it sync.
+    debugPrint('[AddExpense] Triggering ExchangeRateService.fetchSnapshot($currentCurrency, ${_selectedDate.toIso8601String()})');
+    ExchangeRateService.instance
+        .fetchSnapshot(currentCurrency, _selectedDate)
+        .ignore();
+
     final provider = context.read<TransactionProvider>();
     final tx = Transaction(
       id: widget.editTransaction?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -196,6 +368,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       date: _selectedDate,
       account: _account?.id ?? '',
       tags: List.from(_tags),
+      baseCurrency: currentCurrency,
     );
 
     if (widget.editTransaction != null) {
@@ -364,6 +537,10 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
     final isExpense = _type == TransactionType.expense;
     final prefs = context.watch<UserPreferencesProvider>();
+    final currencySymbol = kCurrencies
+        .firstWhere((c) => c.code == prefs.currency,
+            orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+        .symbol;
     final activeIds = prefs.activeCategories.toSet();
     final customMap = {for (final c in prefs.customCategories) c.id: c};
     final builtinIds = Category.categories.map((c) => c.id).toSet();
@@ -392,6 +569,11 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                 child: TextField(
                   controller: _titleController,
                   focusNode: _titleFocusNode,
+                  onTap: () {
+                    if (_showCalculator) {
+                      _closeCalculator(_calcTryEvaluate(_expression) ?? _expression);
+                    }
+                  },
                   onChanged: (v) => setState(() => _merchant = v),
                   maxLines: 3,
                   minLines: 1,
@@ -427,7 +609,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
               SizedBox(
                 height: 106,
                 child: _showCalculator
-                    ? _buildExpressionDisplay(context)
+                    ? _buildExpressionDisplay(context, currencySymbol)
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
@@ -435,7 +617,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                           GestureDetector(
                             onTap: _openCalculator,
                             child: Text(
-                              '₹ ${_amount.isEmpty ? '0' : _amount}',
+                              '$currencySymbol ${_amount.isEmpty ? '0' : _amount}',
                               style: TextStyle(
                                 fontFamily: 'Archia',
                                 fontSize: 64,
@@ -718,7 +900,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                 padding: const EdgeInsets.only(right: 10),
                                 child: GestureDetector(
                                   onTap: () => _selectPaymentMethod(account, card),
-                                  child: AnimatedSize(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: AnimatedSize(
                                     duration: const Duration(milliseconds: 280),
                                     curve: Curves.easeInOut,
                                     child: Container(
@@ -752,15 +936,22 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   if (account.bankLogoPath != null)
-                                                    Container(
+                                                    SizedBox(
                                                       width: 28,
                                                       height: 28,
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.white,
-                                                        borderRadius: BorderRadius.circular(6),
-                                                      ),
-                                                      padding: const EdgeInsets.all(4),
-                                                      child: SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
+                                                      child: card != null && networkPath != null
+                                                          ? Stack(
+                                                              fit: StackFit.expand,
+                                                              children: [
+                                                                SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
+                                                                Positioned(
+                                                                  right: 0,
+                                                                  bottom: 0,
+                                                                  child: SvgPicture.asset(networkPath, height: 9, fit: BoxFit.contain),
+                                                                ),
+                                                              ],
+                                                            )
+                                                          : SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
                                                     ),
                                                   const SizedBox(width: 10),
                                                   Column(
@@ -769,29 +960,13 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                     mainAxisSize: MainAxisSize.min,
                                                     children: [
                                                       if (card != null) ...[
-                                                        Row(
-                                                          mainAxisSize: MainAxisSize.min,
-                                                          children: [
-                                                            if (networkPath != null)
-                                                              SvgPicture.asset(networkPath, height: 11, fit: BoxFit.contain,
-                                                                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))
-                                                            else
-                                                              Text(card.network,
-                                                                  style: TextStyle(
-                                                                    fontSize: 9,
-                                                                    fontWeight: FontWeight.w700,
-                                                                    color: Theme.of(context).colorScheme.onPrimary,
-                                                                  )),
-                                                            const SizedBox(width: 5),
-                                                            Text(
-                                                              '•••• ${card.last4}',
-                                                              style: TextStyle(
-                                                                fontFamily: 'Archia',
-                                                                fontSize: 12,
-                                                                color: Theme.of(context).colorScheme.onPrimary,
-                                                              ),
-                                                            ),
-                                                          ],
+                                                        Text(
+                                                          '•••• ${card.last4}',
+                                                          style: TextStyle(
+                                                            fontFamily: 'Archia',
+                                                            fontSize: 12,
+                                                            color: Theme.of(context).colorScheme.onPrimary,
+                                                          ),
                                                         ),
                                                         Text(
                                                           account.displayName,
@@ -818,19 +993,35 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                             )
                                           : Center(
                                               child: card != null
-                                                  ? (networkPath != null
-                                                      ? Padding(
-                                                          padding: const EdgeInsets.all(14),
-                                                          child: SvgPicture.asset(networkPath, fit: BoxFit.contain),
+                                                  ? (account.bankLogoPath != null && networkPath != null
+                                                      // Composite: bank logo + network badge
+                                                      ? Stack(
+                                                          fit: StackFit.expand,
+                                                          children: [
+                                                            Padding(
+                                                              padding: const EdgeInsets.all(12),
+                                                              child: SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
+                                                            ),
+                                                            Positioned(
+                                                              right: 4,
+                                                              bottom: 4,
+                                                              child: SvgPicture.asset(networkPath, height: 10, fit: BoxFit.contain),
+                                                            ),
+                                                          ],
                                                         )
-                                                      : Text(
-                                                          card.network.substring(0, 2).toUpperCase(),
-                                                          style: TextStyle(
-                                                            fontSize: 11,
-                                                            fontWeight: FontWeight.w700,
-                                                            color: Theme.of(context).colorScheme.onSurface,
-                                                          ),
-                                                        ))
+                                                      : networkPath != null
+                                                          ? Padding(
+                                                              padding: const EdgeInsets.all(14),
+                                                              child: SvgPicture.asset(networkPath, fit: BoxFit.contain),
+                                                            )
+                                                          : Text(
+                                                              card.network.substring(0, 2).toUpperCase(),
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight: FontWeight.w700,
+                                                                color: Theme.of(context).colorScheme.onSurface,
+                                                              ),
+                                                            ))
                                                   : (account.bankLogoPath != null
                                                       ? Padding(
                                                           padding: const EdgeInsets.all(12),
@@ -848,7 +1039,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                     ),
                                   ),
                                 ),
-                              );
+                              ),
+                            );
                             }).toList(),
                           ),
                         );
@@ -917,13 +1109,13 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
   // Expression display — replaces the amount GestureDetector in calculator mode.
   // Rendered in the exact same parent position so Y never shifts.
-  Widget _buildExpressionDisplay(BuildContext context) {
+  Widget _buildExpressionDisplay(BuildContext context, String currencySymbol) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ₹ stays fixed — only the expression scrolls
+        // currency symbol stays fixed — only the expression scrolls
         Text(
-          '₹',
+          currencySymbol,
           style: TextStyle(
             fontFamily: 'Archia',
             fontSize: 64,

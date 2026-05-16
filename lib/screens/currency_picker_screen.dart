@@ -36,7 +36,76 @@ class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
 
   Future<void> _select(String code) async {
     setState(() => _selectedCode = code);
-    await context.read<UserPreferencesProvider>().setCurrency(code);
+    final prefs = context.read<UserPreferencesProvider>();
+    await prefs.setCurrency(code);
+    if (!mounted) return;
+
+    final currencyInfo = kCurrencies.firstWhere(
+      (c) => c.code == code,
+      orElse: () => kCurrencies.first,
+    );
+
+    bool convertHistory = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Currency changed to ${currencyInfo.symbol} ${currencyInfo.code}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('How should past transactions appear?'),
+              const SizedBox(height: 12),
+              RadioListTile<bool>(
+                value: true,
+                groupValue: convertHistory,
+                onChanged: (v) => setDialogState(() => convertHistory = v!),
+                title: Text('Convert all history to ${currencyInfo.code}'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+              RadioListTile<bool>(
+                value: false,
+                groupValue: convertHistory,
+                onChanged: (v) => setDialogState(() => convertHistory = v!),
+                title: const Text('Keep in original currencies'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Rates shown reflect the exchange rate at the time of each transaction.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await prefs.setConvertHistoricalCurrency(convertHistory);
     if (mounted) Navigator.of(context).pop();
   }
 

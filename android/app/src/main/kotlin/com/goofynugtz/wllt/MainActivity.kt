@@ -1,4 +1,4 @@
-package com.example.wllt
+package com.goofynugtz.wllt
 
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -11,7 +11,7 @@ import java.io.File
 class MainActivity : FlutterActivity() {
 
     companion object {
-        private const val CHANNEL = "com.example.wllt/system_font"
+        private const val CHANNEL = "com.goofynugtz.wllt/system_font"
         private const val SYSTEM_FONTS_DIR = "/system/fonts"
     }
 

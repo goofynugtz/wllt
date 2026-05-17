@@ -51,6 +51,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final detectedInfo = getCurrencyByCode(_detectedCode);
     final selectedInfo = getCurrencyByCode(_selectedCode);
     final isOffline =
@@ -58,7 +59,6 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
     final filtered = _filtered;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF3F0),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -86,14 +86,14 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                   ),
                   const SizedBox(width: 12),
                   // Same fixed width as back button to keep bar centered
-                  const SizedBox(
+                  SizedBox(
                     width: 40,
                     child: Text(
                       '2 of 3',
                       textAlign: TextAlign.right,
                       style: TextStyle(
-                                                fontSize: 12,
-                        color: Color(0xFF6B6572),
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -107,24 +107,24 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "What's your currency?",
                     style: TextStyle(
-                                            fontSize: 26,
+                      fontSize: 26,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -0.65,
-                      color: Color(0xFF1D1B20),
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
                   // Use Row+widget instead of RichText so CountryFlag can be inlined
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         'We detected ',
                         style: TextStyle(
-                                                    fontSize: 14,
-                          color: Color(0xFF6B6572),
+                          fontSize: 14,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                       CountryFlag.fromCountryCode(
@@ -136,16 +136,16 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       const SizedBox(width: 4),
                       Text(
                         detectedInfo.code,
-                        style: const TextStyle(
-                                                    fontSize: 14,
-                          color: Color(0xFF1D1B20),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: cs.onSurface,
                         ),
                       ),
-                      const Text(
+                      Text(
                         ' based on your region.',
                         style: TextStyle(
-                                                    fontSize: 14,
-                          color: Color(0xFF6B6572),
+                          fontSize: 14,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -169,7 +169,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                           Text(
                             'Offline mode · No cloud backup',
                             style: TextStyle(
-                                                            fontSize: 11,
+                              fontSize: 11,
                               color: Color(0xFF92400E),
                             ),
                           ),
@@ -189,7 +189,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                 child: Container(
                   height: 64,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cs.surfaceContainer,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: const [
                       BoxShadow(
@@ -201,21 +201,22 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                   ),
                   child: TextField(
                     onChanged: (v) => setState(() => _query = v),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: cs.onSurface),
+                    decoration: InputDecoration(
                       hintText: 'Search currencies...',
                       hintStyle: TextStyle(
-                                                fontSize: 15,
-                        color: Color(0xFFCAC4D0),
+                        fontSize: 15,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       prefixIcon: Icon(LucideIcons.search,
-                          size: 18, color: Color(0xFF6B6572)),
+                          size: 18, color: cs.onSurfaceVariant),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: cs.surfaceContainer,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       contentPadding:
-                          EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                          const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
                     ),
                   ),
                 ),
@@ -237,59 +238,58 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5EFF7),
+                    color: cs.secondaryContainer,
                     borderRadius: BorderRadius.circular(16),
-                    border:
-                        Border.all(color: const Color(0xFF6750A4), width: 2),
+                    border: Border.all(color: cs.primary, width: 2),
                   ),
                   child: Row(
-                  children: [
-                    CountryFlag.fromCountryCode(
-                      selectedInfo.countryCode,
-                      height: 24,
-                      width: 34,
-                      shape: const RoundedRectangle(4),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            selectedInfo.name,
-                            style: const TextStyle(
-                                                            fontSize: 14,
-                              color: Color(0xFF6750A4),
-                            ),
-                          ),
-                          Text(
-                            '${selectedInfo.code} · ${selectedInfo.symbol}',
-                            style: const TextStyle(
-                                                            fontSize: 12,
-                              color: Color(0xFF9D85E5),
-                            ),
-                          ),
-                        ],
+                    children: [
+                      CountryFlag.fromCountryCode(
+                        selectedInfo.countryCode,
+                        height: 24,
+                        width: 34,
+                        shape: const RoundedRectangle(4),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDE7F6),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'Selected',
-                        style: TextStyle(
-                                                    fontSize: 12,
-                          color: Color(0xFF6750A4),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              selectedInfo.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: cs.primary,
+                              ),
+                            ),
+                            Text(
+                              '${selectedInfo.code} · ${selectedInfo.symbol}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: cs.secondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Selected',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               ), // AnimatedSwitcher
             ),
             const SizedBox(height: 8),
@@ -300,17 +300,17 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             LucideIcons.searchX,
                             size: 36,
-                            color: Color(0xFFCAC4D0),
+                            color: cs.onSurfaceVariant,
                           ),
                           const SizedBox(height: 12),
                           Text(
                             'No results for "$_query"',
-                            style: const TextStyle(
-                                                            fontSize: 14,
-                              color: Color(0xFF9E99A3),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: cs.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -342,7 +342,7 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                 child: Container(
                   height: 64,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1D1B20),
+                    color: cs.inverseSurface,
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: const [
                       BoxShadow(
@@ -352,20 +352,20 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Continue',
                         style: TextStyle(
-                                                    fontSize: 15,
+                          fontSize: 15,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white,
+                          color: cs.onInverseSurface,
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Icon(LucideIcons.chevronRight,
-                          size: 18, color: Colors.white),
+                          size: 18, color: cs.onInverseSurface),
                     ],
                   ),
                 ),
@@ -391,15 +391,14 @@ class _CurrencyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 66,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFFF5EFF7)
-              : Colors.transparent,
+          color: isSelected ? cs.secondaryContainer : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -418,17 +417,17 @@ class _CurrencyRow extends StatelessWidget {
                 children: [
                   Text(
                     currency.name,
-                    style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
                       fontSize: 15,
-                      color: Color(0xFF1D1B20),
+                      color: cs.onSurface,
                     ),
                   ),
                   Text(
                     '${currency.code} · ${currency.symbol} · ${currency.country}',
-                    style: const TextStyle(
-                                            fontSize: 12,
-                      color: Color(0xFF9E99A3),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -438,8 +437,8 @@ class _CurrencyRow extends StatelessWidget {
               Container(
                 width: 24,
                 height: 24,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF6750A4),
+                decoration: BoxDecoration(
+                  color: cs.primary,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(LucideIcons.check,

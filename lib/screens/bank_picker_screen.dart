@@ -274,11 +274,13 @@ class _BankTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, right: 6),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
           Container(
             decoration: BoxDecoration(
               color: bank.logoPath != null ? cs.surface : bank.brandColor.withOpacity(0.1),
@@ -313,8 +315,8 @@ class _BankTile extends StatelessWidget {
           ),
           if (isSelected)
             Positioned(
-              top: -4,
-              right: -4,
+              top: -6,
+              right: -6,
               child: Container(
                 width: 16,
                 height: 16,
@@ -326,6 +328,7 @@ class _BankTile extends StatelessWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }

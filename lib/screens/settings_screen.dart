@@ -1,16 +1,20 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_flavor.dart';
+import '../models/models.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/categories_screen.dart';
 import '../screens/currency_picker_screen.dart';
 import '../screens/onboarding/onboarding_flow.dart';
 import '../screens/custom_paywall_screen.dart';
 import '../screens/paywall_screen.dart';
+import '../services/data_export_service.dart';
 import '../theme/app_theme.dart';
 
 // ── Color scheme definitions ──────────────────────────────────────────────────
@@ -301,6 +305,30 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
           _SettingsTappableRow(
+            icon: LucideIcons.download,
+            label: 'Export data',
+            value: 'CSV',
+            onTap: () => _handleExport(context),
+          ),
+          Divider(
+            height: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant,
+            indent: 16,
+            endIndent: 16,
+          ),
+          _SettingsTappableRow(
+            icon: LucideIcons.upload,
+            label: 'Import data',
+            value: 'CSV',
+            onTap: () => _handleImport(context),
+          ),
+          Divider(
+            height: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant,
+            indent: 16,
+            endIndent: 16,
+          ),
+          _SettingsTappableRow(
             icon: LucideIcons.trash2,
             label: 'Reset all data',
             labelColor: const Color(0xFFB3261E),
@@ -311,6 +339,108 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _handleExport(BuildContext context) async {
+    final txProvider = context.read<TransactionProvider>();
+    if (txProvider.transactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No transactions to export.')),
+      );
+      return;
+    }
+    final prefs = context.read<UserPreferencesProvider>();
+    final allCategories = [...Category.categories, ...prefs.customCategories];
+    try {
+      await DataExportService.exportTransactions(
+        transactions: txProvider.transactions,
+        allCategories: allCategories,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleImport(BuildContext context) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result == null || result.files.single.path == null) return;
+
+    ImportResult imported;
+    try {
+      imported = await DataExportService.importTransactions(
+        result.files.single.path!,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to parse file: $e')),
+        );
+      }
+      return;
+    }
+
+    if (imported.transactions.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              imported.skipped > 0
+                  ? 'No valid rows found (${imported.skipped} skipped).'
+                  : 'No transactions found in file.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+    final skipNote = imported.skipped > 0
+        ? ' (${imported.skipped} invalid rows skipped)'
+        : '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Import ${imported.transactions.length} transactions?'),
+        content: Text(
+          'This will add ${imported.transactions.length} transactions to your existing data.$skipNote',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final txProvider = context.read<TransactionProvider>();
+    for (final tx in imported.transactions) {
+      await txProvider.addTransaction(tx);
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Imported ${imported.transactions.length} transactions.',
+          ),
+        ),
+      );
+    }
   }
 
   void _showResetConfirmation(

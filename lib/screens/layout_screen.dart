@@ -13,6 +13,7 @@ import '../widgets/add_expense_sheet.dart';
 import '../widgets/ad_banner.dart';
 import '../screens/settings_screen.dart';
 import '../screens/add_account_screen.dart';
+import '../providers/subscription_provider.dart';
 import '../utils/helpers.dart';
 
 class LayoutScreen extends StatefulWidget {
@@ -396,6 +397,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPro = context.watch<SubscriptionProvider>().isPro;
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       body: Container(
@@ -442,7 +444,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
       bottomNavigationBar: ValueListenableBuilder<AdConfig>(
         valueListenable: AdConfigService.instance.config,
         builder: (_, cfg, child) {
-          final showBanner = cfg.showBannerAd && !_bannerAdDismissed;
+          final showBanner = cfg.showBannerAd && !_bannerAdDismissed && !isPro;
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [

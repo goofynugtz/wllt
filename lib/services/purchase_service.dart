@@ -5,9 +5,9 @@ class PurchaseService {
   PurchaseService._();
   static final PurchaseService instance = PurchaseService._();
 
-  // Single cross-platform test key — swap for platform-specific keys in production:
-  //   iOS:     appl_XXXX
-  //   Android: goog_XXXX
+  // Swap these for real platform-specific keys before release:
+  //   iOS:     appl_XXXX  (from RevenueCat dashboard → iOS app → API keys)
+  //   Android: goog_XXXX  (from RevenueCat dashboard → Android app → API keys)
   static const _apiKey = 'test_MsPYemZlEQsOwdvwJWoOLCoolQK';
 
   static const String entitlementId = 'pro';
@@ -17,6 +17,17 @@ class PurchaseService {
       kDebugMode ? LogLevel.debug : LogLevel.error,
     );
     await Purchases.configure(PurchasesConfiguration(_apiKey));
+  }
+
+  /// Call after Firebase sign-in so purchases are tied to the user account.
+  /// This enables cross-device restore without manual intervention.
+  Future<void> loginUser(String uid) async {
+    await Purchases.logIn(uid);
+  }
+
+  /// Call on sign-out to detach the user identity from this device.
+  Future<void> logoutUser() async {
+    await Purchases.logOut();
   }
 
   Future<CustomerInfo> getCustomerInfo() => Purchases.getCustomerInfo();

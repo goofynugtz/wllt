@@ -13,6 +13,7 @@ class OnboardingProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Row(
       children: List.generate(total, (i) {
         final filled = i < current;
@@ -21,9 +22,7 @@ class OnboardingProgressBar extends StatelessWidget {
             margin: EdgeInsets.only(right: i < total - 1 ? 6 : 0),
             height: 4,
             decoration: BoxDecoration(
-              color: filled
-                  ? const Color(0xFF6750A4)
-                  : const Color(0xFFE8E0EC),
+              color: filled ? cs.primary : cs.outlineVariant,
               borderRadius: BorderRadius.circular(999),
             ),
           ),

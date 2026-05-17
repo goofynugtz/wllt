@@ -70,6 +70,12 @@ dependencies:
   # HTTP client
   http: ^1.2.0
 
+  # Data export / import
+  csv: ^6.0.0
+  path_provider: ^2.1.4
+  share_plus: ^12.0.2
+  file_picker: ^8.0.0
+
   # Subscriptions
   purchases_flutter: ^8.10.1
   purchases_ui_flutter: ^8.10.1

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -89,6 +91,26 @@ class _ThemedAppState extends State<_ThemedApp> {
   // rebuild, which would briefly show a loading state and reset LayoutScreen.
   late final Stream<User?> _authStream =
       FirebaseAuth.instance.authStateChanges();
+
+  StreamSubscription<User?>? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSub = _authStream.listen((user) {
+      if (user != null) {
+        PurchaseService.instance.loginUser(user.uid);
+      } else {
+        PurchaseService.instance.logoutUser();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

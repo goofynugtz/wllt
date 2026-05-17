@@ -81,27 +81,21 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
   Future<void> _handleOfflineMode() async {
     await context.read<UserPreferencesProvider>().setAuthMode('offline');
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Offline mode — your data won't be backed up to the cloud."),
-        duration: Duration(seconds: 3),
-      ),
-    );
     widget.onNext();
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final enabled = _agreedToTerms && !_isLoading;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Stack(
         children: [
           // Background fills the full screen edge-to-edge.
           Positioned.fill(
             child: Container(
-              color: const Color(0xFFFFF3F0).withValues(alpha: 0.91),
+              color: cs.surfaceContainerLow,
             ),
           ),
           // SafeArea keeps content clear of status bar and home indicator.
@@ -139,22 +133,22 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const Text(
+                        Text(
                           'WLLT',
                           style: TextStyle(
-                                                        fontSize: 38,
+                            fontSize: 38,
                             fontWeight: FontWeight.w500,
                             letterSpacing: -0.76,
-                            color: Color(0xFF1D1B20),
+                            color: cs.onSurface,
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Track your expenses,\nmaster your money.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                                                        fontSize: 16,
-                            color: Color(0xFF6B6572),
+                            fontSize: 16,
+                            color: cs.onSurfaceVariant,
                             height: 1.375,
                           ),
                         ),
@@ -164,11 +158,11 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                 ),
                 // ── Bottom panel ─────────────────────────────────────────
                 Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: cs.surface,
                     borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(36)),
-                    boxShadow: [
+                        const BorderRadius.vertical(top: Radius.circular(36)),
+                    boxShadow: const [
                       BoxShadow(
                         color: Color(0x14000000),
                         blurRadius: 32,
@@ -181,13 +175,13 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
+                      Text(
                         'GET STARTED',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                                                    fontSize: 13,
+                          fontSize: 13,
                           letterSpacing: 0.325,
-                          color: Color(0xFF6B6572),
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -198,29 +192,26 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                           isLoading: _isLoading,
                           icon: const _GoogleLogo(),
                           label: 'Continue with Google',
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF1D1B20),
-                          borderColor: const Color(0xFFE8E0EC),
+                          backgroundColor: cs.surface,
+                          foregroundColor: cs.onSurface,
+                          borderColor: cs.outlineVariant,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          const Expanded(
-                              child: Divider(color: Color(0xFFE8E0EC))),
+                          Expanded(child: Divider(color: cs.outlineVariant)),
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: Text(
                               'or',
                               style: TextStyle(
-                                                                fontSize: 12,
-                                color: Colors.grey.shade400,
+                                fontSize: 12,
+                                color: cs.onSurfaceVariant,
                               ),
                             ),
                           ),
-                          const Expanded(
-                              child: Divider(color: Color(0xFFE8E0EC))),
+                          Expanded(child: Divider(color: cs.outlineVariant)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -229,11 +220,11 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                         child: _ActionButton(
                           onPressed: enabled ? _handleOfflineMode : null,
                           isLoading: false,
-                          icon: const Icon(LucideIcons.cloudOff,
-                              size: 20, color: Color(0xFF6750A4)),
+                          icon: Icon(LucideIcons.cloudOff,
+                              size: 20, color: cs.primary),
                           label: 'Continue without account',
-                          backgroundColor: const Color(0xFFF5EFF7),
-                          foregroundColor: const Color(0xFF6750A4),
+                          backgroundColor: cs.secondaryContainer,
+                          foregroundColor: cs.primary,
                           borderColor: Colors.transparent,
                         ),
                       ),
@@ -247,7 +238,7 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                             height: 24,
                             child: Checkbox(
                               value: _agreedToTerms,
-                              activeColor: const Color(0xFF6750A4),
+                              activeColor: cs.primary,
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(4)),
                               onChanged: (v) =>
@@ -258,23 +249,21 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                           Expanded(
                             child: RichText(
                               text: TextSpan(
-                                style: const TextStyle(
-                                                                    fontSize: 11,
-                                  color: Color(0xFF9E99A3),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: cs.onSurfaceVariant,
                                 ),
                                 children: [
                                   const TextSpan(text: 'I agree to the '),
                                   TextSpan(
                                     text: 'Terms of Service',
-                                    style: const TextStyle(
-                                        color: Color(0xFF6750A4)),
+                                    style: TextStyle(color: cs.primary),
                                     recognizer: _termsRecognizer,
                                   ),
                                   const TextSpan(text: ' and '),
                                   TextSpan(
                                     text: 'Privacy Policy',
-                                    style: const TextStyle(
-                                        color: Color(0xFF6750A4)),
+                                    style: TextStyle(color: cs.primary),
                                     recognizer: _privacyRecognizer,
                                   ),
                                 ],
@@ -348,7 +337,7 @@ class _ActionButton extends StatelessWidget {
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                                    fontSize: 15,
+                  fontSize: 15,
                   fontWeight: FontWeight.w500,
                   color: foregroundColor,
                 ),

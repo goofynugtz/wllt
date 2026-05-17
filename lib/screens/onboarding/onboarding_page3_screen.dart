@@ -60,8 +60,9 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF3F0),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -89,14 +90,14 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                     child: OnboardingProgressBar(current: 3, total: 3),
                   ),
                   const SizedBox(width: 12),
-                  const SizedBox(
+                  SizedBox(
                     width: 40,
                     child: Text(
                       '3 of 3',
                       textAlign: TextAlign.right,
                       style: TextStyle(
-                                                fontSize: 12,
-                        color: Color(0xFF6B6572),
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -109,22 +110,22 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
               padding: const EdgeInsets.symmetric(horizontal: _kHPad),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
                     'Choose your categories',
                     style: TextStyle(
-                                            fontSize: 26,
+                      fontSize: 26,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -0.65,
-                      color: Color(0xFF1D1B20),
+                      color: cs.onSurface,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Select the categories you use most. You can always add or remove them later.',
                     style: TextStyle(
-                                            fontSize: 14,
-                      color: Color(0xFF6B6572),
+                      fontSize: 14,
+                      color: cs.onSurfaceVariant,
                       height: 1.43,
                     ),
                   ),
@@ -140,18 +141,18 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                 children: [
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(
-                                                fontSize: 14,
-                        color: Color(0xFF1D1B20),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurface,
                       ),
                       children: [
                         TextSpan(
                           text: '${_selected.length}',
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        const TextSpan(
+                        TextSpan(
                           text: ' selected',
-                          style: TextStyle(color: Color(0xFF6B6572)),
+                          style: TextStyle(color: cs.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -164,10 +165,10 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                       _selected.length == Category.categories.length
                           ? 'Deselect all'
                           : 'Select all',
-                      style: const TextStyle(
-                                                fontSize: 14,
+                      style: TextStyle(
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF6750A4),
+                        color: cs.primary,
                       ),
                     ),
                   ),
@@ -212,46 +213,51 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                   onTap: (_selected.isEmpty || _isLoading)
                       ? null
                       : _handleGetStarted,
-                  child: Container(
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1D1B20),
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 20,
-                          offset: Offset(0, 4),
+                  child: Builder(
+                    builder: (context) {
+                      final cs = Theme.of(context).colorScheme;
+                      return Container(
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: cs.inverseSurface,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x33000000),
+                              blurRadius: 20,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(LucideIcons.sparkles,
-                                    size: 18, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Get Started',
-                                  style: TextStyle(
-                                                                        fontSize: 15,
-                                    fontWeight: FontWeight.w500,
+                        child: Center(
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                     color: Colors.white,
                                   ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(LucideIcons.sparkles,
+                                        size: 18, color: cs.onInverseSurface),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Get Started',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                        color: cs.onInverseSurface,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -281,19 +287,22 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+          color: isSelected
+              ? cs.surfaceContainerHigh
+              : cs.surfaceContainerLow.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
-          // Keep border non-null in both states so AnimatedContainer can
-          // lerp smoothly between them rather than snapping.
           border: Border.all(
-            color: isSelected ? Colors.transparent : const Color(0xFFE8E0EC),
-            width: isSelected ? 0 : 1,
+            color: isSelected
+                ? cs.outlineVariant
+                : cs.outlineVariant.withValues(alpha: 0.5),
+            width: 1,
           ),
           boxShadow: isSelected
               ? const [
@@ -339,11 +348,9 @@ class _CategoryChip extends StatelessWidget {
                     child: Text(
                       category.name,
                       style: TextStyle(
-                                                fontSize: 13,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: isSelected
-                            ? const Color(0xFF1D1B20)
-                            : const Color(0xFF9E99A3),
+                        color: isSelected ? cs.onSurface : cs.onSurfaceVariant,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),

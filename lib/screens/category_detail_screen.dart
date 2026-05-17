@@ -5,9 +5,13 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../data/currencies.dart';
 import '../models/models.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/user_preferences_provider.dart';
+import '../services/exchange_rate_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/helpers.dart';
 import '../widgets/category_icon_widget.dart';
 import 'edit_category_screen.dart';
 
@@ -24,6 +28,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   late Category _category;
   late int _selectedYear;
   late int _selectedMonth;
+
+  String? _prefetchCurrency;
+  bool? _prefetchConvert;
+  int _prefetchTxCount = -1;
 
   @override
   void initState() {
@@ -100,19 +108,46 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     return _selectedYear == now.year && _selectedMonth == now.month;
   }
 
+  double _converted(Transaction t, String displayCurrency, bool convertHistory) {
+    if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
+    final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+    return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final prefs = context.watch<UserPreferencesProvider>();
+    context.watch<ExchangeRateService>();
+
+    final currencyCode = prefs.currency;
+    final currencySymbol = getCurrencyByCode(currencyCode).symbol;
+    final convertHistory = prefs.convertHistoricalCurrency;
+
     final allTransactions = context.watch<TransactionProvider>().transactions;
+
+    if (_prefetchCurrency != currencyCode ||
+        _prefetchConvert != convertHistory ||
+        _prefetchTxCount != allTransactions.length) {
+      _prefetchCurrency = currencyCode;
+      _prefetchConvert = convertHistory;
+      _prefetchTxCount = allTransactions.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ExchangeRateService.instance
+            .prefetchForTransactions(allTransactions, currencyCode);
+      });
+    }
+
     final txs = _monthTransactions(allTransactions, _selectedYear, _selectedMonth);
-    final totalSpent = txs.fold<double>(0, (sum, t) => sum + t.amount);
+    final totalSpent = txs.fold<double>(0, (sum, t) => sum + _converted(t, currencyCode, convertHistory));
     final txCount = txs.length;
 
     // Previous month comparison
     final prevMonth = _selectedMonth == 1 ? 12 : _selectedMonth - 1;
     final prevYear = _selectedMonth == 1 ? _selectedYear - 1 : _selectedYear;
     final prevTxs = _monthTransactions(allTransactions, prevYear, prevMonth);
-    final prevSpent = prevTxs.fold<double>(0, (sum, t) => sum + t.amount);
+    final prevSpent = prevTxs.fold<double>(0, (sum, t) => sum + _converted(t, currencyCode, convertHistory));
 
     // Daily average
     final daysInMonth = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
@@ -144,7 +179,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         y--;
       }
       final monthTxs = _monthTransactions(allTransactions, y, m);
-      sixMonthAmounts.add(monthTxs.fold<double>(0, (s, t) => s + t.amount));
+      sixMonthAmounts.add(monthTxs.fold<double>(0, (s, t) => s + _converted(t, currencyCode, convertHistory)));
       sixMonthLabels.add(DateFormat('MMM').format(DateTime(y, m)));
     }
 
@@ -152,7 +187,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     final weeklyTotals = List.filled(4, 0.0);
     for (final t in txs) {
       final weekIdx = ((t.date.day - 1) ~/ 7).clamp(0, 3);
-      weeklyTotals[weekIdx] += t.amount;
+      weeklyTotals[weekIdx] += _converted(t, currencyCode, convertHistory);
     }
 
     final colorName = _colorName(_category.color);
@@ -390,7 +425,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '\$${totalSpent.toStringAsFixed(0)}',
+                            '$currencySymbol${totalSpent.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 36,
                               color: cs.onSurface,
@@ -412,7 +447,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '\$${totalSpent.toStringAsFixed(0)} of \$${budget.budget.toStringAsFixed(0)} budget',
+                              '$currencySymbol${totalSpent.toStringAsFixed(0)} of $currencySymbol${budget.budget.toStringAsFixed(0)} budget',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
@@ -495,7 +530,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                           child: _MiniStatCard(
                             label: 'DAILY',
                             valueWidget: Text(
-                              '\$${avgPerDay.toStringAsFixed(0)}',
+                              '$currencySymbol${avgPerDay.toStringAsFixed(0)}',
                               style: TextStyle(
                                 fontSize: 18,
                                 color: cs.onSurface,
@@ -514,6 +549,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       amounts: sixMonthAmounts,
                       labels: sixMonthLabels,
                       accentColor: _accentColor,
+                      currencySymbol: currencySymbol,
                     ),
 
                     const SizedBox(height: 12),
@@ -524,6 +560,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       accentColor: _accentColor,
                       monthName: DateFormat('MMMM')
                           .format(DateTime(_selectedYear, _selectedMonth)),
+                      currencySymbol: currencySymbol,
                     ),
 
                     const SizedBox(height: 12),
@@ -533,48 +570,15 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       transactions: txs,
                       accentColor: _accentColor,
                       count: txCount,
+                      currencySymbol: currencySymbol,
+                      displayCurrency: currencyCode,
+                      convertHistory: convertHistory,
                     ),
                   ],
                 ),
               ),
             ),
 
-            // ── Sticky Edit Category button ───────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: GestureDetector(
-                onTap: _openEdit,
-                child: Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(99),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(LucideIcons.pencil, size: 18, color: Theme.of(context).colorScheme.onPrimary),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Edit Category',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -668,11 +672,13 @@ class _TrendChartCard extends StatelessWidget {
   final List<double> amounts;
   final List<String> labels;
   final Color accentColor;
+  final String currencySymbol;
 
   const _TrendChartCard({
     required this.amounts,
     required this.labels,
     required this.accentColor,
+    required this.currencySymbol,
   });
 
   @override
@@ -740,14 +746,14 @@ class _TrendChartCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Low \$${minVal.toStringAsFixed(0)}',
+                'Low $currencySymbol${minVal.toStringAsFixed(0)}',
                 style: TextStyle(
                   fontSize: 10,
                   color: cs.onSurfaceVariant,
                 ),
               ),
               Text(
-                'High \$${maxVal.toStringAsFixed(0)}',
+                'High $currencySymbol${maxVal.toStringAsFixed(0)}',
                 style: TextStyle(
                   fontSize: 10,
                   color: cs.onSurfaceVariant,
@@ -767,11 +773,13 @@ class _WeeklyChartCard extends StatelessWidget {
   final List<double> weeklyTotals;
   final Color accentColor;
   final String monthName;
+  final String currencySymbol;
 
   const _WeeklyChartCard({
     required this.weeklyTotals,
     required this.accentColor,
     required this.monthName,
+    required this.currencySymbol,
   });
 
   @override
@@ -836,7 +844,7 @@ class _WeeklyChartCard extends StatelessWidget {
             children: weeklyTotals
                 .map(
                   (v) => Text(
-                    '\$${v.toStringAsFixed(0)}',
+                    '$currencySymbol${v.toStringAsFixed(0)}',
                     style: TextStyle(
                       fontSize: 10,
                       color: cs.onSurfaceVariant,
@@ -971,11 +979,17 @@ class _TransactionsList extends StatelessWidget {
   final List<Transaction> transactions;
   final Color accentColor;
   final int count;
+  final String currencySymbol;
+  final String displayCurrency;
+  final bool convertHistory;
 
   const _TransactionsList({
     required this.transactions,
     required this.accentColor,
     required this.count,
+    required this.currencySymbol,
+    required this.displayCurrency,
+    required this.convertHistory,
   });
 
   @override
@@ -1096,7 +1110,14 @@ class _TransactionsList extends StatelessWidget {
                         ),
                         // Amount
                         Text(
-                          '−\$${t.amount.toStringAsFixed(0)}',
+                          () {
+                            final snap = ExchangeRateService.instance
+                                .getCachedSnapshot(t.baseCurrency, t.date);
+                            final amt = (convertHistory || t.baseCurrency == displayCurrency)
+                                ? Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates)
+                                : t.amount;
+                            return '−$currencySymbol${amt.toStringAsFixed(0)}';
+                          }(),
                           style: TextStyle(
                             fontSize: 14,
                             color: cs.onSurface,

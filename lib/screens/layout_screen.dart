@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
@@ -546,12 +547,33 @@ class _MonthPickerSheet extends StatefulWidget {
 }
 
 class _MonthPickerSheetState extends State<_MonthPickerSheet> {
+  static const int _firstYear = 2000;
+  static final int _lastYear = DateTime.now().year + 5;
+  static const double _itemWidth = 68.0;
+  static const double _pillHeight = 32.0;
+
   late int _year;
+  PageController? _pageController;
 
   @override
   void initState() {
     super.initState();
     _year = widget.selected.year;
+  }
+
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  void _goToYear(int year) {
+    setState(() => _year = year);
+    _pageController?.animateToPage(
+      year - _firstYear,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -572,31 +594,74 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
             ),
           ),
 
-          // Year navigator
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: () => setState(() => _year--),
-                icon: const Icon(LucideIcons.chevronLeft, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              Text(
-                '$_year',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              IconButton(
-                onPressed: () => setState(() => _year++),
-                icon: const Icon(LucideIcons.chevronRight, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
+          // Year strip — fixed pill, PageView snaps reliably
+          SizedBox(
+            height: _pillHeight,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                _pageController ??= PageController(
+                  initialPage: _year - _firstYear,
+                  viewportFraction: _itemWidth / constraints.maxWidth,
+                );
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Fixed pill — never moves
+                    IgnorePointer(
+                      child: Container(
+                        width: _itemWidth - 8,
+                        height: _pillHeight,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                    // PageView — built-in snap, onPageChanged fires reliably
+                    AnimatedBuilder(
+                      animation: _pageController!,
+                      builder: (context, _) {
+                        final page = _pageController!.hasClients &&
+                                _pageController!.position.hasContentDimensions
+                            ? (_pageController!.page ?? _year - _firstYear)
+                            : (_year - _firstYear).toDouble();
+                        return PageView.builder(
+                          controller: _pageController!,
+                          itemCount: _lastYear - _firstYear + 1,
+                          onPageChanged: (index) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _year = _firstYear + index);
+                          },
+                          itemBuilder: (context, index) {
+                            final year = _firstYear + index;
+                            final isCenter = (page - index).abs() < 0.5;
+                            return GestureDetector(
+                              onTap: () => _goToYear(year),
+                              child: Center(
+                                child: Text(
+                                  '$year',
+                                  style: TextStyle(
+                                    fontSize: isCenter ? 14 : 12,
+                                    fontWeight: isCenter
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
+                                    color: isCenter
+                                        ? Colors.white
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -646,3 +711,4 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
     );
   }
 }
+

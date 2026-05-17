@@ -2,37 +2,76 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../data/currencies.dart';
 import '../models/models.dart';
 import '../providers/account_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/user_preferences_provider.dart';
+import '../services/exchange_rate_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/helpers.dart';
 import '../screens/transactions_screen.dart';
 import '../screens/bank_picker_screen.dart';
 import 'add_account_screen.dart';
 
-class AccountDetailScreen extends StatelessWidget {
+class AccountDetailScreen extends StatefulWidget {
   final Account account;
 
   const AccountDetailScreen({super.key, required this.account});
 
   @override
+  State<AccountDetailScreen> createState() => _AccountDetailScreenState();
+}
+
+class _AccountDetailScreenState extends State<AccountDetailScreen> {
+  String? _prefetchCurrency;
+  bool? _prefetchConvert;
+  int _prefetchTxCount = -1;
+
+  double _converted(Transaction t, String displayCurrency, bool convertHistory) {
+    if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
+    final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+    return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final live = context.watch<AccountProvider>().accounts
-        .firstWhere((a) => a.id == account.id, orElse: () => account);
+        .firstWhere((a) => a.id == widget.account.id, orElse: () => widget.account);
 
     final cs     = Theme.of(context).colorScheme;
     final color  = _brandColorFor(live);
     final topPad = MediaQuery.of(context).padding.top;
 
+    final prefs = context.watch<UserPreferencesProvider>();
+    context.watch<ExchangeRateService>();
+    final displayCurrency = prefs.currency;
+    final convertHistory  = prefs.convertHistoricalCurrency;
+
     final transactions = context.watch<TransactionProvider>().transactions
         .where((t) => t.account == live.id)
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
+
+    if (_prefetchCurrency != displayCurrency ||
+        _prefetchConvert != convertHistory ||
+        _prefetchTxCount != transactions.length) {
+      _prefetchCurrency = displayCurrency;
+      _prefetchConvert  = convertHistory;
+      _prefetchTxCount  = transactions.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ExchangeRateService.instance
+            .prefetchForTransactions(transactions, displayCurrency);
+      });
+    }
+
     final grouped = Helpers.groupByDate(transactions);
 
-    final txIncome  = transactions.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + t.amount);
-    final txExpense = transactions.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + t.amount);
+    final txIncome  = transactions.where((t) => t.type == TransactionType.income)
+        .fold(0.0, (s, t) => s + _converted(t, displayCurrency, convertHistory));
+    final txExpense = transactions.where((t) => t.type == TransactionType.expense)
+        .fold(0.0, (s, t) => s + _converted(t, displayCurrency, convertHistory));
     final effectiveBalance = live.balance + txIncome - txExpense;
 
     return Scaffold(
@@ -130,10 +169,14 @@ class AccountDetailScreen extends StatelessWidget {
 
   Widget _buildDayGroup(
       BuildContext context, String dateStr, List<Transaction> txs) {
-    final cs         = Theme.of(context).colorScheme;
-    final dayExpense = txs
+    final cs             = Theme.of(context).colorScheme;
+    final prefs          = context.read<UserPreferencesProvider>();
+    final currencyCode   = prefs.currency;
+    final currencySymbol = getCurrencyByCode(currencyCode).symbol;
+    final convertHistory = prefs.convertHistoricalCurrency;
+    final dayExpense     = txs
         .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (s, t) => s + t.amount);
+        .fold(0.0, (s, t) => s + _converted(t, currencyCode, convertHistory));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -149,7 +192,7 @@ class AccountDetailScreen extends StatelessWidget {
                     style: AppTheme.trackingWideSecondary),
                 if (dayExpense > 0)
                   Text(
-                    '−${Helpers.formatINR(dayExpense)}',
+                    '−${Helpers.formatAmount(dayExpense, currencySymbol)}',
                     style: const TextStyle(
                         fontSize: 11, color: AppTheme.expenseColor),
                   ),
@@ -236,8 +279,10 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
     final t  = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
     final cd = _adjustLightness(brandColor, -0.18);
 
+    final currencyCode   = Provider.of<UserPreferencesProvider>(context, listen: false).currency;
+    final currencySymbol = getCurrencyByCode(currencyCode).symbol;
     final amountStr =
-        '${isNegative ? '−' : ''}${Helpers.formatINR(effectiveBalance.abs())}';
+        '${isNegative ? '−' : ''}${Helpers.formatAmount(effectiveBalance.abs(), currencySymbol)}';
 
     // Animated values
     final nameTop   = _l(_contentTop, _collNameTop, t);

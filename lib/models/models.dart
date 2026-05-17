@@ -792,7 +792,7 @@ class Account {
       type: AccountType.bank,
       balance: 42350,
       bank: 'HDFC Bank',
-      bankLogoPath: 'assets/icons/banks/hdfc.svg',
+      bankLogoPath: 'assets/icons/banks/HDFC Bank.svg',
       sparkline: [38000, 55200, 42000, 48000, 36200, 42350],
       cards: [
         CardEntry(type: 'debit', last4: '4242', network: 'Visa'),
@@ -803,7 +803,7 @@ class Account {
       type: AccountType.credit,
       balance: -8247,
       bank: 'ICICI Bank',
-      bankLogoPath: 'assets/icons/banks/icici.svg',
+      bankLogoPath: 'assets/icons/banks/ICICI Bank.svg',
       cardIdentifier: '5071',
       sparkline: [-3000, -5500, -6800, -4200, -7900, -8247],
     ),
@@ -812,7 +812,7 @@ class Account {
       type: AccountType.bank,
       balance: 18640,
       bank: 'State Bank of India',
-      bankLogoPath: 'assets/icons/banks/sbi.svg',
+      bankLogoPath: 'assets/icons/banks/State Bank of India.svg',
       sparkline: [15000, 17200, 16800, 19400, 17900, 18640],
     ),
     Account(
@@ -820,7 +820,7 @@ class Account {
       type: AccountType.bank,
       balance: 9820,
       bank: 'Axis Bank',
-      bankLogoPath: 'assets/icons/banks/axis.svg',
+      bankLogoPath: 'assets/icons/banks/Axis bank.svg',
       sparkline: [8000, 11200, 9500, 10800, 9200, 9820],
     ),
     Account(
@@ -828,7 +828,7 @@ class Account {
       type: AccountType.bank,
       balance: 27300,
       bank: 'Kotak Mahindra Bank',
-      bankLogoPath: 'assets/icons/banks/kotak.svg',
+      bankLogoPath: 'assets/icons/banks/Kotak Mahindra Bank.svg',
       sparkline: [22000, 25600, 28100, 24300, 26800, 27300],
     ),
     Account(
@@ -836,7 +836,7 @@ class Account {
       type: AccountType.bank,
       balance: 5450,
       bank: 'Canara Bank',
-      bankLogoPath: 'assets/icons/banks/canara.svg',
+      bankLogoPath: 'assets/icons/banks/Canara Bank.svg',
       sparkline: [4000, 5100, 4700, 6200, 5800, 5450],
     ),
     Account(
@@ -844,7 +844,7 @@ class Account {
       type: AccountType.bank,
       balance: 11200,
       bank: 'Punjab National Bank',
-      bankLogoPath: 'assets/icons/banks/pnb.svg',
+      bankLogoPath: 'assets/icons/banks/Punjab National Bank.svg',
       sparkline: [9000, 10400, 11800, 10200, 12100, 11200],
     ),
     Account(

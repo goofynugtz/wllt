@@ -103,8 +103,7 @@ class SettingsScreen extends StatelessWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(child: _buildHeader(context, prefs)),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(child: _buildSectionLabel(context, 'Appearance')),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
             SliverToBoxAdapter(child: _buildAppearanceCard(context, settings)),
@@ -142,90 +141,6 @@ class SettingsScreen extends StatelessWidget {
   }
 
   // ── Section builders ──────────────────────────────────────────────────────
-
-  Widget _buildHeader(BuildContext context, UserPreferencesProvider prefs) {
-    final isOffline = prefs.authMode == 'offline';
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              LucideIcons.settings,
-              size: 20,
-              color: Theme.of(context).colorScheme.onSecondaryContainer,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Settings',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -0.55,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                Text(
-                  'WLLT v1.0.0',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 5),
-            decoration: BoxDecoration(
-              color: isOffline
-                  ? const Color(0xFFFFF8E1)
-                  : const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: isOffline
-                    ? const Color(0x4DF59E0B)
-                    : const Color(0x4D4CAF50),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isOffline ? LucideIcons.wifiOff : LucideIcons.wifi,
-                  size: 12,
-                  color: isOffline
-                      ? const Color(0xFF92400E)
-                      : const Color(0xFF1B5E20),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  isOffline ? 'Offline' : 'Online',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isOffline
-                        ? const Color(0xFF92400E)
-                        : const Color(0xFF1B5E20),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSectionLabel(BuildContext context, String label) {
     return Padding(

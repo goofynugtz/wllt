@@ -14,21 +14,16 @@ import '../services/exchange_rate_service.dart';
 import '../utils/helpers.dart';
 import 'package:provider/provider.dart';
 import 'account_detail_screen.dart';
+import 'bank_picker_screen.dart';
 
-// ── Bank brand colors ─────────────────────────────────────────────────────────
-
-const Map<String, Color> _kBankColors = {
-  'HDFC Bank':             Color(0xFF004C8F),
-  'ICICI Bank':            Color(0xFFB71C1C),
-  'State Bank of India':   Color(0xFF1565C0),
-  'Axis Bank':             Color(0xFF880E4F),
-  'Kotak Mahindra Bank':   Color(0xFFE53935),
-  'Canara Bank':           Color(0xFF1A237E),
-  'Punjab National Bank':  Color(0xFF0D47A1),
-};
-
-Color _bankColor(String? bank) =>
-    bank != null ? (_kBankColors[bank] ?? AppTheme.primaryColor) : AppTheme.primaryColor;
+Color _bankColor(String? bank) {
+  if (bank == null) return AppTheme.primaryColor;
+  try {
+    return kAllBanks.firstWhere((b) => b.name == bank).brandColor;
+  } catch (_) {
+    return AppTheme.primaryColor;
+  }
+}
 
 String _bankInitials(String? bank) {
   if (bank == null) return '??';

@@ -17,7 +17,6 @@ class EditCategoryScreen extends StatefulWidget {
 
 class _EditCategoryScreenState extends State<EditCategoryScreen> {
   late final TextEditingController _nameController;
-  late final TextEditingController _budgetController;
   late String _selectedColor;
   late IconData _selectedIcon;
 
@@ -88,19 +87,11 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
     _selectedColor = widget.category.color.toUpperCase();
     _selectedIcon = widget.category.lucideIcon ?? LucideIcons.tag;
 
-    final budget = Budget.budgets.cast<Budget?>().firstWhere(
-      (b) => b?.categoryId == widget.category.id,
-      orElse: () => null,
-    );
-    _budgetController = TextEditingController(
-      text: budget != null ? budget.budget.toStringAsFixed(0) : '',
-    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _budgetController.dispose();
     super.dispose();
   }
 
@@ -387,86 +378,6 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                           ),
                         );
                       }).toList(),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── Monthly Budget ─────────────────────────────────────
-                    Row(
-                      children: [
-                        _SectionLabel('Monthly Budget'),
-                        const SizedBox(width: 6),
-                        Text(
-                          '(optional)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: cs.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 6,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 18),
-                            child: Icon(
-                              LucideIcons.indianRupee,
-                              size: 18,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: _budgetController,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              style: TextStyle(
-                                fontSize: 17,
-                                color: cs.onSurface,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: '0',
-                                hintStyle: TextStyle(
-                                  fontSize: 17,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Text(
-                        'Set a monthly spending limit for this category',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
                     ),
 
                     const SizedBox(height: 24),

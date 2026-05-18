@@ -9,6 +9,7 @@ class StorageService {
   static const String _categoriesBox   = 'active_categories';
   static const String _transactionsBox = 'transactions';
   static const String _accountsBox     = 'accounts';
+  static const String _budgetsBox      = 'budgets';
 
   static const String keyCurrency                   = 'currency';
   static const String keyAuthMode                   = 'auth_mode';
@@ -25,6 +26,7 @@ class StorageService {
   late Box _categories;
   late Box _transactions;
   late Box _accounts;
+  late Box _budgets;
   late SharedPreferences _prefs;
 
   Future<void> init() async {
@@ -32,6 +34,7 @@ class StorageService {
     _categories   = await Hive.openBox(_categoriesBox);
     _transactions = await Hive.openBox(_transactionsBox);
     _accounts     = await Hive.openBox(_accountsBox);
+    _budgets      = await Hive.openBox(_budgetsBox);
     _prefs = await SharedPreferences.getInstance();
   }
 
@@ -133,12 +136,25 @@ class StorageService {
 
   Future<void> deleteAccount(String id) => _accounts.delete(id);
 
+  // ── Budgets ───────────────────────────────────────────────────────────
+  List<Budget> getBudgets() {
+    return _budgets.values
+        .map((v) => Budget.fromJson(Map<String, dynamic>.from(v as Map)))
+        .toList();
+  }
+
+  Future<void> saveBudget(Budget budget) =>
+      _budgets.put(budget.categoryId, budget.toJson());
+
+  Future<void> deleteBudget(String categoryId) => _budgets.delete(categoryId);
+
   // ── Reset ─────────────────────────────────────────────────────────────
   Future<void> clearAll() async {
     await _userPrefs.clear();
     await _categories.clear();
     await _transactions.clear();
     await _accounts.clear();
+    await _budgets.clear();
     await _prefs.remove(keyOnboardingComplete);
   }
 

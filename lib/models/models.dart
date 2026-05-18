@@ -857,19 +857,42 @@ class Account {
   ];
 }
 
+enum BudgetPeriod { monthly, weekly }
+
 class Budget {
   final String categoryId;
-  final double budget;
+  final double amount;
+  final BudgetPeriod period;
 
-  const Budget({required this.categoryId, required this.budget});
+  const Budget({
+    required this.categoryId,
+    required this.amount,
+    required this.period,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'categoryId': categoryId,
+    'amount': amount,
+    'period': period.name,
+  };
+
+  factory Budget.fromJson(Map<String, dynamic> json) => Budget(
+    categoryId: json['categoryId'] as String,
+    amount: (json['amount'] as num).toDouble(),
+    // orElse fallback: new field — existing persisted docs may lack 'period'
+    period: BudgetPeriod.values.firstWhere(
+      (p) => p.name == json['period'],
+      orElse: () => BudgetPeriod.monthly,
+    ),
+  );
 
   static const List<Budget> budgets = [
-    Budget(categoryId: 'restaurant', budget: 3000),
-    Budget(categoryId: 'groceries', budget: 5000),
-    Budget(categoryId: 'transport', budget: 2000),
-    Budget(categoryId: 'movies', budget: 2000),
-    Budget(categoryId: 'shopping', budget: 5000),
-    Budget(categoryId: 'utilities', budget: 2500),
+    Budget(categoryId: 'restaurant', amount: 3000, period: BudgetPeriod.monthly),
+    Budget(categoryId: 'groceries',  amount: 5000, period: BudgetPeriod.monthly),
+    Budget(categoryId: 'transport',  amount: 2000, period: BudgetPeriod.monthly),
+    Budget(categoryId: 'movies',     amount: 2000, period: BudgetPeriod.monthly),
+    Budget(categoryId: 'shopping',   amount: 5000, period: BudgetPeriod.monthly),
+    Budget(categoryId: 'utilities',  amount: 2500, period: BudgetPeriod.monthly),
   ];
 }
 

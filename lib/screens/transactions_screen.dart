@@ -47,7 +47,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           tx.transactionTitle.toLowerCase().contains(query) ||
           category.name.toLowerCase().contains(query) ||
           tx.amount.toString().contains(query) ||
-          Helpers.formatAmount(tx.amount, currencySymbol).toLowerCase().contains(query);
+          Helpers.formatAmount(tx.amount, currencySymbol).toLowerCase().contains(query) ||
+          tx.tags.any((tag) => tag.toLowerCase().contains(query));
       final matchType =
           _filter == TransactionFilter.all || tx.type.name == _filter.name;
       return matchMonth && matchSearch && matchType;
@@ -101,7 +102,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               controller: _searchController,
               onChanged: (value) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Search merchant, category or amount…',
+                hintText: 'Search merchant, category, tag or amount…',
                 hintStyle: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 13,

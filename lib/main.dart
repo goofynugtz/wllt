@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/account_provider.dart';
 import 'providers/app_settings_provider.dart';
+import 'providers/budget_provider.dart';
 import 'providers/subscription_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/user_preferences_provider.dart';
@@ -59,6 +60,10 @@ class WalletApp extends StatelessWidget {
         ),
         ChangeNotifierProxyProvider<AppSettingsProvider, AccountProvider>(
           create: (_) => AccountProvider(storage, devMode: storage.devMode),
+          update: (_, settings, prev) => prev!..reloadIfNeeded(settings.devMode),
+        ),
+        ChangeNotifierProxyProvider<AppSettingsProvider, BudgetProvider>(
+          create: (_) => BudgetProvider(storage, devMode: storage.devMode),
           update: (_, settings, prev) => prev!..reloadIfNeeded(settings.devMode),
         ),
         ChangeNotifierProvider(

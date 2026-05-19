@@ -953,13 +953,13 @@ class _ProfileAccountSheetState extends State<_ProfileAccountSheet> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           child: GestureDetector(
             onTap: _handleOfflineSignOut,
             child: Container(
               height: 54,
               decoration: BoxDecoration(
-                color: cs.errorContainer,
+                color: Colors.red.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Center(
@@ -968,7 +968,7 @@ class _ProfileAccountSheetState extends State<_ProfileAccountSheet> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: cs.onErrorContainer,
+                    color: Colors.red,
                   ),
                 ),
               ),
@@ -1035,7 +1035,7 @@ class _ProfileAccountSheetState extends State<_ProfileAccountSheet> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           child: _buildActionTile(
             cs: cs,
             icon: LucideIcons.logOut,
@@ -1099,32 +1099,34 @@ class _ProfileAccountSheetState extends State<_ProfileAccountSheet> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        height: 54,
         decoration: BoxDecoration(
-          color: isDestructive ? cs.errorContainer : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
+          color: isDestructive ? Colors.red.withValues(alpha: 0.10) : cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
         ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isDestructive ? cs.onErrorContainer : cs.onSurface,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDestructive ? cs.onErrorContainer : cs.onSurface,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isDestructive ? Colors.red : cs.onSurface,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: isDestructive ? Colors.red : cs.onSurface,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

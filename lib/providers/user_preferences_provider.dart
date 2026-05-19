@@ -16,6 +16,7 @@ class UserPreferencesProvider extends ChangeNotifier {
   String get authMode => _storage.authMode;
   String? get googleUid => _storage.googleUid;
   String? get displayName => _storage.displayName;
+  String? get avatarSeed => _storage.avatarSeed;
 
   Future<void> setAuthMode(String mode) async {
     await _storage.setAuthMode(mode);
@@ -24,6 +25,11 @@ class UserPreferencesProvider extends ChangeNotifier {
 
   Future<void> setDisplayName(String name) async {
     await _storage.setDisplayName(name);
+    notifyListeners();
+  }
+
+  Future<void> setAvatarSeed(String seed) async {
+    await _storage.setAvatarSeed(seed);
     notifyListeners();
   }
 

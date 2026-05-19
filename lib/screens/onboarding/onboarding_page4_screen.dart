@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:multiavatar/multiavatar.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/user_preferences_provider.dart';
 import '../../screens/layout_screen.dart';
 import 'onboarding_shared_widgets.dart';
+
+// 12 preset seeds — each hashes to a visually distinct multiavatar character.
+const List<String> _kAvatarSeeds = [
+  'Felix', 'Luna', 'Zara', 'Kai', 'Nova', 'Orion',
+  'Ivy', 'Rex', 'Maya', 'Axel', 'Sora', 'Echo',
+];
 
 class OnboardingPage4Screen extends StatefulWidget {
   final VoidCallback onBack;
@@ -19,6 +27,12 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _isLoading = false;
+  String? _selectedSeed;
+
+  // Pre-generate all SVG strings once — multiavatar is CPU-bound.
+  static final Map<String, String> _svgCache = {
+    for (final s in _kAvatarSeeds) s: multiavatar(s),
+  };
 
   @override
   void initState() {
@@ -42,6 +56,7 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
     setState(() => _isLoading = true);
     final prefs = context.read<UserPreferencesProvider>();
     await prefs.setDisplayName(_trimmed);
+    if (_selectedSeed != null) await prefs.setAvatarSeed(_selectedSeed!);
     await prefs.completeOnboarding();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -103,7 +118,7 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Finally, what should\nwe call you?',
+                    'Finally, what should we call you?',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w500,
@@ -114,7 +129,7 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'We\'ll use this to personalise your experience.',
+                    'Add a name and pick an avatar.',
                     style: TextStyle(
                       fontSize: 14,
                       color: cs.onSurfaceVariant,
@@ -124,7 +139,7 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
             // ── Name field ────────────────────────────────────────────
             Padding(
@@ -163,6 +178,93 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Avatar picker label ───────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Text(
+                    'CHOOSE AVATAR',
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 0.8,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  if (_selectedSeed != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _selectedSeed!,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: cs.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ── Avatar horizontal scroll ──────────────────────────────
+            SizedBox(
+              height: 76,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: _kAvatarSeeds.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, i) {
+                  final seed = _kAvatarSeeds[i];
+                  final selected = _selectedSeed == seed;
+                  return GestureDetector(
+                    onTap: () => setState(() {
+                      _selectedSeed = selected ? null : seed;
+                    }),
+                    child: Center(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOut,
+                        width: 64,
+                        height: 64,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
+                            width: selected ? 2.5 : 1.0,
+                          ),
+                          boxShadow: selected
+                              ? [
+                                  BoxShadow(
+                                    color: cs.primary.withValues(alpha: 0.25),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: SvgPicture.string(
+                          _svgCache[seed]!,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:multiavatar/multiavatar.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/ad_config.dart';
@@ -13,8 +15,13 @@ import '../widgets/add_expense_sheet.dart';
 import '../widgets/ad_banner.dart';
 import '../screens/settings_screen.dart';
 import '../screens/add_account_screen.dart';
+import '../providers/app_settings_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
+import '../models/models.dart';
+import '../screens/onboarding/onboarding_flow.dart';
+import '../services/data_export_service.dart';
 import '../utils/helpers.dart';
 
 class LayoutScreen extends StatefulWidget {
@@ -200,6 +207,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
     final user = context.read<AuthService>().currentUser;
     final prefs = context.read<UserPreferencesProvider>();
     final photoUrl = user?.photoURL;
+    final avatarSeed = prefs.avatarSeed;
     final storedName = prefs.displayName;
     final initials = (user?.displayName?.isNotEmpty == true)
         ? user!.displayName![0].toUpperCase()
@@ -209,153 +217,67 @@ class _LayoutScreenState extends State<LayoutScreen> {
                 ? storedName![0].toUpperCase()
                 : '?';
 
+    // Priority: Google photo > selected avatar > initials
+    if (photoUrl != null) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          image: DecorationImage(
+            image: NetworkImage(photoUrl),
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    }
+
+    if (avatarSeed != null) {
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: SvgPicture.string(
+            multiavatar(avatarSeed),
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    }
+
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.primaryColor,
         shape: BoxShape.circle,
-        image: photoUrl != null
-            ? DecorationImage(
-                image: NetworkImage(photoUrl),
-                fit: BoxFit.cover,
-              )
-            : null,
       ),
-      child: photoUrl == null
-          ? Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          : null,
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 
   void _showAccountSheet(BuildContext context) {
-    final authService = context.read<AuthService>();
     final prefs = context.read<UserPreferencesProvider>();
-    final user = authService.currentUser;
-
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetCtx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE0E0E0),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Account info row
-            Row(
-              children: [
-                _buildAvatarCircle(context, size: 48),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (user?.displayName != null || prefs.displayName != null)
-                        Text(
-                          user?.displayName ?? prefs.displayName!,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      if (user?.email != null)
-                        Text(
-                          user!.email!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            // Switch account
-            _buildAccountSheetAction(
-              context: context,
-              icon: LucideIcons.refreshCw,
-              label: 'Switch account',
-              onTap: () async {
-                Navigator.pop(sheetCtx);
-                await authService.switchAccount();
-                if (mounted) setState(() {});
-              },
-            ),
-            const SizedBox(height: 12),
-            // Sign out
-            _buildAccountSheetAction(
-              context: context,
-              icon: LucideIcons.logOut,
-              label: 'Sign out',
-              color: Colors.red,
-              onTap: () async {
-                Navigator.pop(sheetCtx);
-                await authService.signOut();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccountSheetAction({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
-    final effectiveColor =
-        color ?? Theme.of(context).colorScheme.onSurface;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: effectiveColor),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: effectiveColor,
-              ),
-            ),
-          ],
-        ),
+      builder: (_) => _ProfileAccountSheet(
+        authMode: prefs.authMode,
+        initialName: prefs.displayName ?? '',
+        initialSeed: prefs.avatarSeed,
       ),
     );
   }
@@ -731,3 +653,480 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
   }
 }
 
+// ── Avatar seeds ──────────────────────────────────────────────────────────────
+
+const List<String> _kAvatarSeeds = [
+  'Felix', 'Luna', 'Zara', 'Kai', 'Nova', 'Orion',
+  'Ivy', 'Rex', 'Maya', 'Axel', 'Sora', 'Echo',
+];
+
+// ── Profile / Account bottom sheet ────────────────────────────────────────────
+
+class _ProfileAccountSheet extends StatefulWidget {
+  final String authMode;
+  final String initialName;
+  final String? initialSeed;
+
+  const _ProfileAccountSheet({
+    required this.authMode,
+    required this.initialName,
+    this.initialSeed,
+  });
+
+  @override
+  State<_ProfileAccountSheet> createState() => _ProfileAccountSheetState();
+}
+
+class _ProfileAccountSheetState extends State<_ProfileAccountSheet> {
+  late final TextEditingController _nameCtrl;
+  late String? _selectedSeed;
+  bool _saving = false;
+
+  static final Map<String, String> _svgCache = {
+    for (final s in _kAvatarSeeds) s: multiavatar(s),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.initialName);
+    _selectedSeed = widget.initialSeed;
+    _nameCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty || _saving) return;
+    setState(() => _saving = true);
+    final prefs = context.read<UserPreferencesProvider>();
+    await prefs.setDisplayName(name);
+    if (_selectedSeed != null) await prefs.setAvatarSeed(_selectedSeed!);
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _handleOfflineSignOut() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text(
+          'Signing out will permanently delete all your local data. '
+          'Export a CSV backup first?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('cancel'),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('export'),
+            child: const Text('Export & Sign Out'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('signout'),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(color: Color(0xFFB3261E)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || result == 'cancel') return;
+    if (!mounted) return;
+
+    if (result == 'export') {
+      final txProvider = context.read<TransactionProvider>();
+      final prefs = context.read<UserPreferencesProvider>();
+      final allCategories = [...Category.categories, ...prefs.customCategories];
+      try {
+        await DataExportService.exportTransactions(
+          transactions: txProvider.transactions,
+          allCategories: allCategories,
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Export failed: $e')),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+    }
+
+    final navigator = Navigator.of(context);
+    final settings = context.read<AppSettingsProvider>();
+    navigator.pop();
+    await settings.resetAllData();
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+      (_) => false,
+    );
+  }
+
+  Future<void> _handleGoogleSignOut() async {
+    Navigator.of(context).pop();
+    await context.read<AuthService>().signOut();
+  }
+
+  Future<void> _handleSwitchAccount() async {
+    Navigator.of(context).pop();
+    await context.read<AuthService>().switchAccount();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: widget.authMode == 'offline'
+            ? _buildOfflineContent(cs)
+            : _buildGoogleContent(cs),
+      ),
+    );
+  }
+
+  Widget _buildDragHandle(ColorScheme cs) => Center(
+        child: Container(
+          width: 36,
+          height: 4,
+          margin: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: cs.outlineVariant,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      );
+
+  Widget _buildOfflineContent(ColorScheme cs) {
+    final canSave = _nameCtrl.text.trim().isNotEmpty && !_saving;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildDragHandle(cs),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          child: Text(
+            'Edit Profile',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: cs.onSurface,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: cs.outlineVariant),
+            ),
+            child: TextField(
+              controller: _nameCtrl,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              style: TextStyle(fontSize: 15, color: cs.onSurface),
+              decoration: InputDecoration(
+                hintText: 'Your name',
+                hintStyle: TextStyle(
+                  fontSize: 15,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+                prefixIcon: Icon(LucideIcons.user, size: 16, color: cs.onSurfaceVariant),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'CHOOSE AVATAR',
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 0.8,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 76,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: _kAvatarSeeds.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) {
+              final seed = _kAvatarSeeds[i];
+              final selected = _selectedSeed == seed;
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _selectedSeed = selected ? null : seed;
+                }),
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    width: 58,
+                    height: 58,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
+                        width: selected ? 2.5 : 1.0,
+                      ),
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: cs.primary.withValues(alpha: 0.25),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: SvgPicture.string(
+                      _svgCache[seed]!,
+                      width: 58,
+                      height: 58,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Opacity(
+            opacity: canSave ? 1.0 : 0.4,
+            child: GestureDetector(
+              onTap: canSave ? _save : null,
+              child: Container(
+                height: 54,
+                decoration: BoxDecoration(
+                  color: cs.inverseSurface,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Center(
+                  child: _saving
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: cs.onInverseSurface,
+                          ),
+                        )
+                      : Text(
+                          'Save',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: cs.onInverseSurface,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: GestureDetector(
+            onTap: _handleOfflineSignOut,
+            child: Container(
+              height: 54,
+              decoration: BoxDecoration(
+                color: cs.errorContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Center(
+                child: Text(
+                  'Sign Out',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: cs.onErrorContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGoogleContent(ColorScheme cs) {
+    final user = context.read<AuthService>().currentUser;
+    final prefs = context.read<UserPreferencesProvider>();
+    final photoUrl = user?.photoURL;
+    final avatarSeed = prefs.avatarSeed;
+    final name = user?.displayName ?? prefs.displayName;
+    final email = user?.email;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildDragHandle(cs),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Row(
+            children: [
+              _buildAvatarWidget(photoUrl, avatarSeed, name, 48, cs),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (name != null)
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    if (email != null)
+                      Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: _buildActionTile(
+            cs: cs,
+            icon: LucideIcons.refreshCw,
+            label: 'Switch Accounts',
+            onTap: _handleSwitchAccount,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: _buildActionTile(
+            cs: cs,
+            icon: LucideIcons.logOut,
+            label: 'Sign Out',
+            isDestructive: true,
+            onTap: _handleGoogleSignOut,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvatarWidget(
+    String? photoUrl,
+    String? avatarSeed,
+    String? name,
+    double size,
+    ColorScheme cs,
+  ) {
+    if (photoUrl != null) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          image: DecorationImage(image: NetworkImage(photoUrl), fit: BoxFit.cover),
+        ),
+      );
+    }
+    if (avatarSeed != null) {
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: SvgPicture.string(multiavatar(avatarSeed), fit: BoxFit.cover),
+        ),
+      );
+    }
+    final initial = name?.isNotEmpty == true ? name![0].toUpperCase() : '?';
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: cs.primaryContainer, shape: BoxShape.circle),
+      child: Center(
+        child: Text(
+          initial,
+          style: TextStyle(
+            fontSize: size * 0.38,
+            fontWeight: FontWeight.w600,
+            color: cs.onPrimaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionTile({
+    required ColorScheme cs,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDestructive ? cs.errorContainer : cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isDestructive ? cs.onErrorContainer : cs.onSurface,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: isDestructive ? cs.onErrorContainer : cs.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

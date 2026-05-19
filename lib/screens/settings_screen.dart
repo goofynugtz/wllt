@@ -997,6 +997,7 @@ class _ThemeSegment extends StatelessWidget {
   }
 }
 
+
 // ── Color scheme swatch ───────────────────────────────────────────────────────
 
 class _ColorSwatch extends StatelessWidget {

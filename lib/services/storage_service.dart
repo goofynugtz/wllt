@@ -22,6 +22,7 @@ class StorageService {
   static const String keyDevMode                    = 'dev_mode';
   static const String keyConvertHistoricalCurrency  = 'convertHistoricalCurrency';
   static const String keyDisplayName                = 'display_name';
+  static const String keyAvatarSeed                 = 'avatar_seed';
 
   late Box _userPrefs;
   late Box _categories;
@@ -86,6 +87,12 @@ class StorageService {
 
   Future<void> setDisplayName(String name) =>
       _userPrefs.put(keyDisplayName, name);
+
+  String? get avatarSeed =>
+      _userPrefs.get(keyAvatarSeed) as String?;
+
+  Future<void> setAvatarSeed(String seed) =>
+      _userPrefs.put(keyAvatarSeed, seed);
 
   // ── Theme mode ────────────────────────────────────────────────────────
   ThemeMode get themeMode {

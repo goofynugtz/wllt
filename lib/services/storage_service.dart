@@ -21,6 +21,7 @@ class StorageService {
   static const String keyColorSeed                  = 'color_seed';
   static const String keyDevMode                    = 'dev_mode';
   static const String keyConvertHistoricalCurrency  = 'convertHistoricalCurrency';
+  static const String keyDisplayName                = 'display_name';
 
   late Box _userPrefs;
   late Box _categories;
@@ -79,6 +80,12 @@ class StorageService {
     await _userPrefs.put(keyGoogleUid, uid);
     await _userPrefs.put(keyGoogleEmail, email);
   }
+
+  String? get displayName =>
+      _userPrefs.get(keyDisplayName) as String?;
+
+  Future<void> setDisplayName(String name) =>
+      _userPrefs.put(keyDisplayName, name);
 
   // ── Theme mode ────────────────────────────────────────────────────────
   ThemeMode get themeMode {

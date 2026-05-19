@@ -296,10 +296,16 @@ class _HomeScreenState extends State<HomeScreen>
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: GestureDetector(
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => CategoryBreakdownScreen(
+                            PageRouteBuilder<void>(
+                              pageBuilder: (_, __, ___) => CategoryBreakdownScreen(
                                 selectedMonth: widget.selectedMonth,
                               ),
+                              transitionsBuilder: (_, anim, __, child) => FadeTransition(
+                                opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+                                child: child,
+                              ),
+                              transitionDuration: const Duration(milliseconds: 400),
+                              reverseTransitionDuration: const Duration(milliseconds: 300),
                             ),
                           ),
                           child: _buildCategoryBreakdown(categoryBreakdown, totalExpense, currencySymbol),
@@ -554,28 +560,31 @@ class _HomeScreenState extends State<HomeScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 110,
-            height: 110,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 26,
-                sections: breakdown.take(5).map((cd) {
-                  return PieChartSectionData(
-                    color: Color(
-                      int.parse(
-                            cd.category.color.substring(1),
-                            radix: 16,
-                          ) +
-                          0xFF000000,
-                    ),
-                    value: cd.amount,
-                    title: '',
-                    radius: 26,
-                  );
-                }).toList(),
-              ),
+          Hero(
+            tag: 'category-breakdown-pie',
+            child: SizedBox(
+                width: 110,
+                height: 110,
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 26,
+                    sections: breakdown.take(5).map((cd) {
+                      return PieChartSectionData(
+                        color: Color(
+                          int.parse(
+                                cd.category.color.substring(1),
+                                radix: 16,
+                              ) +
+                              0xFF000000,
+                        ),
+                        value: cd.amount,
+                        title: '',
+                        radius: 26,
+                      );
+                    }).toList(),
+                  ),
+                ),
             ),
           ),
           const SizedBox(width: 12),

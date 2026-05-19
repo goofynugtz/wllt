@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -20,15 +21,30 @@ class CategoryBreakdownScreen extends StatefulWidget {
       _CategoryBreakdownScreenState();
 }
 
-class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
+class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
+    with SingleTickerProviderStateMixin {
   late int _selectedYear;
   late int _selectedMonth;
+  late AnimationController _listAnimController;
 
   @override
   void initState() {
     super.initState();
     _selectedYear = widget.selectedMonth.year;
     _selectedMonth = widget.selectedMonth.month;
+    _listAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 540),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _listAnimController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _listAnimController.dispose();
+    super.dispose();
   }
 
   void _previousMonth() {
@@ -40,6 +56,7 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
         _selectedMonth--;
       }
     });
+    _listAnimController.forward(from: 0);
   }
 
   void _nextMonth() {
@@ -54,6 +71,7 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
           _selectedMonth++;
         }
       });
+      _listAnimController.forward(from: 0);
     }
   }
 
@@ -77,8 +95,10 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
 
     double resolveAmount(Transaction t) {
       if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
-      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
-      return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+      final snap = ExchangeRateService.instance
+          .getCachedSnapshot(t.baseCurrency, t.date);
+      return Helpers.convertAmount(
+          t.amount, t.baseCurrency, displayCurrency, snap?.rates);
     }
 
     final monthTx = allTx.where((t) =>
@@ -99,8 +119,7 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
         .toList()
       ..sort((a, b) => b.amount.compareTo(a.amount));
 
-    final monthLabel =
-        '${Helpers.months[_selectedMonth - 1]} $_selectedYear';
+    final monthLabel = '${Helpers.months[_selectedMonth - 1]} $_selectedYear';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -131,6 +150,38 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
                     ),
                     const SizedBox(width: 40),
                   ],
+                ),
+              ),
+            ),
+
+            // ── Hero pie chart header ─────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Hero(
+                  tag: 'category-breakdown-pie',
+                  child: SizedBox(
+                    width: 160,
+                    height: 160,
+                    child: breakdown.isEmpty
+                        ? const SizedBox.shrink()
+                        : PieChart(
+                            PieChartData(
+                              sectionsSpace: 2,
+                              centerSpaceRadius: 40,
+                              sections: breakdown.take(5).map((cd) {
+                                return PieChartSectionData(
+                                  color: Color(
+                                    int.parse(cd.category.color.substring(1), radix: 16) + 0xFF000000,
+                                  ),
+                                  value: cd.amount,
+                                  title: '',
+                                  radius: 32,
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                  ),
                 ),
               ),
             ),
@@ -208,121 +259,162 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen> {
                         clipBehavior: Clip.hardEdge,
                         child: Column(
                           children: breakdown.asMap().entries.map((entry) {
-                            final isNotFirst = entry.key > 0;
+                            final index = entry.key;
                             final cd = entry.value;
+                            final isNotFirst = index > 0;
                             final pct = totalExpense > 0
                                 ? cd.amount / totalExpense
                                 : 0.0;
                             final catColor = Color(
-                              int.parse(
-                                    cd.category.color.substring(1),
-                                    radix: 16,
-                                  ) +
+                              int.parse(cd.category.color.substring(1),
+                                      radix: 16) +
                                   0xFF000000,
                             );
 
-                            return Column(
-                              children: [
-                                if (isNotFirst)
-                                  Divider(
-                                    height: 0.5,
-                                    color: cs.outlineVariant
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => CategoryDetailScreen(
-                                          category: cd.category,
+                            final startInterval =
+                                (index * 0.12).clamp(0.0, 0.7);
+                            final endInterval =
+                                (startInterval + 0.4).clamp(0.0, 1.0);
+                            final itemAnim = CurvedAnimation(
+                              parent: _listAnimController,
+                              curve: Interval(startInterval, endInterval,
+                                  curve: Curves.easeOut),
+                            );
+
+                            return AnimatedBuilder(
+                              animation: itemAnim,
+                              builder: (_, child) => Opacity(
+                                opacity: itemAnim.value,
+                                child: Transform.translate(
+                                  offset:
+                                      Offset(0, 28 * (1 - itemAnim.value)),
+                                  child: child,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  if (isNotFirst)
+                                    Divider(
+                                      height: 0.5,
+                                      color: cs.outlineVariant
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () =>
+                                          Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              CategoryDetailScreen(
+                                            category: cd.category,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Padding(
+                                        padding:
+                                            const EdgeInsets.fromLTRB(
+                                                16, 14, 16, 14),
+                                        child: Row(
+                                          children: [
+                                            CategoryIconBadge(
+                                                category: cd.category,
+                                                size: 40),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        cd.category.name,
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color: cs.onSurface,
+                                                        ),
+                                                      ),
+                                                      Row(
+                                                        children: [
+                                                          Text(
+                                                            Helpers.formatAmount(
+                                                                cd.amount,
+                                                                currencySymbol),
+                                                            style: TextStyle(
+                                                              fontSize: 13,
+                                                              color:
+                                                                  cs.onSurface,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          SizedBox(
+                                                            width: 32,
+                                                            child: Text(
+                                                              '${(pct * 100).round()}%',
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .right,
+                                                              style: TextStyle(
+                                                                fontSize: 10,
+                                                                color: cs
+                                                                    .onSurfaceVariant,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  TweenAnimationBuilder<
+                                                      double>(
+                                                    key: ValueKey(
+                                                        '${cd.category.id}_${_selectedMonth}_$_selectedYear'),
+                                                    tween: Tween(
+                                                        begin: 0.0, end: pct),
+                                                    duration: const Duration(
+                                                        milliseconds: 900),
+                                                    curve:
+                                                        Curves.easeOutCubic,
+                                                    builder: (_, value, __) =>
+                                                        ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(99),
+                                                      child:
+                                                          LinearProgressIndicator(
+                                                        value: value,
+                                                        minHeight: 4,
+                                                        backgroundColor:
+                                                            catColor.withValues(
+                                                                alpha: 0.15),
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation(
+                                                                catColor),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Icon(
+                                              LucideIcons.chevronRight,
+                                              size: 16,
+                                              color: cs.onSurfaceVariant,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          16, 14, 16, 14),
-                                      child: Row(
-                                        children: [
-                                          CategoryIconBadge(
-                                              category: cd.category, size: 40),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Text(
-                                                      cd.category.name,
-                                                      style: TextStyle(
-                                                        fontSize: 13,
-                                                        color: cs.onSurface,
-                                                      ),
-                                                    ),
-                                                    Row(
-                                                      children: [
-                                                        Text(
-                                                          Helpers.formatAmount(
-                                                              cd.amount, currencySymbol),
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            color: cs.onSurface,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 8),
-                                                        SizedBox(
-                                                          width: 32,
-                                                          child: Text(
-                                                            '${(pct * 100).round()}%',
-                                                            textAlign:
-                                                                TextAlign.right,
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: cs
-                                                                  .onSurfaceVariant,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 6),
-                                                ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(99),
-                                                  child:
-                                                      LinearProgressIndicator(
-                                                    value: pct,
-                                                    minHeight: 4,
-                                                    backgroundColor: catColor
-                                                        .withValues(alpha: 0.15),
-                                                    valueColor:
-                                                        AlwaysStoppedAnimation(
-                                                            catColor),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Icon(
-                                            LucideIcons.chevronRight,
-                                            size: 16,
-                                            color: cs.onSurfaceVariant,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             );
                           }).toList(),
                         ),

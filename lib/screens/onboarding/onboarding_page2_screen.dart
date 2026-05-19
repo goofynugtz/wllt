@@ -81,15 +81,17 @@ class _OnboardingPage2ScreenState extends State<OnboardingPage2Screen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: OnboardingProgressBar(current: 2, total: 3),
+                  Expanded(
+                    child: OnboardingProgressBar(
+                      current: 1,
+                      total: isOffline ? 3 : 2,
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  // Same fixed width as back button to keep bar centered
                   SizedBox(
                     width: 40,
                     child: Text(
-                      '2 of 3',
+                      isOffline ? '1 of 3' : '1 of 2',
                       textAlign: TextAlign.right,
                       style: TextStyle(
                         fontSize: 12,

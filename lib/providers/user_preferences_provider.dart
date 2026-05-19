@@ -15,9 +15,15 @@ class UserPreferencesProvider extends ChangeNotifier {
   List<String> get activeCategories => _storage.activeCategories;
   String get authMode => _storage.authMode;
   String? get googleUid => _storage.googleUid;
+  String? get displayName => _storage.displayName;
 
   Future<void> setAuthMode(String mode) async {
     await _storage.setAuthMode(mode);
+    notifyListeners();
+  }
+
+  Future<void> setDisplayName(String name) async {
+    await _storage.setDisplayName(name);
     notifyListeners();
   }
 

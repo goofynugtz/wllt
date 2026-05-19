@@ -9,9 +9,14 @@ import '../../providers/user_preferences_provider.dart';
 import '../../services/auth_service.dart';
 
 class OnboardingPage1Screen extends StatefulWidget {
-  final VoidCallback onNext;
+  final VoidCallback onNextGoogle;
+  final VoidCallback onNextOffline;
 
-  const OnboardingPage1Screen({super.key, required this.onNext});
+  const OnboardingPage1Screen({
+    super.key,
+    required this.onNextGoogle,
+    required this.onNextOffline,
+  });
 
   @override
   State<OnboardingPage1Screen> createState() => _OnboardingPage1ScreenState();
@@ -62,7 +67,10 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
       final user = cred.user!;
       await prefs.setAuthMode('google');
       await prefs.setGoogleUser(uid: user.uid, email: user.email ?? '');
-      widget.onNext();
+      if (user.displayName != null && user.displayName!.isNotEmpty) {
+        await prefs.setDisplayName(user.displayName!);
+      }
+      widget.onNextGoogle();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,7 +89,7 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
   Future<void> _handleOfflineMode() async {
     await context.read<UserPreferencesProvider>().setAuthMode('offline');
     if (!mounted) return;
-    widget.onNext();
+    widget.onNextOffline();
   }
 
   @override

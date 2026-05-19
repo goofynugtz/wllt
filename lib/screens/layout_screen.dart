@@ -14,6 +14,7 @@ import '../widgets/ad_banner.dart';
 import '../screens/settings_screen.dart';
 import '../screens/add_account_screen.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/user_preferences_provider.dart';
 import '../utils/helpers.dart';
 
 class LayoutScreen extends StatefulWidget {
@@ -85,24 +86,35 @@ class _LayoutScreenState extends State<LayoutScreen> {
         '${Helpers.months[_selectedMonth.month - 1]} ${_selectedMonth.year}';
 
     final Widget titleWidget = _currentIndex == 0
-        ? RichText(
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: 22,
-                color: Theme.of(context).colorScheme.onSurface,
+        ? Builder(builder: (ctx) {
+            final prefs = ctx.watch<UserPreferencesProvider>();
+            final authService = ctx.read<AuthService>();
+            final String displayName;
+            if (prefs.authMode == 'google') {
+              final googleName = authService.currentUser?.displayName;
+              displayName = googleName?.split(' ').first ?? prefs.displayName ?? 'there';
+            } else {
+              displayName = prefs.displayName?.split(' ').first ?? 'there';
+            }
+            return RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 22,
+                  color: Theme.of(ctx).colorScheme.onSurface,
+                ),
+                children: [
+                  const TextSpan(
+                    text: 'Hi ',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  TextSpan(
+                    text: displayName,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
-              children: const [
-                TextSpan(
-                  text: 'Hi ',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                TextSpan(
-                  text: 'Ranjan',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          )
+            );
+          })
         : Text(
             const [
               '',
@@ -186,12 +198,16 @@ class _LayoutScreenState extends State<LayoutScreen> {
 
   Widget _buildAvatarCircle(BuildContext context, {double size = 36}) {
     final user = context.read<AuthService>().currentUser;
+    final prefs = context.read<UserPreferencesProvider>();
     final photoUrl = user?.photoURL;
+    final storedName = prefs.displayName;
     final initials = (user?.displayName?.isNotEmpty == true)
         ? user!.displayName![0].toUpperCase()
         : (user?.email?.isNotEmpty == true)
             ? user!.email![0].toUpperCase()
-            : 'R';
+            : (storedName?.isNotEmpty == true)
+                ? storedName![0].toUpperCase()
+                : '?';
 
     return Container(
       width: size,
@@ -223,6 +239,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
 
   void _showAccountSheet(BuildContext context) {
     final authService = context.read<AuthService>();
+    final prefs = context.read<UserPreferencesProvider>();
     final user = authService.currentUser;
 
     showModalBottomSheet(
@@ -255,9 +272,9 @@ class _LayoutScreenState extends State<LayoutScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (user?.displayName != null)
+                      if (user?.displayName != null || prefs.displayName != null)
                         Text(
-                          user!.displayName!,
+                          user?.displayName ?? prefs.displayName!,
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,

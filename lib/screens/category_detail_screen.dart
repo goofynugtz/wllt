@@ -16,6 +16,8 @@ import '../utils/helpers.dart';
 import '../widgets/category_icon_widget.dart';
 import 'edit_category_screen.dart';
 
+// ── Outer shell: Scaffold + PageView over all active categories ───────────────
+
 class CategoryDetailScreen extends StatefulWidget {
   final Category category;
 
@@ -26,6 +28,65 @@ class CategoryDetailScreen extends StatefulWidget {
 }
 
 class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
+  List<Category>? _categories;
+  PageController? _pageController;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_pageController == null) {
+      _categories = _buildCategories();
+      final idx = _categories!.indexWhere((c) => c.id == widget.category.id);
+      _pageController = PageController(initialPage: idx.clamp(0, _categories!.length - 1));
+    }
+  }
+
+  List<Category> _buildCategories() {
+    final prefs = context.read<UserPreferencesProvider>();
+    final activeIds = prefs.activeCategories.toSet();
+    final customMap = {for (final c in prefs.customCategories) c.id: c};
+    final builtinIds = Category.categories.map((c) => c.id).toSet();
+    return [
+      ...Category.categories
+          .where((c) => activeIds.isEmpty || activeIds.contains(c.id))
+          .map((c) => customMap[c.id] ?? c),
+      ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cats = _categories ?? [widget.category];
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: cats.length,
+        itemBuilder: (_, i) => _CategoryDetailPage(category: cats[i]),
+      ),
+    );
+  }
+}
+
+// ── Per-category page ─────────────────────────────────────────────────────────
+
+class _CategoryDetailPage extends StatefulWidget {
+  final Category category;
+
+  const _CategoryDetailPage({required this.category});
+
+  @override
+  State<_CategoryDetailPage> createState() => _CategoryDetailPageState();
+}
+
+class _CategoryDetailPageState extends State<_CategoryDetailPage>
+    with SingleTickerProviderStateMixin {
   late Category _category;
   late int _selectedYear;
   late int _selectedMonth;
@@ -34,6 +95,17 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   bool? _prefetchConvert;
   int _prefetchTxCount = -1;
 
+  // Month slide state
+  double _dragOffset = 0.0;
+  int? _peekYear;
+  int? _peekMonth;
+  late AnimationController _animCtrl;
+
+  // Trend window state
+  int _trendWindowSize = 6;
+  late int _trendWindowStart; // abs month = year*12 + (month-1)
+  late int _trendHighlightIndex;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +113,19 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     final now = DateTime.now();
     _selectedYear = now.year;
     _selectedMonth = now.month;
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    final absMonth = _selectedYear * 12 + (_selectedMonth - 1);
+    _trendWindowStart = absMonth - (_trendWindowSize - 1);
+    _trendHighlightIndex = _trendWindowSize - 1;
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
   }
 
   Color get _accentColor {
@@ -54,9 +139,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   void _openEdit() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => EditCategoryScreen(category: _category),
-      ),
+      MaterialPageRoute(builder: (_) => EditCategoryScreen(category: _category)),
     ).then((result) {
       if (!mounted) return;
       if (result == 'deleted') {
@@ -65,6 +148,41 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         setState(() => _category = result);
       }
     });
+  }
+
+  // ── Month helpers ──────────────────────────────────────────────────────────
+
+  (int, int) _offsetMonth(int year, int month, int delta) {
+    final abs = year * 12 + (month - 1) + delta;
+    return (abs ~/ 12, (abs % 12) + 1);
+  }
+
+  // Mutates trend state — call inside setState
+  void _updateTrendWindow() {
+    final selectedAbs = _selectedYear * 12 + (_selectedMonth - 1);
+    int hiIdx = selectedAbs - _trendWindowStart;
+    if (hiIdx < 0) {
+      _trendWindowStart = selectedAbs;
+      hiIdx = 0;
+    } else if (hiIdx >= _trendWindowSize) {
+      _trendWindowStart = selectedAbs - (_trendWindowSize - 1);
+      hiIdx = _trendWindowSize - 1;
+    }
+    _trendHighlightIndex = hiIdx;
+  }
+
+  void _setTrendWindowSize(int size) {
+    setState(() {
+      _trendWindowSize = size;
+      final selectedAbs = _selectedYear * 12 + (_selectedMonth - 1);
+      _trendWindowStart = selectedAbs - (size - 1);
+      _trendHighlightIndex = size - 1;
+    });
+  }
+
+  bool _isFutureMonth(int year, int month) {
+    final now = DateTime.now();
+    return year > now.year || (year == now.year && month > now.month);
   }
 
   List<Transaction> _monthTransactions(List<Transaction> all, int year, int month) {
@@ -78,42 +196,104 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
-  void _previousMonth() {
-    setState(() {
-      if (_selectedMonth == 1) {
-        _selectedMonth = 12;
-        _selectedYear--;
-      } else {
-        _selectedMonth--;
-      }
-    });
-  }
-
-  void _nextMonth() {
-    final now = DateTime.now();
-    if (_selectedYear < now.year ||
-        (_selectedYear == now.year && _selectedMonth < now.month)) {
-      setState(() {
-        if (_selectedMonth == 12) {
-          _selectedMonth = 1;
-          _selectedYear++;
-        } else {
-          _selectedMonth++;
-        }
-      });
-    }
-  }
-
-  bool get _isCurrentMonth {
-    final now = DateTime.now();
-    return _selectedYear == now.year && _selectedMonth == now.month;
-  }
-
   double _converted(Transaction t, String displayCurrency, bool convertHistory) {
     if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
     final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
     return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
   }
+
+  // ── Slide animation ────────────────────────────────────────────────────────
+
+  void _animateTo(double from, double to, {Curve curve = Curves.easeOut, required VoidCallback onDone}) {
+    _animCtrl.stop();
+    _animCtrl.reset();
+    final anim = Tween<double>(begin: from, end: to)
+        .animate(CurvedAnimation(parent: _animCtrl, curve: curve));
+    void listener() {
+      if (mounted) setState(() => _dragOffset = anim.value);
+    }
+    anim.addListener(listener);
+    _animCtrl.forward().then((_) {
+      anim.removeListener(listener);
+      onDone();
+    });
+  }
+
+  void _commitPeek() {
+    if (!mounted) return;
+    setState(() {
+      _selectedYear = _peekYear!;
+      _selectedMonth = _peekMonth!;
+      _dragOffset = 0;
+      _peekYear = null;
+      _peekMonth = null;
+      _updateTrendWindow();
+    });
+  }
+
+  void _cancelPeek() {
+    if (!mounted) return;
+    setState(() {
+      _dragOffset = 0;
+      _peekYear = null;
+      _peekMonth = null;
+    });
+  }
+
+  void _jumpMonth(int direction) {
+    final sw = MediaQuery.of(context).size.width;
+    final (py, pm) = _offsetMonth(_selectedYear, _selectedMonth, direction);
+    if (direction > 0 && _isFutureMonth(py, pm)) return;
+    setState(() {
+      _peekYear = py;
+      _peekMonth = pm;
+      _dragOffset = 0;
+    });
+    _animateTo(0, direction < 0 ? sw : -sw, onDone: _commitPeek);
+  }
+
+  // ── Drag callbacks ─────────────────────────────────────────────────────────
+
+  void _onDragStart(DragStartDetails _) => _animCtrl.stop();
+
+  void _onDragUpdate(DragUpdateDetails d) {
+    setState(() {
+      _dragOffset += d.delta.dx;
+
+      if (_dragOffset < 0) {
+        // Left drag → next month
+        final (py, pm) = _offsetMonth(_selectedYear, _selectedMonth, 1);
+        if (_isFutureMonth(py, pm)) {
+          // Rubber-band: damp this delta, undo full and re-apply partial
+          _dragOffset -= d.delta.dx;
+          _dragOffset += d.delta.dx * 0.15;
+          _peekYear = null;
+          _peekMonth = null;
+        } else {
+          _peekYear = py;
+          _peekMonth = pm;
+        }
+      } else {
+        // Right drag → prev month
+        final (py, pm) = _offsetMonth(_selectedYear, _selectedMonth, -1);
+        _peekYear = py;
+        _peekMonth = pm;
+      }
+    });
+  }
+
+  void _onDragEnd(DragEndDetails d) {
+    final sw = MediaQuery.of(context).size.width;
+    final vel = d.primaryVelocity ?? 0;
+    if (_peekYear != null && (vel.abs() > 400 || _dragOffset.abs() > sw * 0.35)) {
+      final end = _dragOffset < 0 ? -sw : sw;
+      _animateTo(_dragOffset, end, onDone: _commitPeek);
+    } else {
+      _animateTo(_dragOffset, 0, curve: Curves.elasticOut, onDone: _cancelPeek);
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +305,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     final currencyCode = prefs.currency;
     final currencySymbol = getCurrencyByCode(currencyCode).symbol;
     final convertHistory = prefs.convertHistoricalCurrency;
-
     final allTransactions = context.watch<TransactionProvider>().transactions;
 
     if (_prefetchCurrency != currencyCode ||
@@ -136,21 +315,208 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       _prefetchTxCount = allTransactions.length;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ExchangeRateService.instance
-            .prefetchForTransactions(allTransactions, currencyCode);
+        ExchangeRateService.instance.prefetchForTransactions(allTransactions, currencyCode);
       });
     }
 
-    final txs = _monthTransactions(allTransactions, _selectedYear, _selectedMonth);
-    final totalSpent = txs.fold<double>(0, (sum, t) => sum + _converted(t, currencyCode, convertHistory));
+    final budgetProvider = context.watch<BudgetProvider>();
+    final budget = budgetProvider.budgetFor(_category.id);
+    final colorName = _colorName(_category.color);
+
+    // Fixed section — based on committed selection, not peek
+    final now = DateTime.now();
+    final isCurrentMonth = _selectedYear == now.year && _selectedMonth == now.month;
+    final daysInMonth = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+    final monthLabel = DateFormat('MMMM yyyy').format(DateTime(_selectedYear, _selectedMonth));
+
+    final trendAmounts = <double>[];
+    final trendLabels = <String>[];
+    for (int i = 0; i < _trendWindowSize; i++) {
+      final abs = _trendWindowStart + i;
+      final y = abs ~/ 12;
+      final m = (abs % 12) + 1;
+      final mTxs = _monthTransactions(allTransactions, y, m);
+      trendAmounts.add(mTxs.fold<double>(0, (s, t) => s + _converted(t, currencyCode, convertHistory)));
+      trendLabels.add(DateFormat('MMM').format(DateTime(y, m)));
+    }
+
+    return CustomScrollView(
+      key: PageStorageKey(_category.id),
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _CategoryHeroDelegate(
+            category: _category,
+            accentColor: _accentColor,
+            colorName: colorName,
+            topPadding: topPad,
+            onBack: () => Navigator.of(context).pop(),
+            onEdit: _openEdit,
+          ),
+        ),
+
+        // ── Fixed: 6-month trend + month picker ──────────────────────────────
+        SliverToBoxAdapter(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragStart: (_) {},
+            onHorizontalDragUpdate: (_) {},
+            onHorizontalDragEnd: (_) {},
+            child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Column(
+              children: [
+                _TrendChartCard(
+                  amounts: trendAmounts,
+                  labels: trendLabels,
+                  highlightIndex: _trendHighlightIndex,
+                  accentColor: _accentColor,
+                  currencySymbol: currencySymbol,
+                  windowSize: _trendWindowSize,
+                  onWindowSizeChanged: _setTrendWindowSize,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  height: 56,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.07),
+                        blurRadius: 8,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _jumpMonth(-1),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          child: Icon(LucideIcons.chevronLeft, size: 20, color: cs.onSurface),
+                        ),
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(monthLabel, style: TextStyle(fontSize: 16, color: cs.onSurface)),
+                          if (isCurrentMonth)
+                            Text(
+                              'Day ${now.day} of $daysInMonth · in progress',
+                              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                            ),
+                        ],
+                      ),
+                      Opacity(
+                        opacity: isCurrentMonth ? 0.3 : 1.0,
+                        child: GestureDetector(
+                          onTap: () => _jumpMonth(1),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            child: Icon(LucideIcons.chevronRight, size: 20, color: cs.onSurface),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+          ),
+        ),
+
+        // ── Swipeable: spent so far, mini stats, weekly chart, transactions ──
+        SliverToBoxAdapter(
+          child: LayoutBuilder(
+            builder: (ctx, constraints) {
+              final sw = constraints.maxWidth;
+              return GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onHorizontalDragStart: _onDragStart,
+                onHorizontalDragUpdate: _onDragUpdate,
+                onHorizontalDragEnd: _onDragEnd,
+                child: Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    // Current month — slides out
+                    Transform.translate(
+                      offset: Offset(_dragOffset, 0),
+                      child: _buildSwipeableBody(
+                        sw: sw,
+                        year: _selectedYear,
+                        month: _selectedMonth,
+                        allTransactions: allTransactions,
+                        currencyCode: currencyCode,
+                        currencySymbol: currencySymbol,
+                        convertHistory: convertHistory,
+                        budgetProvider: budgetProvider,
+                        budget: budget,
+                        cs: cs,
+                      ),
+                    ),
+                    // Peek month — slides in from side
+                    if (_peekYear != null)
+                      Positioned(
+                        left: _dragOffset < 0 ? sw + _dragOffset : -sw + _dragOffset,
+                        top: 0,
+                        width: sw,
+                        child: _buildSwipeableBody(
+                          sw: sw,
+                          year: _peekYear!,
+                          month: _peekMonth!,
+                          allTransactions: allTransactions,
+                          currencyCode: currencyCode,
+                          currencySymbol: currencySymbol,
+                          convertHistory: convertHistory,
+                          budgetProvider: budgetProvider,
+                          budget: budget,
+                          cs: cs,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSwipeableBody({
+    required double sw,
+    required int year,
+    required int month,
+    required List<Transaction> allTransactions,
+    required String currencyCode,
+    required String currencySymbol,
+    required bool convertHistory,
+    required BudgetProvider budgetProvider,
+    required Budget? budget,
+    required ColorScheme cs,
+  }) {
+    final now = DateTime.now();
+    final isCurrentMonth = year == now.year && month == now.month;
+
+    final txs = _monthTransactions(allTransactions, year, month);
+    final totalSpent = txs.fold<double>(0, (s, t) => s + _converted(t, currencyCode, convertHistory));
     final txCount = txs.length;
 
-    final prevMonth = _selectedMonth == 1 ? 12 : _selectedMonth - 1;
-    final prevYear = _selectedMonth == 1 ? _selectedYear - 1 : _selectedYear;
+    final (prevYear, prevMonth) = _offsetMonth(year, month, -1);
     final prevTxs = _monthTransactions(allTransactions, prevYear, prevMonth);
-    final prevSpent = prevTxs.fold<double>(0, (sum, t) => sum + _converted(t, currencyCode, convertHistory));
+    final prevSpent = prevTxs.fold<double>(0, (s, t) => s + _converted(t, currencyCode, convertHistory));
 
-    final daysInMonth = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
     final avgPerDay = daysInMonth > 0 ? totalSpent / daysInMonth : 0.0;
 
     double? vsPercent;
@@ -160,18 +526,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       vsMore = totalSpent > prevSpent;
     }
 
-    final budgetProvider = context.watch<BudgetProvider>();
-    final budget = budgetProvider.budgetFor(_category.id);
-
     double budgetSpent = 0;
-    if (budget != null) {
-      final now = DateTime.now();
+    if (budget != null && isCurrentMonth) {
       if (budget.period == BudgetPeriod.monthly) {
-        final currentMonthTxs = _monthTransactions(allTransactions, now.year, now.month);
-        budgetSpent = currentMonthTxs.fold(
-          0.0,
-          (sum, t) => sum + _converted(t, currencyCode, convertHistory),
-        );
+        budgetSpent = totalSpent;
       } else {
         final weekStart = DateTime(now.year, now.month, now.day)
             .subtract(Duration(days: now.weekday - 1));
@@ -182,339 +540,158 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 t.type == TransactionType.expense &&
                 !t.date.isBefore(weekStart) &&
                 t.date.isBefore(weekEnd))
-            .fold(0.0, (sum, t) => sum + _converted(t, currencyCode, convertHistory));
+            .fold(0.0, (s, t) => s + _converted(t, currencyCode, convertHistory));
       }
-    }
-
-    final sixMonthAmounts = <double>[];
-    final sixMonthLabels = <String>[];
-    for (int i = 0; i < 6; i++) {
-      final offset = 5 - i;
-      var m = _selectedMonth - offset;
-      var y = _selectedYear;
-      while (m <= 0) {
-        m += 12;
-        y--;
-      }
-      final monthTxs = _monthTransactions(allTransactions, y, m);
-      sixMonthAmounts.add(monthTxs.fold<double>(0, (s, t) => s + _converted(t, currencyCode, convertHistory)));
-      sixMonthLabels.add(DateFormat('MMM').format(DateTime(y, m)));
     }
 
     final weeklyTotals = List.filled(4, 0.0);
     for (final t in txs) {
-      final weekIdx = ((t.date.day - 1) ~/ 7).clamp(0, 3);
-      weeklyTotals[weekIdx] += _converted(t, currencyCode, convertHistory);
+      weeklyTotals[((t.date.day - 1) ~/ 7).clamp(0, 3)] +=
+          _converted(t, currencyCode, convertHistory);
     }
 
-    final colorName = _colorName(_category.color);
-    final monthLabel =
-        DateFormat('MMMM yyyy').format(DateTime(_selectedYear, _selectedMonth));
-    final dayOfMonth = DateTime.now().day;
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _CategoryHeroDelegate(
-              category: _category,
-              accentColor: _accentColor,
-              colorName: colorName,
-              topPadding: topPad,
-              onBack: () => Navigator.of(context).pop(),
-              onEdit: _openEdit,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Column(
+        children: [
+          // Spent so far — tap to manage budget
+          GestureDetector(
+            onTap: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              builder: (_) => _BudgetBottomSheet(
+                category: _category,
+                existing: budget,
+                budgetProvider: budgetProvider,
+              ),
             ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-              child: Column(
-                children: [
-                  // Month navigator
-                  Container(
-                    height: 56,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: cs.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.07),
-                          blurRadius: 8,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: _previousMonth,
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            alignment: Alignment.center,
-                            child: Icon(
-                              LucideIcons.chevronLeft,
-                              size: 20,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                        ),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              monthLabel,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: cs.onSurface,
-                              ),
-                            ),
-                            if (_isCurrentMonth)
-                              Text(
-                                'Day $dayOfMonth of $daysInMonth · in progress',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ),
-                          ],
-                        ),
-                        Opacity(
-                          opacity: _isCurrentMonth ? 0.3 : 1.0,
-                          child: GestureDetector(
-                            onTap: _nextMonth,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              alignment: Alignment.center,
-                              child: Icon(
-                                LucideIcons.chevronRight,
-                                size: 20,
-                                color: cs.onSurface,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Spent so far card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: cs.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'SPENT SO FAR',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: cs.onSurfaceVariant,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$currencySymbol${totalSpent.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontSize: 36,
-                            color: cs.onSurface,
-                            letterSpacing: -0.9,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (budget != null && _isCurrentMonth) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(99),
-                            child: LinearProgressIndicator(
-                              value: (budgetSpent / budget.amount).clamp(0.0, 1.0),
-                              backgroundColor: _accentColor.withOpacity(0.15),
-                              valueColor: AlwaysStoppedAnimation(
-                                budgetSpent >= budget.amount ? cs.error : _accentColor,
-                              ),
-                              minHeight: 6,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '$currencySymbol${budgetSpent.toStringAsFixed(0)} of $currencySymbol${budget.amount.toStringAsFixed(0)} ${budget.period == BudgetPeriod.monthly ? 'this month' : 'this week'}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color: budgetSpent >= budget.amount
-                                  ? cs.error
-                                  : cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Budget chip
-                  GestureDetector(
-                    onTap: () => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                      ),
-                      builder: (_) => _BudgetBottomSheet(
-                        category: _category,
-                        existing: budget,
-                        budgetProvider: budgetProvider,
-                      ),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: budget != null
-                            ? _accentColor.withOpacity(0.12)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: budget != null ? _accentColor : cs.outlineVariant,
-                        ),
-                      ),
-                      child: Text(
-                        budget != null
-                            ? '$currencySymbol${budget.amount.toStringAsFixed(0)} / ${budget.period == BudgetPeriod.monthly ? 'month' : 'week'}'
-                            : '+ Set budget',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: budget != null ? _accentColor : cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // 3 mini stat cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MiniStatCard(
-                          label: 'TXNS',
-                          valueWidget: Text(
-                            '$txCount',
-                            style: TextStyle(
-                              fontSize: 22,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                          sub: 'this month',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _MiniStatCard(
-                          label: 'VS PREV',
-                          valueWidget: vsPercent != null
-                              ? Row(
-                                  children: [
-                                    Icon(
-                                      vsMore
-                                          ? LucideIcons.trendingUp
-                                          : LucideIcons.trendingDown,
-                                      size: 14,
-                                      color: vsMore
-                                          ? const Color(0xFFB3261E)
-                                          : AppTheme.incomeColor,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${vsPercent.toStringAsFixed(0)}%',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        color: vsMore
-                                            ? const Color(0xFFB3261E)
-                                            : AppTheme.incomeColor,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Text(
-                                  '—',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: cs.onSurface,
-                                  ),
-                                ),
-                          sub: vsPercent != null
-                              ? (vsMore ? 'more' : 'less')
-                              : 'no data',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _MiniStatCard(
-                          label: 'DAILY',
-                          valueWidget: Text(
-                            '$currencySymbol${avgPerDay.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                          sub: 'avg / day',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _TrendChartCard(
-                    amounts: sixMonthAmounts,
-                    labels: sixMonthLabels,
-                    accentColor: _accentColor,
-                    currencySymbol: currencySymbol,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _WeeklyChartCard(
-                    weeklyTotals: weeklyTotals,
-                    accentColor: _accentColor,
-                    monthName: DateFormat('MMMM')
-                        .format(DateTime(_selectedYear, _selectedMonth)),
-                    currencySymbol: currencySymbol,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _TransactionsList(
-                    transactions: txs,
-                    accentColor: _accentColor,
-                    count: txCount,
-                    currencySymbol: currencySymbol,
-                    displayCurrency: currencyCode,
-                    convertHistory: convertHistory,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SPENT SO FAR',
+                    style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant, letterSpacing: 1.1),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$currencySymbol${totalSpent.toStringAsFixed(0)}',
+                    style: TextStyle(fontSize: 36, color: cs.onSurface, letterSpacing: -0.9),
+                  ),
+                  const SizedBox(height: 12),
+                  if (budget != null && isCurrentMonth) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: LinearProgressIndicator(
+                        value: (budgetSpent / budget.amount).clamp(0.0, 1.0),
+                        backgroundColor: _accentColor.withOpacity(0.15),
+                        valueColor: AlwaysStoppedAnimation(
+                          budgetSpent >= budget.amount ? cs.error : _accentColor,
+                        ),
+                        minHeight: 6,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$currencySymbol${budgetSpent.toStringAsFixed(0)} of '
+                      '$currencySymbol${budget.amount.toStringAsFixed(0)} '
+                      '${budget.period == BudgetPeriod.monthly ? 'this month' : 'this week'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: budgetSpent >= budget.amount ? cs.error : cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 3 mini stat cards
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStatCard(
+                  label: 'TXNS',
+                  valueWidget: Text('$txCount', style: TextStyle(fontSize: 22, color: cs.onSurface)),
+                  sub: 'this month',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniStatCard(
+                  label: 'VS PREV',
+                  valueWidget: vsPercent != null
+                      ? Row(children: [
+                          Icon(
+                            vsMore ? LucideIcons.trendingUp : LucideIcons.trendingDown,
+                            size: 14,
+                            color: vsMore ? const Color(0xFFB3261E) : AppTheme.incomeColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${vsPercent.toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: vsMore ? const Color(0xFFB3261E) : AppTheme.incomeColor,
+                            ),
+                          ),
+                        ])
+                      : Text('—', style: TextStyle(fontSize: 18, color: cs.onSurface)),
+                  sub: vsPercent != null ? (vsMore ? 'more' : 'less') : 'no data',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniStatCard(
+                  label: 'DAILY',
+                  valueWidget: Text(
+                    '$currencySymbol${avgPerDay.toStringAsFixed(0)}',
+                    style: TextStyle(fontSize: 18, color: cs.onSurface),
+                  ),
+                  sub: 'avg / day',
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          _WeeklyChartCard(
+            weeklyTotals: weeklyTotals,
+            accentColor: _accentColor,
+            monthName: DateFormat('MMMM').format(DateTime(year, month)),
+            currencySymbol: currencySymbol,
+          ),
+
+          const SizedBox(height: 12),
+
+          _TransactionsList(
+            transactions: txs,
+            accentColor: _accentColor,
+            count: txCount,
+            currencySymbol: currencySymbol,
+            displayCurrency: currencyCode,
+            convertHistory: convertHistory,
           ),
         ],
       ),
@@ -522,7 +699,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   }
 
   String _colorName(String hex) {
-    final Map<String, String> names = {
+    const names = {
       '#EBA9A9': 'Soft Rose',
       '#E2B932': 'Amber',
       '#74A1DB': 'Cornflower Blue',
@@ -590,10 +767,16 @@ class _CategoryHeroDelegate extends SliverPersistentHeaderDelegate {
 
     final iconFade  = (1.0 - t * 1.6).clamp(0.0, 1.0);
     final badgeFade = (1.0 - t * 2.5).clamp(0.0, 1.0);
-    final titleFade = ((t - 0.4) / 0.6).clamp(0.0, 1.0);
 
     final cd = _darken(accentColor);
     final contentTop = _btnTop + _btnH + _contentGap;
+
+    // Sliding name: no fade — slides from expanded position (below icon, centered)
+    // to collapsed position (top-left, after back button).
+    final expandedNameTop = topPadding + contentTop + _iconSize + 8.0;
+    final collapsedNameTop = topPadding + _btnTop + (_btnH - 16.0) / 2.0;
+    final nameTop = expandedNameTop + (collapsedNameTop - expandedNameTop) * t;
+    final nameFontSize = 20.0 - 4.0 * t; // 20 → 16
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -618,7 +801,6 @@ class _CategoryHeroDelegate extends SliverPersistentHeaderDelegate {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // ── Decorative circles ────────────────────────────────────────
           Opacity(
             opacity: iconFade,
             child: Stack(children: [
@@ -627,7 +809,6 @@ class _CategoryHeroDelegate extends SliverPersistentHeaderDelegate {
             ]),
           ),
 
-          // ── Icon + name + badge (fades out on scroll) ─────────────────
           Positioned(
             top:   topPadding + contentTop,
             left:  0,
@@ -651,22 +832,11 @@ class _CategoryHeroDelegate extends SliverPersistentHeaderDelegate {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    category.name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 38),
                   Opacity(
                     opacity: badgeFade,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(99),
@@ -675,12 +845,8 @@ class _CategoryHeroDelegate extends SliverPersistentHeaderDelegate {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width:  6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
+                            width: 6, height: 6,
+                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                           ),
                           const SizedBox(width: 5),
                           Text(
@@ -700,21 +866,23 @@ class _CategoryHeroDelegate extends SliverPersistentHeaderDelegate {
             ),
           ),
 
-          // ── Category name in collapsed bar (fades in on scroll) ───────
+          // Category name slides from expanded (below icon, centered) to
+          // collapsed (top-left, after back button). No fade — always visible.
           Positioned(
-            top:    topPadding + _btnTop,
-            left:   60,
-            right:  60,
-            height: _btnH,
-            child: Opacity(
-              opacity: titleFade,
-              child: Center(
+            top:   nameTop,
+            left:  0,
+            right: 0,
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(start: 64.0 * t),
+              child: Align(
+                alignment: AlignmentDirectional(-t, 0.0),
                 child: Text(
                   category.name,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: nameFontSize,
                     fontWeight: FontWeight.w500,
                     color: Colors.white,
+                    letterSpacing: -0.5 * (1.0 - t),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -722,7 +890,6 @@ class _CategoryHeroDelegate extends SliverPersistentHeaderDelegate {
             ),
           ),
 
-          // ── Back + Edit buttons (always visible) ──────────────────────
           Positioned(
             top:    topPadding + _btnTop,
             left:   16,
@@ -806,24 +973,11 @@ class _MiniStatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: cs.onSurfaceVariant,
-              letterSpacing: 0.25,
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant, letterSpacing: 0.25)),
           const SizedBox(height: 6),
           valueWidget,
           const SizedBox(height: 4),
-          Text(
-            sub,
-            style: TextStyle(
-              fontSize: 10,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
+          Text(sub, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
         ],
       ),
     );
@@ -835,14 +989,20 @@ class _MiniStatCard extends StatelessWidget {
 class _TrendChartCard extends StatelessWidget {
   final List<double> amounts;
   final List<String> labels;
+  final int highlightIndex;
   final Color accentColor;
   final String currencySymbol;
+  final int windowSize;
+  final ValueChanged<int> onWindowSizeChanged;
 
   const _TrendChartCard({
     required this.amounts,
     required this.labels,
+    required this.highlightIndex,
     required this.accentColor,
     required this.currencySymbol,
+    required this.windowSize,
+    required this.onWindowSizeChanged,
   });
 
   @override
@@ -859,11 +1019,7 @@ class _TrendChartCard extends StatelessWidget {
         color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 1)),
         ],
       ),
       child: Column(
@@ -872,19 +1028,31 @@ class _TrendChartCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '6-Month Trend',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: cs.onSurface,
-                ),
-              ),
-              Text(
-                'Tap bar to navigate',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant,
-                ),
+              Text('Trend', style: TextStyle(fontSize: 13, color: cs.onSurface)),
+              Row(
+                children: [3, 6, 12].map((sz) {
+                  final sel = windowSize == sz;
+                  return GestureDetector(
+                    onTap: () => onWindowSizeChanged(sz),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: sel ? cs.primary : cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${sz}M',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                          color: sel ? cs.onPrimary : cs.onSurface,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ],
           ),
@@ -895,7 +1063,7 @@ class _TrendChartCard extends StatelessWidget {
               painter: _BarChartPainter(
                 values: amounts,
                 labels: labels,
-                highlightIndex: amounts.length - 1,
+                highlightIndex: highlightIndex,
                 accentColor: accentColor,
                 showDot: true,
                 labelColor: cs.onSurface,
@@ -909,20 +1077,10 @@ class _TrendChartCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Low $currencySymbol${minVal.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                'High $currencySymbol${maxVal.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
+              Text('Low $currencySymbol${minVal.toStringAsFixed(0)}',
+                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
+              Text('High $currencySymbol${maxVal.toStringAsFixed(0)}',
+                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
             ],
           ),
         ],
@@ -956,11 +1114,7 @@ class _WeeklyChartCard extends StatelessWidget {
         color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 1)),
         ],
       ),
       child: Column(
@@ -969,20 +1123,8 @@ class _WeeklyChartCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Weekly Breakdown',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: cs.onSurface,
-                ),
-              ),
-              Text(
-                monthName,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
+              Text('Weekly Breakdown', style: TextStyle(fontSize: 13, color: cs.onSurface)),
+              Text(monthName, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
             ],
           ),
           const SizedBox(height: 16),
@@ -1006,15 +1148,8 @@ class _WeeklyChartCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: weeklyTotals
-                .map(
-                  (v) => Text(
-                    '$currencySymbol${v.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                )
+                .map((v) => Text('$currencySymbol${v.toStringAsFixed(0)}',
+                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)))
                 .toList(),
           ),
         ],
@@ -1058,14 +1193,10 @@ class _BarChartPainter extends CustomPainter {
     final chartHeight = size.height - labelHeight - reservedTop;
 
     const barGap = 8.0;
-    final totalGap = barGap * (values.length - 1);
-    final barWidth = (size.width - totalGap) / values.length;
+    final barWidth = (size.width - barGap * (values.length - 1)) / values.length;
 
-    final bgPaint = Paint()
-      ..color = barBgColor
-      ..isAntiAlias = true;
+    final bgPaint = Paint()..color = barBgColor..isAntiAlias = true;
     final barPaint = Paint()..isAntiAlias = true;
-
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     for (int i = 0; i < values.length; i++) {
@@ -1084,9 +1215,7 @@ class _BarChartPainter extends CustomPainter {
       if (maxVal > 0 && values[i] > 0) {
         final fillHeight = (values[i] / maxVal) * chartHeight;
         final top = reservedTop + (chartHeight - fillHeight);
-        barPaint.color = isHighlighted
-            ? accentColor
-            : accentColor.withOpacity(0.45);
+        barPaint.color = isHighlighted ? accentColor : accentColor.withOpacity(0.45);
         canvas.drawRRect(
           RRect.fromRectAndCorners(
             Rect.fromLTWH(x, top, barWidth, fillHeight),
@@ -1097,29 +1226,23 @@ class _BarChartPainter extends CustomPainter {
         );
 
         if (showDot && isHighlighted) {
-          final dotPaint = Paint()
-            ..color = accentColor
-            ..isAntiAlias = true;
-          final dotX = x + barWidth / 2;
-          final dotY = top - dotPadding - dotDiameter / 2;
-          canvas.drawCircle(Offset(dotX, dotY), dotDiameter / 2, dotPaint);
+          final dotPaint = Paint()..color = accentColor..isAntiAlias = true;
+          canvas.drawCircle(
+            Offset(x + barWidth / 2, top - dotPadding - dotDiameter / 2),
+            dotDiameter / 2,
+            dotPaint,
+          );
         }
       }
 
       textPainter.text = TextSpan(
         text: i < labels.length ? labels[i] : '',
-        style: TextStyle(
-          fontSize: 10,
-          color: isHighlighted ? labelColor : labelDimColor,
-        ),
+        style: TextStyle(fontSize: 10, color: isHighlighted ? labelColor : labelDimColor),
       );
       textPainter.layout();
       textPainter.paint(
         canvas,
-        Offset(
-          x + barWidth / 2 - textPainter.width / 2,
-          size.height - labelHeight + 2,
-        ),
+        Offset(x + barWidth / 2 - textPainter.width / 2, size.height - labelHeight + 2),
       );
     }
   }
@@ -1158,9 +1281,7 @@ class _BudgetBottomSheetState extends State<_BudgetBottomSheet> {
   void initState() {
     super.initState();
     _amountCtrl = TextEditingController(
-      text: widget.existing != null
-          ? widget.existing!.amount.toStringAsFixed(0)
-          : '',
+      text: widget.existing != null ? widget.existing!.amount.toStringAsFixed(0) : '',
     );
     _period = widget.existing?.period ?? BudgetPeriod.monthly;
   }
@@ -1181,9 +1302,7 @@ class _BudgetBottomSheetState extends State<_BudgetBottomSheet> {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 24,
+        left: 24, right: 24, top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 32,
       ),
       child: Column(
@@ -1201,23 +1320,15 @@ class _BudgetBottomSheetState extends State<_BudgetBottomSheet> {
             autofocus: true,
             decoration: InputDecoration(
               labelText: 'Limit amount',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 16),
           SegmentedButton<BudgetPeriod>(
             segments: const [
-              ButtonSegment(
-                value: BudgetPeriod.monthly,
-                label: Text('Monthly'),
-              ),
-              ButtonSegment(
-                value: BudgetPeriod.weekly,
-                label: Text('Weekly'),
-              ),
+              ButtonSegment(value: BudgetPeriod.monthly, label: Text('Monthly')),
+              ButtonSegment(value: BudgetPeriod.weekly,  label: Text('Weekly')),
             ],
             selected: {_period},
             onSelectionChanged: (s) => setState(() => _period = s.first),
@@ -1288,11 +1399,7 @@ class _TransactionsList extends StatelessWidget {
         color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 1)),
         ],
       ),
       child: Column(
@@ -1302,43 +1409,25 @@ class _TransactionsList extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Transactions',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: cs.onSurface,
-                  ),
-                ),
+                Text('Transactions', style: TextStyle(fontSize: 13, color: cs.onSurface)),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: cs.secondaryContainer,
                     borderRadius: BorderRadius.circular(99),
                   ),
-                  child: Text(
-                    '$count total',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSecondaryContainer,
-                    ),
-                  ),
+                  child: Text('$count total',
+                      style: TextStyle(fontSize: 11, color: cs.onSecondaryContainer)),
                 ),
               ],
             ),
           ),
           Divider(height: 1, color: cs.outlineVariant),
-
           if (transactions.isEmpty)
             Padding(
               padding: const EdgeInsets.all(24),
-              child: Text(
-                'No transactions this month',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
+              child: Text('No transactions this month',
+                  style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
             )
           else
             ...transactions.asMap().entries.map((entry) {
@@ -1348,8 +1437,7 @@ class _TransactionsList extends StatelessWidget {
               return Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     child: Row(
                       children: [
                         Container(
@@ -1362,10 +1450,7 @@ class _TransactionsList extends StatelessWidget {
                           alignment: Alignment.center,
                           child: Text(
                             '${t.date.day}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: accentColor,
-                            ),
+                            style: TextStyle(fontSize: 13, color: accentColor),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1375,19 +1460,13 @@ class _TransactionsList extends StatelessWidget {
                             children: [
                               Text(
                                 t.transactionTitle,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: cs.onSurface,
-                                ),
+                                style: TextStyle(fontSize: 14, color: cs.onSurface),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 DateFormat('MMM d, yyyy').format(t.date),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: cs.onSurfaceVariant,
-                                ),
+                                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                               ),
                             ],
                           ),
@@ -1401,16 +1480,12 @@ class _TransactionsList extends StatelessWidget {
                                 : t.amount;
                             return '−$currencySymbol${amt.toStringAsFixed(0)}';
                           }(),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: cs.onSurface,
-                          ),
+                          style: TextStyle(fontSize: 14, color: cs.onSurface),
                         ),
                       ],
                     ),
                   ),
-                  if (!isLast)
-                    Divider(height: 1, color: cs.outlineVariant),
+                  if (!isLast) Divider(height: 1, color: cs.outlineVariant),
                 ],
               );
             }),

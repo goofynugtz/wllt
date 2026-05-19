@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
 import '../../providers/user_preferences_provider.dart';
-import '../../screens/layout_screen.dart';
 import '../../widgets/category_icon_widget.dart';
 import 'onboarding_shared_widgets.dart';
 
@@ -14,8 +13,13 @@ const double _kHPad = 24.0;
 
 class OnboardingPage3Screen extends StatefulWidget {
   final VoidCallback onBack;
+  final VoidCallback onGetStarted;
 
-  const OnboardingPage3Screen({super.key, required this.onBack});
+  const OnboardingPage3Screen({
+    super.key,
+    required this.onBack,
+    required this.onGetStarted,
+  });
 
   @override
   State<OnboardingPage3Screen> createState() => _OnboardingPage3ScreenState();
@@ -51,16 +55,16 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
     setState(() => _isLoading = true);
     final prefs = context.read<UserPreferencesProvider>();
     await prefs.setCategories(_selected.toList());
-    await prefs.completeOnboarding();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LayoutScreen()),
-    );
+    setState(() => _isLoading = false);
+    widget.onGetStarted();
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isOffline =
+        context.read<UserPreferencesProvider>().authMode == 'offline';
 
     return Scaffold(
       body: SafeArea(
@@ -86,14 +90,17 @@ class _OnboardingPage3ScreenState extends State<OnboardingPage3Screen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: OnboardingProgressBar(current: 3, total: 3),
+                  Expanded(
+                    child: OnboardingProgressBar(
+                      current: 2,
+                      total: isOffline ? 3 : 2,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   SizedBox(
                     width: 40,
                     child: Text(
-                      '3 of 3',
+                      isOffline ? '2 of 3' : '2 of 2',
                       textAlign: TextAlign.right,
                       style: TextStyle(
                         fontSize: 12,

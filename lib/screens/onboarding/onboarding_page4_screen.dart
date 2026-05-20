@@ -195,23 +195,6 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
                       color: cs.onSurfaceVariant,
                     ),
                   ),
-                  if (_selectedSeed != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: cs.primaryContainer,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        _selectedSeed!,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.primary,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -243,7 +226,7 @@ class _OnboardingPage4ScreenState extends State<OnboardingPage4Screen> {
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: selected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
-                            width: selected ? 2.5 : 1.0,
+                            width: 2.5,
                           ),
                           boxShadow: selected
                               ? [

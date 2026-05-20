@@ -164,7 +164,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       onPointerCancel: (_) => setState(() => _isScrollerPressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         decoration: BoxDecoration(
           color: _isScrollerPressed ? Colors.black : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
@@ -190,6 +190,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       _labels[i],
                       style: textStyle,
                       maxLines: 1,
+                      overflow: TextOverflow.visible,
                     ),
                   ),
                 ),

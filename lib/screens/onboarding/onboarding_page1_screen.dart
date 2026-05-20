@@ -193,50 +193,6 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      Opacity(
-                        opacity: enabled ? 1.0 : 0.4,
-                        child: _ActionButton(
-                          onPressed: enabled ? _handleGoogleSignIn : null,
-                          isLoading: _isLoading,
-                          icon: const _GoogleLogo(),
-                          label: 'Continue with Google',
-                          backgroundColor: cs.surface,
-                          foregroundColor: cs.onSurface,
-                          borderColor: cs.outlineVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: cs.outlineVariant)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              'or',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: cs.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: cs.outlineVariant)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Opacity(
-                        opacity: enabled ? 1.0 : 0.4,
-                        child: _ActionButton(
-                          onPressed: enabled ? _handleOfflineMode : null,
-                          isLoading: false,
-                          icon: Icon(LucideIcons.cloudOff,
-                              size: 20, color: cs.primary),
-                          label: 'Continue without account',
-                          backgroundColor: cs.secondaryContainer,
-                          foregroundColor: cs.primary,
-                          borderColor: Colors.transparent,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
                       // ── T&C checkbox ────────────────────────────────────
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -279,6 +235,50 @@ class _OnboardingPage1ScreenState extends State<OnboardingPage1Screen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 20),
+                      Opacity(
+                        opacity: enabled ? 1.0 : 0.4,
+                        child: _ActionButton(
+                          onPressed: enabled ? _handleGoogleSignIn : null,
+                          isLoading: _isLoading,
+                          icon: const _GoogleLogo(),
+                          label: 'Continue with Google',
+                          backgroundColor: cs.surface,
+                          foregroundColor: cs.onSurface,
+                          borderColor: cs.outlineVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: cs.outlineVariant)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'or',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: cs.outlineVariant)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Opacity(
+                        opacity: enabled ? 1.0 : 0.4,
+                        child: _ActionButton(
+                          onPressed: enabled ? _handleOfflineMode : null,
+                          isLoading: false,
+                          icon: Icon(LucideIcons.cloudOff,
+                              size: 20, color: cs.primary),
+                          label: 'Continue without account',
+                          backgroundColor: cs.secondaryContainer,
+                          foregroundColor: cs.primary,
+                          borderColor: Colors.transparent,
+                        ),
                       ),
                     ],
                   ),

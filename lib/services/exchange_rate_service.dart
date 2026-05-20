@@ -4,12 +4,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../models/models.dart';
+import 'diagnostics_logger.dart';
 
 class ExchangeRateService with ChangeNotifier {
   ExchangeRateService._();
   static final instance = ExchangeRateService._();
 
   static const _baseUrl = 'https://api.frankfurter.dev/v2';
+  static const _fallbackUrl = 'https://open.er-api.com/v6/latest';
   static const _boxName = 'exchange_rates';
   static final _dateFmt = DateFormat('yyyy-MM-dd');
 
@@ -44,6 +46,8 @@ class ExchangeRateService with ChangeNotifier {
     }
     _inflight.add(key);
 
+    final attempts = <String>[];
+
     try {
       final today = DateTime.now();
       final isToday = _dateFmt.format(date) == _dateFmt.format(today);
@@ -52,7 +56,7 @@ class ExchangeRateService with ChangeNotifier {
 
       if (isToday) {
         debugPrint('[ExchangeRate] API CALL → GET $_baseUrl/rates?base=$baseCurrency');
-        rates = await _fetchLatest(baseCurrency);
+        rates = await _fetchLatest(baseCurrency, attempts);
         if (rates != null) {
           debugPrint('[ExchangeRate] API OK: latest $baseCurrency — ${rates.length} rates');
         } else {
@@ -65,7 +69,7 @@ class ExchangeRateService with ChangeNotifier {
           final attempt = date.subtract(Duration(days: i));
           final dateStr = _dateFmt.format(attempt);
           debugPrint('[ExchangeRate] API CALL → GET $_baseUrl/rates?date=$dateStr&base=$baseCurrency (attempt ${i + 1}/7)');
-          rates = await _fetchHistorical(baseCurrency, attempt);
+          rates = await _fetchHistorical(baseCurrency, attempt, attempts);
           if (rates != null) {
             debugPrint('[ExchangeRate] API OK: historical $baseCurrency @ $dateStr — ${rates.length} rates');
             break;
@@ -75,7 +79,17 @@ class ExchangeRateService with ChangeNotifier {
       }
 
       if (rates == null) {
+        debugPrint('[ExchangeRate] All Frankfurter attempts failed for $baseCurrency — trying fallback API');
+        rates = await _fetchLatestFallback(baseCurrency, attempts);
+      }
+
+      if (rates == null) {
         debugPrint('[ExchangeRate] TOTAL FAIL: no rates for $baseCurrency @ $key — display will use raw amount');
+        DiagnosticsLogger.instance.logExchangeRateFailure(
+          currency: baseCurrency,
+          date: key,
+          attempts: attempts,
+        );
         return null;
       }
 
@@ -110,77 +124,92 @@ class ExchangeRateService with ChangeNotifier {
     }
   }
 
-  /// Seeds mock snapshots for every unique (baseCurrency, date) in dummy data.
-  /// Rates vary by period so same-currency transactions on different dates
-  /// show visibly different converted amounts when the display currency changes.
+  /// Fetches real rates from API for every unique (baseCurrency, date) in dummy data.
   Future<void> seedDevModeRates() async {
     final seen = <String>{};
+    final futures = <Future<void>>[];
     for (final tx in Transaction.dummyData) {
       final key = _cacheKey(tx.baseCurrency, tx.date);
       if (!seen.add(key)) continue;
-      final rates = _devRatesFor(tx.baseCurrency, tx.date);
-      if (rates.isEmpty) continue;
-      final snapshot = ExchangeRateSnapshot(
-        key: key,
-        baseCurrency: tx.baseCurrency,
-        rates: rates,
-        fetchedAt: DateTime.now().toIso8601String(),
-      );
-      await _ratesBox.put(key, snapshot.toJson());
+      if (getCachedSnapshot(tx.baseCurrency, tx.date) != null) continue;
+      futures.add(fetchSnapshot(tx.baseCurrency, tx.date).then((_) {}));
     }
+    await Future.wait(futures);
     notifyListeners();
   }
 
-  /// INR-based rates that drift across 5 historical periods.
-  /// All values are "1 INR = x [target]".
-  Map<String, double> _devRatesFor(String base, DateTime date) {
-    if (base != 'INR') return {};
-    final y = date.year;
-    final m = date.month;
-
-    // Period A: May–Aug 2025 · ₹84/$
-    if (y < 2025 || (y == 2025 && m <= 8)) {
-      return {'USD': 0.01190, 'EUR': 0.01087, 'GBP': 0.00935, 'JPY': 1.7500, 'AED': 0.04370, 'SGD': 0.01600};
-    }
-    // Period B: Sep–Nov 2025 · ₹84.7/$
-    if (y == 2025 && m <= 11) {
-      return {'USD': 0.01181, 'EUR': 0.01078, 'GBP': 0.00928, 'JPY': 1.7350, 'AED': 0.04337, 'SGD': 0.01588};
-    }
-    // Period C: Dec 2025–Feb 2026 · ₹85.6/$
-    if (y == 2025 || (y == 2026 && m <= 2)) {
-      return {'USD': 0.01168, 'EUR': 0.01066, 'GBP': 0.00918, 'JPY': 1.7150, 'AED': 0.04290, 'SGD': 0.01571};
-    }
-    // Period D: Mar–Apr 2026 · ₹87/$
-    if (y == 2026 && m <= 4) {
-      return {'USD': 0.01149, 'EUR': 0.01049, 'GBP': 0.00904, 'JPY': 1.6880, 'AED': 0.04222, 'SGD': 0.01546};
-    }
-    // Period E: May 2026+ · ₹85.5/$
-    return {'USD': 0.01170, 'EUR': 0.01068, 'GBP': 0.00919, 'JPY': 1.7180, 'AED': 0.04299, 'SGD': 0.01572};
-  }
-
-  Future<Map<String, double>?> _fetchLatest(String base) async {
+  Future<Map<String, double>?> _fetchLatest(
+      String base, List<String> attempts) async {
     try {
       final uri = Uri.parse('$_baseUrl/rates?base=$base');
       final resp = await http.get(uri).timeout(const Duration(seconds: 10));
       debugPrint('[ExchangeRate] HTTP ${resp.statusCode} for $uri | body: ${resp.body.substring(0, resp.body.length.clamp(0, 200))}');
-      if (resp.statusCode != 200) return null;
-      return _parseRates(resp.body);
+      if (resp.statusCode == 200) {
+        final rates = _parseRates(resp.body);
+        if (rates != null) {
+          attempts.add('frankfurter_latest:200:ok');
+          return rates;
+        }
+        attempts.add('frankfurter_latest:200:parse_fail');
+      } else {
+        attempts.add('frankfurter_latest:${resp.statusCode}');
+      }
     } catch (e) {
+      attempts.add('frankfurter_latest:exception:$e');
       debugPrint('[ExchangeRate] EXCEPTION (latest $base): $e');
+    }
+    return _fetchLatestFallback(base, attempts);
+  }
+
+  Future<Map<String, double>?> _fetchLatestFallback(
+      String base, List<String> attempts) async {
+    try {
+      final uri = Uri.parse('$_fallbackUrl/$base');
+      final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+      debugPrint('[ExchangeRate] FALLBACK HTTP ${resp.statusCode} for $uri');
+      if (resp.statusCode != 200) {
+        attempts.add('fallback_latest:${resp.statusCode}');
+        return null;
+      }
+      final decoded = jsonDecode(resp.body) as Map<String, dynamic>;
+      if (decoded['result'] != 'success') {
+        attempts.add('fallback_latest:200:result=${decoded['result']}');
+        return null;
+      }
+      final raw = decoded['rates'] as Map<String, dynamic>?;
+      if (raw == null) {
+        attempts.add('fallback_latest:200:no_rates_key');
+        return null;
+      }
+      attempts.add('fallback_latest:200:ok');
+      return raw.map((k, v) => MapEntry(k, (v as num).toDouble()));
+    } catch (e) {
+      attempts.add('fallback_latest:exception:$e');
+      debugPrint('[ExchangeRate] FALLBACK EXCEPTION ($base): $e');
       return null;
     }
   }
 
   Future<Map<String, double>?> _fetchHistorical(
-      String base, DateTime date) async {
+      String base, DateTime date, List<String> attempts) async {
     try {
       final dateStr = _dateFmt.format(date);
       final uri = Uri.parse('$_baseUrl/rates?date=$dateStr&base=$base');
       final resp = await http.get(uri).timeout(const Duration(seconds: 10));
       debugPrint('[ExchangeRate] HTTP ${resp.statusCode} for $uri | body: ${resp.body.substring(0, resp.body.length.clamp(0, 200))}');
-      if (resp.statusCode != 200) return null;
-      return _parseRates(resp.body);
+      if (resp.statusCode == 200) {
+        final rates = _parseRates(resp.body);
+        if (rates != null) {
+          attempts.add('frankfurter_historical_$dateStr:200:ok');
+          return rates;
+        }
+        attempts.add('frankfurter_historical_$dateStr:200:parse_fail');
+        return null;
+      }
+      attempts.add('frankfurter_historical_$dateStr:${resp.statusCode}');
+      return null;
     } catch (e) {
+      attempts.add('frankfurter_historical_${_dateFmt.format(date)}:exception:$e');
       debugPrint('[ExchangeRate] EXCEPTION (historical $base @ ${_dateFmt.format(date)}): $e');
       return null;
     }

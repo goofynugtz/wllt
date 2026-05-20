@@ -23,12 +23,16 @@ class OnboardingFlow extends StatefulWidget {
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
   final PageController _controller = PageController();
+  int _currentPage = 0;
 
-  void _goTo(int index) => _controller.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+  void _goTo(int index) {
+    setState(() => _currentPage = index);
+    _controller.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   Future<void> _onPage3Done() async {
     final prefs = context.read<UserPreferencesProvider>();
@@ -46,27 +50,33 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: PageView(
-        controller: _controller,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          OnboardingPage1Screen(
-            onNextGoogle: () => _goTo(1),
-            onNextOffline: () => _goTo(1),
-          ),
-          OnboardingPage2Screen(
-            onNext: () => _goTo(2),
-            onBack: () => _goTo(0),
-          ),
-          OnboardingPage3Screen(
-            onBack: () => _goTo(1),
-            onGetStarted: _onPage3Done,
-          ),
-          OnboardingPage4Screen(
-            onBack: () => _goTo(2),
-          ),
-        ],
+    return PopScope(
+      canPop: _currentPage == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goTo(_currentPage - 1);
+      },
+      child: Scaffold(
+        body: PageView(
+          controller: _controller,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            OnboardingPage1Screen(
+              onNextGoogle: () => _goTo(1),
+              onNextOffline: () => _goTo(1),
+            ),
+            OnboardingPage2Screen(
+              onNext: () => _goTo(2),
+              onBack: () => _goTo(0),
+            ),
+            OnboardingPage3Screen(
+              onBack: () => _goTo(1),
+              onGetStarted: _onPage3Done,
+            ),
+            OnboardingPage4Screen(
+              onBack: () => _goTo(2),
+            ),
+          ],
+        ),
       ),
     );
   }

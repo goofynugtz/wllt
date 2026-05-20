@@ -154,18 +154,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               ? Theme.of(context).colorScheme.primary
                               : Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: isActive
-                              ? [
-                                  BoxShadow(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withValues(alpha: 0.35),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ]
-                              : null,
                         ),
                         child: Text(
                           filter.label,
@@ -439,7 +427,7 @@ class TransactionRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${category.name} · $accountName',
+                      accountName.isNotEmpty ? '${category.name} · $accountName' : category.name,
                       style: TextStyle(
                         fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

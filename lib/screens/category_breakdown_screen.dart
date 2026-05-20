@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -23,9 +25,16 @@ class CategoryBreakdownScreen extends StatefulWidget {
 
 class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
     with SingleTickerProviderStateMixin {
+  static const double _kItemH = 68.0;
+
   late int _selectedYear;
   late int _selectedMonth;
   late AnimationController _listAnimController;
+
+  // exit animation state
+  final Map<String, _ExitData> _exitItems = {};
+  // last known (category, pct, amount, index) per category id — not state
+  final Map<String, (Category, double, double, int)> _lastRenderInfo = {};
 
   @override
   void initState() {
@@ -56,7 +65,6 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
         _selectedMonth--;
       }
     });
-    _listAnimController.forward(from: 0);
   }
 
   void _nextMonth() {
@@ -71,7 +79,6 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
           _selectedMonth++;
         }
       });
-      _listAnimController.forward(from: 0);
     }
   }
 
@@ -121,9 +128,69 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
 
     final monthLabel = '${Helpers.months[_selectedMonth - 1]} $_selectedYear';
 
+    // ── Exit animation detection ──────────────────────────────────────────
+    final currentIds = breakdown.map((cd) => cd.category.id).toSet();
+
+    // Remove exit items that reappeared (rapid month switching)
+    final returned = _exitItems.keys.where((id) => currentIds.contains(id)).toList();
+    if (returned.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() { for (final id in returned) _exitItems.remove(id); });
+      });
+    }
+
+    final newlyExiting = <String, _ExitData>{};
+    for (final entry in _lastRenderInfo.entries) {
+      final id = entry.key;
+      if (!currentIds.contains(id) && !_exitItems.containsKey(id)) {
+        final (cat, pct, amount, idx) = entry.value;
+        newlyExiting[id] = _ExitData(
+          category: cat, pct: pct, amount: amount, lastIndex: idx,
+          catColor: Color(int.parse(cat.color.substring(1), radix: 16) + 0xFF000000),
+        );
+      }
+    }
+    if (newlyExiting.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _exitItems.addAll(newlyExiting));
+        Future.delayed(const Duration(milliseconds: 380), () {
+          if (!mounted) return;
+          setState(() {
+            for (final id in newlyExiting.keys) {
+              _exitItems.remove(id);
+              _lastRenderInfo.remove(id);
+            }
+          });
+        });
+      });
+    }
+    // Update last render info for current items
+    for (final entry in breakdown.asMap().entries) {
+      final cd = entry.value;
+      final pct = totalExpense > 0 ? cd.amount / totalExpense : 0.0;
+      _lastRenderInfo[cd.category.id] = (cd.category, pct, cd.amount, entry.key);
+    }
+
+    final maxExitSlot = _exitItems.isEmpty
+        ? 0
+        : _exitItems.values.map((e) => e.lastIndex + 2).reduce(math.max);
+    final stackH = math.max(breakdown.length, maxExitSlot) * _kItemH;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity == null) return;
+          if (details.primaryVelocity! < -300) {
+            _nextMonth();
+          } else if (details.primaryVelocity! > 300) {
+            _previousMonth();
+          }
+        },
+        child: SafeArea(
         child: Column(
           children: [
             // ── Top bar ──────────────────────────────────────────────────────
@@ -164,7 +231,20 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
                     width: 160,
                     height: 160,
                     child: breakdown.isEmpty
-                        ? const SizedBox.shrink()
+                        ? PieChart(
+                            PieChartData(
+                              sectionsSpace: 0,
+                              centerSpaceRadius: 40,
+                              sections: [
+                                PieChartSectionData(
+                                  color: cs.onSurface.withValues(alpha: 0.08),
+                                  value: 1,
+                                  title: '',
+                                  radius: 32,
+                                ),
+                              ],
+                            ),
+                          )
                         : PieChart(
                             PieChartData(
                               sectionsSpace: 2,
@@ -235,7 +315,17 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
 
             // ── Category list ─────────────────────────────────────────────
             Expanded(
-              child: breakdown.isEmpty
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragEnd: (details) {
+                  if (details.primaryVelocity == null) return;
+                  if (details.primaryVelocity! < -300) {
+                    _nextMonth();
+                  } else if (details.primaryVelocity! > 300) {
+                    _previousMonth();
+                  }
+                },
+                child: breakdown.isEmpty
                   ? Center(
                       child: Text(
                         'No expenses this month',
@@ -257,170 +347,281 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
                           ),
                         ),
                         clipBehavior: Clip.hardEdge,
-                        child: Column(
-                          children: breakdown.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final cd = entry.value;
-                            final isNotFirst = index > 0;
-                            final pct = totalExpense > 0
-                                ? cd.amount / totalExpense
-                                : 0.0;
-                            final catColor = Color(
-                              int.parse(cd.category.color.substring(1),
-                                      radix: 16) +
-                                  0xFF000000,
-                            );
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 380),
+                          curve: Curves.easeInOut,
+                          height: stackH,
+                          child: Stack(
+                            children: [
+                            ...breakdown.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final cd = entry.value;
+                              final pct = totalExpense > 0
+                                  ? cd.amount / totalExpense
+                                  : 0.0;
+                              final catColor = Color(
+                                int.parse(cd.category.color.substring(1),
+                                        radix: 16) +
+                                    0xFF000000,
+                              );
+                              final startInterval =
+                                  (index * 0.12).clamp(0.0, 0.7);
+                              final endInterval =
+                                  (startInterval + 0.4).clamp(0.0, 1.0);
+                              final itemAnim = CurvedAnimation(
+                                parent: _listAnimController,
+                                curve: Interval(startInterval, endInterval,
+                                    curve: Curves.easeOut),
+                              );
 
-                            final startInterval =
-                                (index * 0.12).clamp(0.0, 0.7);
-                            final endInterval =
-                                (startInterval + 0.4).clamp(0.0, 1.0);
-                            final itemAnim = CurvedAnimation(
-                              parent: _listAnimController,
-                              curve: Interval(startInterval, endInterval,
-                                  curve: Curves.easeOut),
-                            );
-
-                            return AnimatedBuilder(
-                              animation: itemAnim,
-                              builder: (_, child) => Opacity(
-                                opacity: itemAnim.value,
-                                child: Transform.translate(
-                                  offset:
-                                      Offset(0, 28 * (1 - itemAnim.value)),
-                                  child: child,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  if (isNotFirst)
-                                    Divider(
-                                      height: 0.5,
-                                      color: cs.outlineVariant
-                                          .withValues(alpha: 0.5),
+                              return AnimatedPositioned(
+                                key: ValueKey(cd.category.id),
+                                duration: const Duration(milliseconds: 380),
+                                curve: Curves.easeInOut,
+                                top: index * _kItemH,
+                                left: 0,
+                                right: 0,
+                                height: _kItemH,
+                                child: AnimatedBuilder(
+                                  animation: itemAnim,
+                                  builder: (_, child) => Opacity(
+                                    opacity: itemAnim.value,
+                                    child: Transform.translate(
+                                      offset: Offset(
+                                          0, 28 * (1 - itemAnim.value)),
+                                      child: child,
                                     ),
-                                  Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () =>
-                                          Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              CategoryDetailScreen(
-                                            category: cd.category,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Padding(
-                                        padding:
-                                            const EdgeInsets.fromLTRB(
-                                                16, 14, 16, 14),
-                                        child: Row(
-                                          children: [
-                                            CategoryIconBadge(
-                                                category: cd.category,
-                                                size: 40),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        cd.category.name,
-                                                        style: TextStyle(
-                                                          fontSize: 13,
-                                                          color: cs.onSurface,
-                                                        ),
-                                                      ),
-                                                      Row(
-                                                        children: [
-                                                          Text(
-                                                            Helpers.formatAmount(
-                                                                cd.amount,
-                                                                currencySymbol),
-                                                            style: TextStyle(
-                                                              fontSize: 13,
-                                                              color:
-                                                                  cs.onSurface,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                              width: 8),
-                                                          SizedBox(
-                                                            width: 32,
-                                                            child: Text(
-                                                              '${(pct * 100).round()}%',
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .right,
-                                                              style: TextStyle(
-                                                                fontSize: 10,
-                                                                color: cs
-                                                                    .onSurfaceVariant,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  TweenAnimationBuilder<
-                                                      double>(
-                                                    key: ValueKey(
-                                                        '${cd.category.id}_${_selectedMonth}_$_selectedYear'),
-                                                    tween: Tween(
-                                                        begin: 0.0, end: pct),
-                                                    duration: const Duration(
-                                                        milliseconds: 900),
-                                                    curve:
-                                                        Curves.easeOutCubic,
-                                                    builder: (_, value, __) =>
-                                                        ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius
-                                                              .circular(99),
-                                                      child:
-                                                          LinearProgressIndicator(
-                                                        value: value,
-                                                        minHeight: 4,
-                                                        backgroundColor:
-                                                            catColor.withValues(
-                                                                alpha: 0.15),
-                                                        valueColor:
-                                                            AlwaysStoppedAnimation(
-                                                                catColor),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
+                                  ),
+                                  child: Container(
+                                    decoration: index < breakdown.length - 1
+                                        ? BoxDecoration(
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: cs.outlineVariant
+                                                    .withValues(alpha: 0.5),
+                                                width: 0.5,
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
-                                            Icon(
-                                              LucideIcons.chevronRight,
-                                              size: 16,
-                                              color: cs.onSurfaceVariant,
+                                          )
+                                        : null,
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () =>
+                                            Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                CategoryDetailScreen(
+                                              category: cd.category,
                                             ),
-                                          ],
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                              16, 14, 16, 14),
+                                          child: Row(
+                                            children: [
+                                              CategoryIconBadge(
+                                                  category: cd.category,
+                                                  size: 40),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .spaceBetween,
+                                                      children: [
+                                                        Text(
+                                                          cd.category.name,
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            color: cs.onSurface,
+                                                          ),
+                                                        ),
+                                                        Row(
+                                                          children: [
+                                                            Text(
+                                                              Helpers.formatAmount(
+                                                                  cd.amount,
+                                                                  currencySymbol),
+                                                              style: TextStyle(
+                                                                fontSize: 13,
+                                                                color: cs
+                                                                    .onSurface,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                width: 8),
+                                                            SizedBox(
+                                                              width: 32,
+                                                              child: Text(
+                                                                '${(pct * 100).round()}%',
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .right,
+                                                                style: TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: cs
+                                                                      .onSurfaceVariant,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    TweenAnimationBuilder<
+                                                        double>(
+                                                      key: ValueKey(
+                                                          cd.category.id),
+                                                      tween: Tween(
+                                                          begin: 0.0,
+                                                          end: pct),
+                                                      duration: const Duration(
+                                                          milliseconds: 900),
+                                                      curve:
+                                                          Curves.easeOutCubic,
+                                                      builder: (_, value,
+                                                              __) =>
+                                                          ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(99),
+                                                        child:
+                                                            LinearProgressIndicator(
+                                                          value: value,
+                                                          minHeight: 4,
+                                                          backgroundColor:
+                                                              catColor.withValues(
+                                                                  alpha: 0.15),
+                                                          valueColor:
+                                                              AlwaysStoppedAnimation(
+                                                                  catColor),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Icon(
+                                                LucideIcons.chevronRight,
+                                                size: 16,
+                                                color: cs.onSurfaceVariant,
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
+                                ),
+                              );
+                            }).toList(),
+                            // Exiting items slide down and fade out
+                            ..._exitItems.entries.map((e) {
+                              final data = e.value;
+                              return Positioned(
+                                key: ValueKey('exit_${e.key}'),
+                                top: data.lastIndex * _kItemH,
+                                left: 0,
+                                right: 0,
+                                height: _kItemH,
+                                child: TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: 0.0, end: 1.0),
+                                  duration: const Duration(milliseconds: 320),
+                                  curve: Curves.easeIn,
+                                  builder: (_, t, child) => Opacity(
+                                    opacity: 1.0 - t,
+                                    child: Transform.translate(
+                                      offset: Offset(0, t * _kItemH),
+                                      child: child,
+                                    ),
+                                  ),
+                                  child: _buildExitRow(data, cs, currencySymbol),
+                                ),
+                              );
+                            }),
+                            ],
+                          ),
                         ),
                       ),
                     ),
+              ),
             ),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildExitRow(_ExitData data, ColorScheme cs, String currencySymbol) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.5),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          children: [
+            CategoryIconBadge(category: data.category, size: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(data.category.name,
+                          style:
+                              TextStyle(fontSize: 13, color: cs.onSurface)),
+                      Row(children: [
+                        Text(Helpers.formatAmount(data.amount, currencySymbol),
+                            style: TextStyle(
+                                fontSize: 13, color: cs.onSurface)),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 32,
+                          child: Text(
+                            '${(data.pct * 100).round()}%',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                                fontSize: 10, color: cs.onSurfaceVariant),
+                          ),
+                        ),
+                      ]),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: data.pct,
+                      minHeight: 4,
+                      backgroundColor:
+                          data.catColor.withValues(alpha: 0.15),
+                      valueColor:
+                          AlwaysStoppedAnimation(data.catColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(LucideIcons.chevronRight,
+                size: 16, color: cs.onSurfaceVariant),
           ],
         ),
       ),
@@ -432,4 +633,20 @@ class _CategoryData {
   final Category category;
   final double amount;
   _CategoryData(this.category, this.amount);
+}
+
+class _ExitData {
+  final Category category;
+  final double pct;
+  final double amount;
+  final int lastIndex;
+  final Color catColor;
+
+  const _ExitData({
+    required this.category,
+    required this.pct,
+    required this.amount,
+    required this.lastIndex,
+    required this.catColor,
+  });
 }

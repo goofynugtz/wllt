@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
@@ -14,6 +12,7 @@ import '../services/exchange_rate_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/helpers.dart';
 import '../widgets/category_icon_widget.dart';
+import '../widgets/spending_trend_card.dart';
 import 'edit_category_screen.dart';
 
 // ── Outer shell: Scaffold + PageView over all active categories ───────────────
@@ -74,6 +73,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   }
 }
 
+enum _BreakdownMode { daily, weekly }
+
 // ── Per-category page ─────────────────────────────────────────────────────────
 
 class _CategoryDetailPage extends StatefulWidget {
@@ -100,6 +101,9 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
   int? _peekYear;
   int? _peekMonth;
   late AnimationController _animCtrl;
+
+  // Breakdown mode state
+  _BreakdownMode _breakdownMode = _BreakdownMode.weekly;
 
   // Trend window state
   int _trendWindowSize = 6;
@@ -359,21 +363,27 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
         SliverToBoxAdapter(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onHorizontalDragStart: (_) {},
-            onHorizontalDragUpdate: (_) {},
-            onHorizontalDragEnd: (_) {},
+            onHorizontalDragStart: _onDragStart,
+            onHorizontalDragUpdate: _onDragUpdate,
+            onHorizontalDragEnd: _onDragEnd,
             child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Column(
               children: [
-                _TrendChartCard(
-                  amounts: trendAmounts,
-                  labels: trendLabels,
+                SpendingTrendCard(
+                  title: 'Trend',
+                  bars: List.generate(
+                    trendAmounts.length,
+                    (i) => (label: trendLabels[i], amount: trendAmounts[i]),
+                  ),
+                  rangeLabels: const ['3M', '6M', '12M'],
+                  selectedRangeIndex: const [3, 6, 12].indexOf(_trendWindowSize),
+                  onRangeChanged: (i) => _setTrendWindowSize(const [3, 6, 12][i]),
                   highlightIndex: _trendHighlightIndex,
                   accentColor: _accentColor,
                   currencySymbol: currencySymbol,
-                  windowSize: _trendWindowSize,
-                  onWindowSizeChanged: _setTrendWindowSize,
+                  showMinMax: true,
+                  chartHeight: 110,
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -544,11 +554,20 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
       }
     }
 
-    final weeklyTotals = List.filled(4, 0.0);
-    for (final t in txs) {
-      weeklyTotals[((t.date.day - 1) ~/ 7).clamp(0, 3)] +=
-          _converted(t, currencyCode, convertHistory);
-    }
+    final breakdownBars = _breakdownMode == _BreakdownMode.daily
+        ? List.generate(daysInMonth, (i) {
+            final day = i + 1;
+            final amount = txs
+                .where((t) => t.date.day == day)
+                .fold(0.0, (s, t) => s + _converted(t, currencyCode, convertHistory));
+            return (label: '$day', amount: amount);
+          })
+        : List.generate(4, (wk) {
+            final amount = txs
+                .where((t) => ((t.date.day - 1) ~/ 7).clamp(0, 3) == wk)
+                .fold(0.0, (s, t) => s + _converted(t, currencyCode, convertHistory));
+            return (label: 'Wk ${wk + 1}', amount: amount);
+          });
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -585,17 +604,47 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'SPENT SO FAR',
-                    style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant, letterSpacing: 1.1),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SPENT SO FAR',
+                              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant, letterSpacing: 1.1),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '$currencySymbol${totalSpent.toStringAsFixed(0)}',
+                              style: TextStyle(fontSize: 36, color: cs.onSurface, letterSpacing: -0.9),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _accentColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              budget != null ? 'Edit Budget' : 'Set Budget?',
+                              style: TextStyle(fontSize: 11, color: _accentColor),
+                            ),
+                            const SizedBox(width: 3),
+                            Icon(LucideIcons.chevronRight, size: 10, color: _accentColor),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$currencySymbol${totalSpent.toStringAsFixed(0)}',
-                    style: TextStyle(fontSize: 36, color: cs.onSurface, letterSpacing: -0.9),
-                  ),
-                  const SizedBox(height: 12),
                   if (budget != null && isCurrentMonth) ...[
+                    const SizedBox(height: 12),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(99),
                       child: LinearProgressIndicator(
@@ -676,11 +725,17 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
 
           const SizedBox(height: 12),
 
-          _WeeklyChartCard(
-            weeklyTotals: weeklyTotals,
+          SpendingTrendCard(
+            title: 'Breakdown',
+            bars: breakdownBars,
+            rangeLabels: const ['Daily', 'Weekly'],
+            selectedRangeIndex: _breakdownMode.index,
+            onRangeChanged: (i) =>
+                setState(() => _breakdownMode = _BreakdownMode.values[i]),
             accentColor: _accentColor,
-            monthName: DateFormat('MMMM').format(DateTime(year, month)),
             currencySymbol: currencySymbol,
+            labelStep: _breakdownMode == _BreakdownMode.daily ? 7 : 1,
+            chartHeight: 90,
           ),
 
           const SizedBox(height: 12),
@@ -982,278 +1037,6 @@ class _MiniStatCard extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── 6-Month Trend card ────────────────────────────────────────────────────
-
-class _TrendChartCard extends StatelessWidget {
-  final List<double> amounts;
-  final List<String> labels;
-  final int highlightIndex;
-  final Color accentColor;
-  final String currencySymbol;
-  final int windowSize;
-  final ValueChanged<int> onWindowSizeChanged;
-
-  const _TrendChartCard({
-    required this.amounts,
-    required this.labels,
-    required this.highlightIndex,
-    required this.accentColor,
-    required this.currencySymbol,
-    required this.windowSize,
-    required this.onWindowSizeChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final maxVal = amounts.isEmpty ? 0.0 : amounts.reduce(max);
-    final positives = amounts.where((a) => a > 0);
-    final minVal = positives.isEmpty ? 0.0 : positives.reduce(min);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 1)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Trend', style: TextStyle(fontSize: 13, color: cs.onSurface)),
-              Row(
-                children: [3, 6, 12].map((sz) {
-                  final sel = windowSize == sz;
-                  return GestureDetector(
-                    onTap: () => onWindowSizeChanged(sz),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.only(left: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: sel ? cs.primary : cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${sz}M',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                          color: sel ? cs.onPrimary : cs.onSurface,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 110,
-            child: CustomPaint(
-              painter: _BarChartPainter(
-                values: amounts,
-                labels: labels,
-                highlightIndex: highlightIndex,
-                accentColor: accentColor,
-                showDot: true,
-                labelColor: cs.onSurface,
-                labelDimColor: cs.onSurfaceVariant,
-                barBgColor: cs.surfaceContainerHighest,
-              ),
-              size: Size.infinite,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Low $currencySymbol${minVal.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
-              Text('High $currencySymbol${maxVal.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Weekly Breakdown card ─────────────────────────────────────────────────
-
-class _WeeklyChartCard extends StatelessWidget {
-  final List<double> weeklyTotals;
-  final Color accentColor;
-  final String monthName;
-  final String currencySymbol;
-
-  const _WeeklyChartCard({
-    required this.weeklyTotals,
-    required this.accentColor,
-    required this.monthName,
-    required this.currencySymbol,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 1)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Weekly Breakdown', style: TextStyle(fontSize: 13, color: cs.onSurface)),
-              Text(monthName, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 90,
-            child: CustomPaint(
-              painter: _BarChartPainter(
-                values: weeklyTotals,
-                labels: const ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'],
-                highlightIndex: -1,
-                accentColor: accentColor,
-                showDot: false,
-                labelColor: cs.onSurface,
-                labelDimColor: cs.onSurfaceVariant,
-                barBgColor: cs.surfaceContainerHighest,
-              ),
-              size: Size.infinite,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: weeklyTotals
-                .map((v) => Text('$currencySymbol${v.toStringAsFixed(0)}',
-                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)))
-                .toList(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Shared bar chart painter ──────────────────────────────────────────────
-
-class _BarChartPainter extends CustomPainter {
-  final List<double> values;
-  final List<String> labels;
-  final int highlightIndex;
-  final Color accentColor;
-  final bool showDot;
-  final Color labelColor;
-  final Color labelDimColor;
-  final Color barBgColor;
-
-  const _BarChartPainter({
-    required this.values,
-    required this.labels,
-    required this.highlightIndex,
-    required this.accentColor,
-    required this.showDot,
-    required this.labelColor,
-    required this.labelDimColor,
-    required this.barBgColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (values.isEmpty) return;
-
-    final maxVal = values.reduce(max);
-    const labelHeight = 18.0;
-    const dotDiameter = 6.0;
-    const dotPadding = 5.0;
-    final reservedTop = showDot ? dotDiameter + dotPadding : 0.0;
-    final chartHeight = size.height - labelHeight - reservedTop;
-
-    const barGap = 8.0;
-    final barWidth = (size.width - barGap * (values.length - 1)) / values.length;
-
-    final bgPaint = Paint()..color = barBgColor..isAntiAlias = true;
-    final barPaint = Paint()..isAntiAlias = true;
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-
-    for (int i = 0; i < values.length; i++) {
-      final x = i * (barWidth + barGap);
-      final isHighlighted = i == highlightIndex;
-
-      canvas.drawRRect(
-        RRect.fromRectAndCorners(
-          Rect.fromLTWH(x, reservedTop, barWidth, chartHeight),
-          topLeft: const Radius.circular(6),
-          topRight: const Radius.circular(6),
-        ),
-        bgPaint,
-      );
-
-      if (maxVal > 0 && values[i] > 0) {
-        final fillHeight = (values[i] / maxVal) * chartHeight;
-        final top = reservedTop + (chartHeight - fillHeight);
-        barPaint.color = isHighlighted ? accentColor : accentColor.withOpacity(0.45);
-        canvas.drawRRect(
-          RRect.fromRectAndCorners(
-            Rect.fromLTWH(x, top, barWidth, fillHeight),
-            topLeft: const Radius.circular(6),
-            topRight: const Radius.circular(6),
-          ),
-          barPaint,
-        );
-
-        if (showDot && isHighlighted) {
-          final dotPaint = Paint()..color = accentColor..isAntiAlias = true;
-          canvas.drawCircle(
-            Offset(x + barWidth / 2, top - dotPadding - dotDiameter / 2),
-            dotDiameter / 2,
-            dotPaint,
-          );
-        }
-      }
-
-      textPainter.text = TextSpan(
-        text: i < labels.length ? labels[i] : '',
-        style: TextStyle(fontSize: 10, color: isHighlighted ? labelColor : labelDimColor),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x + barWidth / 2 - textPainter.width / 2, size.height - labelHeight + 2),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_BarChartPainter old) =>
-      old.values != values ||
-      old.highlightIndex != highlightIndex ||
-      old.accentColor != accentColor ||
-      old.labelColor != labelColor ||
-      old.barBgColor != barBgColor;
 }
 
 // ── Budget Bottom Sheet ────────────────────────────────────────────────────

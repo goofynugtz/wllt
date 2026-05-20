@@ -10,6 +10,7 @@ import '../utils/helpers.dart';
 import '../widgets/category_icon_badge.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/trial_banner.dart';
+import '../widgets/spending_trend_card.dart';
 import '../services/ad_config_service.dart';
 import '../services/exchange_rate_service.dart';
 import '../providers/transaction_provider.dart';
@@ -317,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen>
                     // ── Spending Trend ────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildSpendingTrend(allTx, currencySymbol),
+                      child: _buildSpendingTrendWidget(allTx, currencySymbol),
                     ),
                     const SizedBox(height: 16),
 
@@ -658,12 +659,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Spending Trend ────────────────────────────────────────────────────────
 
-  Widget _buildSpendingTrend(List<Transaction> allTx, String currencySymbol) {
+  Widget _buildSpendingTrendWidget(List<Transaction> allTx, String currencySymbol) {
     final List<({String label, double amount})> bars;
 
     if (_trendRange == _TrendRange.m1) {
       final daysInMonth = DateTime(
-        widget.selectedMonth.year, widget.selectedMonth.month + 1, 0).day;
+          widget.selectedMonth.year, widget.selectedMonth.month + 1, 0).day;
       bars = List.generate(daysInMonth, (i) {
         final day = i + 1;
         final amount = allTx
@@ -703,119 +704,13 @@ class _HomeScreenState extends State<HomeScreen>
       });
     }
 
-    final maxY = bars.isEmpty
-        ? 100.0
-        : bars.map((b) => b.amount).reduce((a, b) => a > b ? a : b);
-
-    return _SectionCard(
-      titleWidget: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Spending Trend',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          Row(
-            children: [
-              for (final range in _TrendRange.values)
-                _TrendPill(
-                  label: switch (range) {
-                    _TrendRange.m1 => '1M',
-                    _TrendRange.m6 => '6M',
-                    _TrendRange.y1 => '1Y',
-                  },
-                  selected: _trendRange == range,
-                  onTap: () => setState(() => _trendRange = range),
-                ),
-            ],
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final n = bars.length;
-          const gap = 4.0;
-          final barWidth = n > 1
-              ? (constraints.maxWidth - gap * (n - 1)) / n
-              : constraints.maxWidth;
-          return SizedBox(
-            height: 120,
-            child: BarChart(
-              BarChartData(
-                maxY: maxY > 0 ? maxY * 1.2 : 100,
-                barGroups: bars.asMap().entries.map((e) {
-                  return BarChartGroupData(
-                    x: e.key,
-                    barRods: [
-                      BarChartRodData(
-                        toY: e.value.amount,
-                        color: AppTheme.primaryColor,
-                        width: barWidth,
-                        borderRadius: BorderRadius.circular(
-                          barWidth > 6 ? 4 : 2,
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final i = value.toInt();
-                        if (i < 0 || i >= bars.length) {
-                          return const SizedBox.shrink();
-                        }
-                        if (_trendRange == _TrendRange.m1 && i % 7 != 0) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            bars[i].label,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) =>
-                        BarTooltipItem(
-                      Helpers.formatAmount(rod.toY, currencySymbol),
-                      TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+    return SpendingTrendCard(
+      bars: bars,
+      rangeLabels: const ['1M', '6M', '1Y'],
+      selectedRangeIndex: _trendRange.index,
+      onRangeChanged: (i) => setState(() => _trendRange = _TrendRange.values[i]),
+      currencySymbol: currencySymbol,
+      labelStep: _trendRange == _TrendRange.m1 ? 7 : 1,
     );
   }
 
@@ -1149,10 +1044,9 @@ class _HomeScreenState extends State<HomeScreen>
 
 class _SectionCard extends StatelessWidget {
   final String? title;
-  final Widget? titleWidget;
   final Widget child;
 
-  const _SectionCard({this.title, this.titleWidget, required this.child});
+  const _SectionCard({this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -1170,14 +1064,13 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          titleWidget ??
-              Text(
-                title ?? '',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
+          Text(
+            title ?? '',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 12),
           child,
         ],
@@ -1256,54 +1149,6 @@ class _InsightChip extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ── Trend range pill ─────────────────────────────────────────────────────────
-
-class _TrendPill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _TrendPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        margin: const EdgeInsets.only(left: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.primaryColor.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected
-                ? AppTheme.primaryColor
-                : Theme.of(context).colorScheme.outlineVariant,
-            width: 0.8,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected
-                ? AppTheme.primaryColor
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
       ),
     );
   }

@@ -26,6 +26,7 @@ class HomeScreen extends StatefulWidget {
   final void Function(int delta)? onMonthChanged;
   final VoidCallback? onNavigateToHistory;
   final ValueNotifier<bool>? pageScrollEnabled;
+  final VoidCallback? onCategoryBreakdownTap;
 
   const HomeScreen({
     super.key,
@@ -33,6 +34,7 @@ class HomeScreen extends StatefulWidget {
     this.onMonthChanged,
     this.onNavigateToHistory,
     this.pageScrollEnabled,
+    this.onCategoryBreakdownTap,
   });
 
   @override
@@ -296,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen>
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: GestureDetector(
-                          onTap: () => Navigator.of(context).push(
+                          onTap: widget.onCategoryBreakdownTap ?? () => Navigator.of(context).push(
                             PageRouteBuilder<void>(
                               pageBuilder: (_, __, ___) => CategoryBreakdownScreen(
                                 selectedMonth: widget.selectedMonth,

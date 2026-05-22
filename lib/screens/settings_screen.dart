@@ -16,6 +16,7 @@ import '../screens/custom_paywall_screen.dart';
 import '../screens/paywall_screen.dart';
 import '../services/data_export_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/feedback_sheet.dart';
 
 // ── Color scheme definitions ──────────────────────────────────────────────────
 
@@ -246,6 +247,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsTappableRow(
             icon: LucideIcons.dollarSign,
             label: 'Currency',
+            // prefs.currency is the global display currency code (e.g. "USD"); drives net worth and section totals in AccountsScreen.
             value: prefs.currency,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CurrencyPickerScreen()),
@@ -486,6 +488,18 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _showFeedbackSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const FeedbackSheet(trigger: 'manual'),
+    );
+  }
+
   void _openPaywall(BuildContext context) {
     CustomPaywallScreen.show(context);
   }
@@ -562,54 +576,70 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildAboutCard(BuildContext context) {
     return _SettingsCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF3B2977), Color(0xFF6750A4)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(LucideIcons.wallet, size: 26, color: Colors.white),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Text(
-                  'WLLT: Expense Tracker',
-                  style: TextStyle(
-                    fontSize: 17,
-                    color: Theme.of(context).colorScheme.onSurface,
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF3B2977), Color(0xFF6750A4)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
+                  child: const Icon(LucideIcons.wallet, size: 26, color: Colors.white),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Version 1.0.0',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Built with ♥ using Flutter',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                  ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'WLLT: Expense Tracker',
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Version 1.0.0',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Built with ♥ using Flutter',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+            indent: 16,
+            endIndent: 16,
+          ),
+          _SettingsTappableRow(
+            icon: LucideIcons.messageSquare,
+            label: 'Send Feedback',
+            onTap: () => _showFeedbackSheet(context),
+          ),
+        ],
       ),
     );
   }

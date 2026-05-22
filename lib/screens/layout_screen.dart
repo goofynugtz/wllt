@@ -15,6 +15,7 @@ import '../widgets/add_expense_sheet.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/feedback_sheet.dart';
 import '../screens/category_breakdown_screen.dart';
+import '../services/user_service.dart';
 import '../screens/settings_screen.dart';
 import '../screens/add_account_screen.dart';
 import '../providers/app_settings_provider.dart';
@@ -51,6 +52,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
     _pageController = PageController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TransactionProvider>().addListener(_checkTransactionMilestone);
+      _upsertUser();
     });
   }
 
@@ -122,6 +124,15 @@ class _LayoutScreenState extends State<LayoutScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => FeedbackSheet(trigger: trigger),
+    );
+  }
+
+  void _upsertUser() {
+    final prefs = context.read<UserPreferencesProvider>();
+    UserService.upsertUser(
+      authMode: prefs.authMode,
+      email: prefs.googleEmail,
+      displayName: prefs.displayName,
     );
   }
 

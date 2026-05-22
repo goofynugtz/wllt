@@ -15,6 +15,7 @@ class UserPreferencesProvider extends ChangeNotifier {
   List<String> get activeCategories => _storage.activeCategories;
   String get authMode => _storage.authMode;
   String? get googleUid => _storage.googleUid;
+  String? get googleEmail => _storage.googleEmail;
   String? get displayName => _storage.displayName;
   String? get avatarSeed => _storage.avatarSeed;
 

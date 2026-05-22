@@ -4,12 +4,14 @@ import 'package:in_app_review/in_app_review.dart';
 
 class FeedbackService {
   static Future<void> submitFeedback({
-    required String message,
+    required String sentiment,
     required String trigger,
     required String userId,
+    String? message,
     String appVersion = '1.0.0',
   }) async {
     await FirebaseFirestore.instance.collection('feedback').add({
+      'sentiment': sentiment,
       'message': message,
       'userId': userId,
       'trigger': trigger,

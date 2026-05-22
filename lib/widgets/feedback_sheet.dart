@@ -23,24 +23,50 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
     super.dispose();
   }
 
+  String get _userId =>
+      context.read<UserPreferencesProvider>().googleUid ?? 'offline';
+
   Future<void> _submit() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _submitting) return;
     setState(() => _submitting = true);
-    final userId =
-        context.read<UserPreferencesProvider>().googleUid ?? 'offline';
-    await FeedbackService.submitFeedback(
-      message: text,
-      trigger: widget.trigger,
-      userId: userId,
-    );
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    try {
+      await FeedbackService.submitFeedback(
+        sentiment: 'negative',
+        message: text,
+        trigger: widget.trigger,
+        userId: _userId,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send feedback. Try again.')),
+      );
+    }
   }
 
   Future<void> _onPositive() async {
+    final userId = _userId;
     Navigator.of(context).pop();
+    await FeedbackService.submitFeedback(
+      sentiment: 'positive',
+      trigger: widget.trigger,
+      userId: userId,
+    );
     await FeedbackService.requestReview();
+  }
+
+  Future<void> _onSkip() async {
+    final userId = _userId;
+    Navigator.of(context).pop();
+    await FeedbackService.submitFeedback(
+      sentiment: 'negative',
+      trigger: widget.trigger,
+      userId: userId,
+    );
   }
 
   void _onNegative() => setState(() => _showTextStep = true);
@@ -161,7 +187,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: _onSkip,
                     child: const Text('Skip'),
                   ),
                 ),

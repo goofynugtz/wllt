@@ -13,6 +13,8 @@ import '../screens/transactions_screen.dart';
 import '../screens/accounts_screen.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/ad_banner.dart';
+import '../widgets/feedback_sheet.dart';
+import '../screens/category_breakdown_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/add_account_screen.dart';
 import '../providers/app_settings_provider.dart';
@@ -35,6 +37,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
   int _currentIndex = 0;
   bool _bannerAdDismissed = false;
   late DateTime _selectedMonth;
+  int _lastTxCount = 0;
 
   late final PageController _pageController;
   final ValueNotifier<bool> _pageScrollEnabled = ValueNotifier(true);
@@ -46,10 +49,14 @@ class _LayoutScreenState extends State<LayoutScreen> {
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month, 1);
     _pageController = PageController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TransactionProvider>().addListener(_checkTransactionMilestone);
+    });
   }
 
   @override
   void dispose() {
+    context.read<TransactionProvider>().removeListener(_checkTransactionMilestone);
     _pageController.dispose();
     _pageScrollEnabled.dispose();
     super.dispose();
@@ -71,6 +78,51 @@ class _LayoutScreenState extends State<LayoutScreen> {
         1,
       );
     });
+  }
+
+  void _checkTransactionMilestone() {
+    final prefs = context.read<UserPreferencesProvider>();
+    if (prefs.feedbackAutoShown) return;
+    final txCount = context.read<TransactionProvider>().transactions.length;
+    if (txCount >= 10 && _lastTxCount < 10) {
+      prefs.setFeedbackAutoShown();
+      _showFeedbackSheet('transaction_milestone');
+    }
+    _lastTxCount = txCount;
+  }
+
+  Future<void> _handleCategoryBreakdownTap() async {
+    final prefs = context.read<UserPreferencesProvider>();
+    if (!prefs.feedbackAutoShown) {
+      await prefs.setFeedbackAutoShown();
+      await _showFeedbackSheet('insight_milestone');
+    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => CategoryBreakdownScreen(
+          selectedMonth: _selectedMonth,
+        ),
+        transitionsBuilder: (_, anim, __, child) => FadeTransition(
+          opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  Future<void> _showFeedbackSheet(String trigger) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => FeedbackSheet(trigger: trigger),
+    );
   }
 
   void _showMonthPicker(BuildContext context) {
@@ -367,6 +419,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
                         onMonthChanged: _changeMonth,
                         onNavigateToHistory: () => _navigateToTab(1),
                         pageScrollEnabled: _pageScrollEnabled,
+                        onCategoryBreakdownTap: _handleCategoryBreakdownTap,
                       ),
                       TransactionsScreen(selectedMonth: _selectedMonth),
                       const AccountsScreen(),

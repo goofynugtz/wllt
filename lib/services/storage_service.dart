@@ -23,6 +23,8 @@ class StorageService {
   static const String keyConvertHistoricalCurrency  = 'convertHistoricalCurrency';
   static const String keyDisplayName                = 'display_name';
   static const String keyAvatarSeed                 = 'avatar_seed';
+  static const String keyCategoryOrder              = 'category_order';
+  static const String keyFeedbackAutoShown          = 'feedback_auto_shown';
 
   late Box _userPrefs;
   late Box _categories;
@@ -46,6 +48,13 @@ class StorageService {
 
   Future<void> setOnboardingComplete() =>
       _prefs.setBool(keyOnboardingComplete, true);
+
+  // ── Feedback ──────────────────────────────────────────────────────────
+  bool get feedbackAutoShown =>
+      _prefs.getBool(keyFeedbackAutoShown) ?? false;
+
+  Future<void> setFeedbackAutoShown() =>
+      _prefs.setBool(keyFeedbackAutoShown, true);
 
   // ── Currency ──────────────────────────────────────────────────────────
   String get currency =>
@@ -181,6 +190,15 @@ class StorageService {
 
   Future<void> setActiveCategories(List<String> ids) =>
       _categories.put(keyCategories, ids);
+
+  List<String> get categoryOrder {
+    final raw = _categories.get(keyCategoryOrder);
+    if (raw == null) return [];
+    return (raw as List).cast<String>();
+  }
+
+  Future<void> setCategoryOrder(List<String> ids) =>
+      _categories.put(keyCategoryOrder, ids);
 
   // ── Custom categories ─────────────────────────────────────────────────
   static const String _customCategoriesKey = 'custom_categories_v1';

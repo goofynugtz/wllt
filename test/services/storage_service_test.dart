@@ -34,6 +34,17 @@ void main() {
     });
   });
 
+  group('feedback auto shown flag', () {
+    test('feedbackAutoShown is false by default', () {
+      expect(storage.feedbackAutoShown, isFalse);
+    });
+
+    test('setFeedbackAutoShown persists true', () async {
+      await storage.setFeedbackAutoShown();
+      expect(storage.feedbackAutoShown, isTrue);
+    });
+  });
+
   group('currency', () {
     test('defaults to USD', () {
       expect(storage.currency, 'USD');

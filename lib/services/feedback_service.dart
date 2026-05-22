@@ -1,13 +1,26 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:in_app_review/in_app_review.dart';
 
 class FeedbackService {
-  static Future<void> _ensureAuth() async {
-    final auth = FirebaseAuth.instance;
-    if (auth.currentUser == null) {
-      await auth.signInAnonymously();
+  static String get _collection {
+    if (kDebugMode) return 'feedback_dev';
+    if (kProfileMode) return 'feedback_staging';
+    return 'feedback';
+  }
+
+  static Future<bool> _ensureAuth() async {
+    try {
+      final auth = FirebaseAuth.instance;
+      if (auth.currentUser == null) {
+        await auth.signInAnonymously();
+      }
+      return auth.currentUser != null;
+    } catch (e) {
+      debugPrint('[Feedback] Anonymous auth failed: $e');
+      return false;
     }
   }
 
@@ -18,10 +31,12 @@ class FeedbackService {
     String? message,
     String appVersion = '1.0.0',
   }) async {
-    await _ensureAuth();
-    // TEMP: remove this throw after confirming error path works
-    // throw Exception('force-fail test');
-    await FirebaseFirestore.instance.collection('feedback').add({
+    final authed = await _ensureAuth();
+    if (!authed) {
+      debugPrint('[Feedback] Skipping write — auth unavailable');
+      return;
+    }
+    await FirebaseFirestore.instance.collection(_collection).add({
       'sentiment': sentiment,
       'message': message,
       'userId': userId,
@@ -30,6 +45,7 @@ class FeedbackService {
       'appVersion': appVersion,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    debugPrint('[Feedback:$_collection] Written — sentiment=$sentiment trigger=$trigger');
   }
 
   static Future<void> requestReview() async {

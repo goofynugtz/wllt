@@ -253,7 +253,8 @@ class SettingsScreen extends StatelessWidget {
           ),
           Divider(
             height: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
             indent: 16,
             endIndent: 16,
           ),
@@ -285,7 +286,8 @@ class SettingsScreen extends StatelessWidget {
           ),
           Divider(
             height: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
             indent: 16,
             endIndent: 16,
           ),
@@ -299,7 +301,8 @@ class SettingsScreen extends StatelessWidget {
             ),
             Divider(
               height: 0.5,
-              color: Theme.of(context).colorScheme.outlineVariant,
+              thickness: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
               indent: 16,
               endIndent: 16,
             ),
@@ -312,7 +315,8 @@ class SettingsScreen extends StatelessWidget {
           ),
           Divider(
             height: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
             indent: 16,
             endIndent: 16,
           ),
@@ -324,7 +328,8 @@ class SettingsScreen extends StatelessWidget {
           ),
           Divider(
             height: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
             indent: 16,
             endIndent: 16,
           ),
@@ -526,7 +531,8 @@ class SettingsScreen extends StatelessWidget {
           ),
           Divider(
             height: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
             indent: 16,
             endIndent: 16,
           ),
@@ -538,7 +544,8 @@ class SettingsScreen extends StatelessWidget {
             ),
             Divider(
               height: 0.5,
-              color: Theme.of(context).colorScheme.outlineVariant,
+              thickness: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
               indent: 16,
               endIndent: 16,
             ),
@@ -620,13 +627,10 @@ class _SettingsCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 8,
-            offset: Offset(0, 1),
-          ),
-        ],
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
       ),
       child: Material(
         color: Theme.of(context).colorScheme.surface,

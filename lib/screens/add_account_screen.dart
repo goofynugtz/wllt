@@ -30,6 +30,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
   BankEntry? _selectedBank;
   late final TextEditingController _balanceController;
   late final List<CardEntry> _cards;
+  late String _selectedCurrencyCode;
 
   @override
   void initState() {
@@ -41,6 +42,8 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
           : '',
     );
     _cards = List<CardEntry>.from(acct?.cards ?? []);
+    _selectedCurrencyCode = acct?.baseCurrency ??
+        context.read<UserPreferencesProvider>().currency;
     if (acct?.bank != null) {
       try {
         _selectedBank = kAllBanks.firstWhere((b) => b.name == acct!.bank);
@@ -73,12 +76,14 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
   }
 
   Future<void> _pickCurrency() async {
-    await Navigator.push<void>(
+    final code = await Navigator.push<String>(
       context,
-      MaterialPageRoute(builder: (_) => const CurrencyPickerScreen()),
+      MaterialPageRoute(builder: (_) => CurrencyPickerScreen(
+        persistSelection: false,
+        initialCode: _selectedCurrencyCode,
+      )),
     );
-    // CurrencyPickerScreen saves to UserPreferencesProvider and pops —
-    // the Consumer below will rebuild with the updated currency.
+    if (code != null) setState(() => _selectedCurrencyCode = code);
   }
 
   Future<void> _saveAccount() async {
@@ -91,6 +96,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
       bankLogoPath: _selectedBank!.logoPath,
       sparkline: widget.initialAccount?.sparkline ?? [balance],
       cards: _cards,
+      baseCurrency: _selectedCurrencyCode,
     );
     final provider = context.read<AccountProvider>();
     if (widget.initialAccount != null) {
@@ -227,9 +233,9 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                     // CURRENCY
                     _FieldLabel(label: 'CURRENCY'),
                     const SizedBox(height: 8),
-                    Consumer<UserPreferencesProvider>(
-                      builder: (_, prefs, __) {
-                        final code = prefs.currency;
+                    Builder(
+                      builder: (_) {
+                        final code = _selectedCurrencyCode;
                         final currencyInfo = _currencyInfo(code);
                         return _FieldCard(
                           onTap: _pickCurrency,
@@ -405,6 +411,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: AppTheme.primaryColor.withOpacity(0.3),
+                            width: 0.5,
                           ),
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -594,27 +601,18 @@ class _FieldCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
+    return Material(
+      color: cs.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        side: BorderSide(color: cs.outlineVariant, width: 0.5),
       ),
-      child: Material(
-        color: cs.surface,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: child,
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: child,
         ),
       ),
     );
@@ -636,7 +634,7 @@ class _CardChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.15),
-        border: Border.all(color: cs.outlineVariant),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5), width: 0.5),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(

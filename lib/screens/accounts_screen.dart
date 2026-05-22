@@ -42,19 +42,37 @@ class AccountsScreen extends StatelessWidget {
     final accounts     = context.watch<AccountProvider>().accounts;
     final transactions = context.watch<TransactionProvider>().transactions;
     final prefs        = context.watch<UserPreferencesProvider>();
+    context.watch<ExchangeRateService>();
     final displayCurrency = prefs.currency;
     final convertHistory  = prefs.convertHistoricalCurrency;
 
-    double resolveAmount(Transaction t) {
-      if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
-      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
-      return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+    // Prefetch rates for account base currencies that differ from display currency.
+    for (final a in accounts) {
+      if (a.baseCurrency != displayCurrency) {
+        ExchangeRateService.instance.fetchSnapshot(a.baseCurrency, DateTime.now());
+      }
     }
 
+    double resolveAmount(Transaction t, String targetCurrency) {
+      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+      return Helpers.convertAmount(t.amount, t.baseCurrency, targetCurrency, snap?.rates);
+    }
+
+    // Used for net worth / section totals — converts to global display currency.
     double effectiveBalance(Account a) {
+      final balanceSnap = ExchangeRateService.instance.getCachedSnapshot(a.baseCurrency, DateTime.now());
+      final balanceInDisplay = Helpers.convertAmount(a.balance, a.baseCurrency, displayCurrency, balanceSnap?.rates);
       final txs = transactions.where((t) => t.account == a.id);
-      final income  = txs.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + resolveAmount(t));
-      final expense = txs.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + resolveAmount(t));
+      final income  = txs.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + resolveAmount(t, displayCurrency));
+      final expense = txs.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + resolveAmount(t, displayCurrency));
+      return balanceInDisplay + income - expense;
+    }
+
+    // Used for individual card display — converts to the account's own currency.
+    double effectiveBalanceInAccountCurrency(Account a) {
+      final txs = transactions.where((t) => t.account == a.id);
+      final income  = txs.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + resolveAmount(t, a.baseCurrency));
+      final expense = txs.where((t) => t.type == TransactionType.expense).fold(0.0, (s, t) => s + resolveAmount(t, a.baseCurrency));
       return a.balance + income - expense;
     }
 
@@ -86,7 +104,7 @@ class AccountsScreen extends StatelessWidget {
               color: const Color(0xFF4DBA7E),
             ),
             const SizedBox(height: 8),
-            ...assets.map((a) => _TappableAccountCard(account: a, effectiveBalance: effectiveBalance(a))),
+            ...assets.map((a) => _TappableAccountCard(account: a, effectiveBalance: effectiveBalanceInAccountCurrency(a))),
 
             const SizedBox(height: 16),
 
@@ -98,7 +116,7 @@ class AccountsScreen extends StatelessWidget {
                 color: const Color(0xFFE76F51),
               ),
               const SizedBox(height: 8),
-              ...debts.map((a) => _TappableAccountCard(account: a, effectiveBalance: effectiveBalance(a))),
+              ...debts.map((a) => _TappableAccountCard(account: a, effectiveBalance: effectiveBalanceInAccountCurrency(a))),
               const SizedBox(height: 16),
             ],
 
@@ -399,9 +417,8 @@ class _TappableAccountCard extends StatelessWidget {
     final amountColor = isNegative
         ? const Color(0xFFE76F51)
         : Theme.of(context).colorScheme.onSurface;
-    final prefs = context.watch<UserPreferencesProvider>();
     final currencyInfo = kCurrencies.firstWhere(
-        (c) => c.code == prefs.currency,
+        (c) => c.code == account.baseCurrency,
         orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'));
     final currencySymbol = currencyInfo.symbol;
 
@@ -411,7 +428,7 @@ class _TappableAccountCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
           width: 0.5,
         ),
         boxShadow: [
@@ -595,7 +612,7 @@ class _BankBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: hasSvg
             ? Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant,
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
                 width: 0.5,
               )
             : null,
@@ -632,7 +649,7 @@ class _InlineAdCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFD1FAE5),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2), width: 0.5),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(

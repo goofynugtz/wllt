@@ -161,7 +161,8 @@ class _LayoutScreenState extends State<LayoutScreen> {
                     height: 36,
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant,
+                        color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        width: 0.5,
                       ),
                       borderRadius: BorderRadius.circular(18),
                     ),
@@ -834,7 +835,7 @@ class _ProfileAccountSheetState extends State<_ProfileAccountSheet> {
             decoration: BoxDecoration(
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: cs.outlineVariant),
+              border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5), width: 0.5),
             ),
             child: TextField(
               controller: _nameCtrl,
@@ -892,7 +893,7 @@ class _ProfileAccountSheetState extends State<_ProfileAccountSheet> {
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: selected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
-                        width: selected ? 2.5 : 1.0,
+                        width: selected ? 2.5 : 0.5,
                       ),
                       boxShadow: selected
                           ? [

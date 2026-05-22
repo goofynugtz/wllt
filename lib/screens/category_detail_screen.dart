@@ -14,6 +14,7 @@ import '../utils/helpers.dart';
 import '../widgets/category_icon_widget.dart';
 import '../widgets/spending_trend_card.dart';
 import 'edit_category_screen.dart';
+import 'transactions_screen.dart';
 
 // ── Outer shell: Scaffold + PageView over all active categories ───────────────
 
@@ -392,13 +393,10 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
                   decoration: BoxDecoration(
                     color: cs.surface,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.07),
-                        blurRadius: 8,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.5),
+                      width: 0.5,
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -593,13 +591,10 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
               decoration: BoxDecoration(
                 color: cs.surface,
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  width: 0.5,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -740,14 +735,7 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
 
           const SizedBox(height: 12),
 
-          _TransactionsList(
-            transactions: txs,
-            accentColor: _accentColor,
-            count: txCount,
-            currencySymbol: currencySymbol,
-            displayCurrency: currencyCode,
-            convertHistory: convertHistory,
-          ),
+          _TransactionsList(transactions: txs),
         ],
       ),
     );
@@ -1017,13 +1005,10 @@ class _MiniStatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1159,120 +1144,57 @@ class _BudgetBottomSheetState extends State<_BudgetBottomSheet> {
 
 class _TransactionsList extends StatelessWidget {
   final List<Transaction> transactions;
-  final Color accentColor;
-  final int count;
-  final String currencySymbol;
-  final String displayCurrency;
-  final bool convertHistory;
 
-  const _TransactionsList({
-    required this.transactions,
-    required this.accentColor,
-    required this.count,
-    required this.currencySymbol,
-    required this.displayCurrency,
-    required this.convertHistory,
-  });
+  const _TransactionsList({required this.transactions});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 1)),
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Transactions', style: TextStyle(fontSize: 13, color: cs.onSurface)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: cs.secondaryContainer,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text('$count total',
-                      style: TextStyle(fontSize: 11, color: cs.onSecondaryContainer)),
-                ),
-              ],
-            ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: cs.outlineVariant.withValues(alpha: 0.5),
+            width: 0.5,
           ),
-          Divider(height: 1, color: cs.outlineVariant),
-          if (transactions.isEmpty)
+        ),
+        child: Column(
+          children: [
             Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text('No transactions this month',
-                  style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
-            )
-          else
-            ...transactions.asMap().entries.map((entry) {
-              final i = entry.key;
-              final t = entry.value;
-              final isLast = i == transactions.length - 1;
-              return Column(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.13),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${t.date.day}',
-                            style: TextStyle(fontSize: 13, color: accentColor),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                t.transactionTitle,
-                                style: TextStyle(fontSize: 14, color: cs.onSurface),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                DateFormat('MMM d, yyyy').format(t.date),
-                                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          () {
-                            final snap = ExchangeRateService.instance
-                                .getCachedSnapshot(t.baseCurrency, t.date);
-                            final amt = (convertHistory || t.baseCurrency == displayCurrency)
-                                ? Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates)
-                                : t.amount;
-                            return '−$currencySymbol${amt.toStringAsFixed(0)}';
-                          }(),
-                          style: TextStyle(fontSize: 14, color: cs.onSurface),
-                        ),
-                      ],
+                  Text('Transactions', style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: cs.secondaryContainer,
+                      borderRadius: BorderRadius.circular(99),
                     ),
+                    child: Text('${transactions.length} total',
+                        style: TextStyle(fontSize: 11, color: cs.onSecondaryContainer)),
                   ),
-                  if (!isLast) Divider(height: 1, color: cs.outlineVariant),
                 ],
-              );
-            }),
-        ],
+              ),
+            ),
+            Divider(height: 1, color: cs.outlineVariant),
+            if (transactions.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('No transactions this month',
+                    style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+              )
+            else
+              ...transactions.asMap().entries.map((entry) => TransactionRow(
+                    transaction: entry.value,
+                    isFirst: entry.key == 0,
+                  )),
+          ],
+        ),
       ),
     );
   }

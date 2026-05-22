@@ -340,8 +340,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     if (amountValue == null || amountValue <= 0) return;
     if (_merchant.trim().isEmpty) return;
 
-    final currentCurrency =
+    final userCurrency =
         context.read<UserPreferencesProvider>().currency;
+    final txCurrency = _account?.baseCurrency ?? userCurrency;
 
     debugPrint(
       '[AddExpense] Saving transaction: '
@@ -349,14 +350,15 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       'amount=$amountValue '
       'type=${_type.name} '
       'date=${_selectedDate.toIso8601String()} '
-      'baseCurrency=$currentCurrency '
+      'baseCurrency=$txCurrency '
       'account=${_account?.id ?? "none"}',
     );
 
-    // Fire-and-forget: caches the snapshot so display layer can read it sync.
-    debugPrint('[AddExpense] Triggering ExchangeRateService.fetchSnapshot($currentCurrency, ${_selectedDate.toIso8601String()})');
+    // Fire-and-forget: caches snapshot for both account currency and user currency
+    // so transactions screen can convert account→user currency sync.
+    debugPrint('[AddExpense] Triggering ExchangeRateService.fetchSnapshot($txCurrency, ${_selectedDate.toIso8601String()})');
     ExchangeRateService.instance
-        .fetchSnapshot(currentCurrency, _selectedDate)
+        .fetchSnapshot(txCurrency, _selectedDate)
         .ignore();
 
     final provider = context.read<TransactionProvider>();
@@ -369,7 +371,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       date: _selectedDate,
       account: _account?.id ?? '',
       tags: List.from(_tags),
-      baseCurrency: currentCurrency,
+      baseCurrency: txCurrency,
     );
 
     if (widget.editTransaction != null) {
@@ -538,8 +540,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
     final isExpense = _type == TransactionType.expense;
     final prefs = context.watch<UserPreferencesProvider>();
+    final effectiveCurrency = _account?.baseCurrency ?? prefs.currency;
     final currencySymbol = kCurrencies
-        .firstWhere((c) => c.code == prefs.currency,
+        .firstWhere((c) => c.code == effectiveCurrency,
             orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
         .symbol;
     final activeIds = prefs.activeCategories.toSet();
@@ -711,8 +714,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                         border: isSelected
                                             ? null
                                             : Border.all(
-                                                color: Theme.of(context).colorScheme.outlineVariant,
-                                                width: 1,
+                                                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                                width: 0.5,
                                               ),
                                         boxShadow: [
                                           BoxShadow(
@@ -918,7 +921,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                         border: isSelected
                                             ? null
                                             : Border.all(
-                                                color: Theme.of(context).colorScheme.outlineVariant,
+                                                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
                                                 width: 0.5,
                                               ),
                                         boxShadow: [
@@ -1233,7 +1236,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5), width: 0.5),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -1487,7 +1490,7 @@ class _VoiceInputFormState extends State<VoiceInputForm>
                       _transcribed = '';
                     }),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Theme.of(context).colorScheme.outline),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5), width: 0.5),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: Text(

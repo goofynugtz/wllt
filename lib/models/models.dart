@@ -750,6 +750,7 @@ class Account {
   final String? cardIdentifier;
   final List<double> sparkline;
   final List<CardEntry> cards;
+  final String baseCurrency;
 
   const Account({
     required this.id,
@@ -760,6 +761,7 @@ class Account {
     this.cardIdentifier,
     required this.sparkline,
     this.cards = const [],
+    this.baseCurrency = 'USD',
   });
 
   String get displayName => bank ?? (type == AccountType.cash ? 'Cash' : 'Account');
@@ -773,6 +775,7 @@ class Account {
     if (cardIdentifier != null) 'cardIdentifier': cardIdentifier,
     'sparkline': sparkline,
     if (cards.isNotEmpty) 'cards': cards.map((c) => c.toJson()).toList(),
+    'baseCurrency': baseCurrency,
   };
 
   factory Account.fromJson(Map<String, dynamic> json) => Account(
@@ -784,6 +787,7 @@ class Account {
     cardIdentifier: json['cardIdentifier'] as String?,
     sparkline: (json['sparkline'] as List).cast<num>().map((e) => e.toDouble()).toList(),
     cards: (json['cards'] as List?)?.map((e) => CardEntry.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+    baseCurrency: json['baseCurrency'] as String? ?? 'USD',
   );
 
   static const List<Account> dummyData = [

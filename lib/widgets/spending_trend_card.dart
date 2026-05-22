@@ -247,8 +247,8 @@ class _TrendRangePill extends StatelessWidget {
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: selected ? cs.primary : cs.outlineVariant,
-            width: 0.8,
+            color: selected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
+            width: selected ? 0.8 : 0.5,
           ),
         ),
         child: Text(

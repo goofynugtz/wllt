@@ -45,7 +45,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
 
     final prefs = context.watch<UserPreferencesProvider>();
     context.watch<ExchangeRateService>();
-    final displayCurrency = prefs.currency;
+    final displayCurrency = live.baseCurrency;
     final convertHistory  = prefs.convertHistoricalCurrency;
 
     final transactions = context.watch<TransactionProvider>().transactions
@@ -171,7 +171,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       BuildContext context, String dateStr, List<Transaction> txs) {
     final cs             = Theme.of(context).colorScheme;
     final prefs          = context.read<UserPreferencesProvider>();
-    final currencyCode   = prefs.currency;
+    final currencyCode   = widget.account.baseCurrency;
     final currencySymbol = getCurrencyByCode(currencyCode).symbol;
     final convertHistory = prefs.convertHistoricalCurrency;
     final dayExpense     = txs
@@ -279,7 +279,7 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
     final t  = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
     final cd = _adjustLightness(brandColor, -0.18);
 
-    final currencyCode   = Provider.of<UserPreferencesProvider>(context, listen: false).currency;
+    final currencyCode   = account.baseCurrency;
     final currencySymbol = getCurrencyByCode(currencyCode).symbol;
     final amountStr =
         '${isNegative ? '−' : ''}${Helpers.formatAmount(effectiveBalance.abs(), currencySymbol)}';

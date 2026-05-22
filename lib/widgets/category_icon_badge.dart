@@ -42,20 +42,17 @@ class CategoryIconBadge extends StatelessWidget {
     final iconColor = _accentColor;
     final resolvedIconSize = iconSize ?? size * 0.45;
 
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         color: containerColor,
         shape: BoxShape.circle,
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 6,
-                ),
-              ],
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
       ),
       child: Center(
         child: CategoryIconWidget(

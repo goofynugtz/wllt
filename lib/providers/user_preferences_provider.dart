@@ -33,6 +33,13 @@ class UserPreferencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get feedbackAutoShown => _storage.feedbackAutoShown;
+
+  Future<void> setFeedbackAutoShown() async {
+    await _storage.setFeedbackAutoShown();
+    notifyListeners();
+  }
+
   /// Call after successful Google sign-in to store credentials and start sync.
   Future<void> setGoogleUser({
     required String uid,
@@ -61,6 +68,13 @@ class UserPreferencesProvider extends ChangeNotifier {
   }
 
   List<Category> get customCategories => _storage.getCustomCategories();
+
+  List<String> get categoryOrder => _storage.categoryOrder;
+
+  Future<void> saveCategoryOrder(List<String> ids) async {
+    await _storage.setCategoryOrder(ids);
+    notifyListeners();
+  }
 
   Future<void> saveCustomCategory(Category category) async {
     await _storage.saveCustomCategory(category);

@@ -548,15 +548,22 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     final activeIds = prefs.activeCategories.toSet();
     final customMap = {for (final c in prefs.customCategories) c.id: c};
     final builtinIds = Category.categories.map((c) => c.id).toSet();
-    // Single source of truth: show what user picked in onboarding, for both
-    // expense and income. Fall back to all built-ins if nothing selected yet.
     final baseCategories = activeIds.isEmpty
         ? Category.categories
         : Category.categories.where((c) => activeIds.contains(c.id)).toList();
-    final displayCategories = [
+    final unordered = [
       ...baseCategories.map((c) => customMap[c.id] ?? c),
       ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
     ];
+    final savedOrder = prefs.categoryOrder;
+    final displayCategories = savedOrder.isEmpty
+        ? unordered
+        : [
+            ...savedOrder
+                .map((id) => unordered.where((c) => c.id == id).firstOrNull)
+                .whereType<Category>(),
+            ...unordered.where((c) => !savedOrder.contains(c.id)),
+          ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -963,32 +970,24 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                     crossAxisAlignment: CrossAxisAlignment.start,
                                                     mainAxisSize: MainAxisSize.min,
                                                     children: [
-                                                      if (card != null) ...[
-                                                        Text(
-                                                          '•••• ${card.last4}',
-                                                          style: TextStyle(
-                                                            fontFamily: 'Archia',
-                                                            fontSize: 12,
-                                                            color: Theme.of(context).colorScheme.onPrimary,
-                                                          ),
+                                                      Text(
+                                                        account.displayName,
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Theme.of(context).colorScheme.onPrimary,
                                                         ),
-                                                        Text(
-                                                          account.displayName,
-                                                          style: TextStyle(
-                                                            fontSize: 10,
-                                                            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.65),
-                                                          ),
+                                                      ),
+                                                      Text(
+                                                        card != null
+                                                            ? '•••• ${card.last4}  ·  ${account.baseCurrency}'
+                                                            : account.baseCurrency,
+                                                        style: TextStyle(
+                                                          fontFamily: card != null ? 'Archia' : null,
+                                                          fontSize: 10,
+                                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.65),
                                                         ),
-                                                      ] else ...[
-                                                        Text(
-                                                          account.displayName,
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight: FontWeight.w500,
-                                                            color: Theme.of(context).colorScheme.onPrimary,
-                                                          ),
-                                                        ),
-                                                      ],
+                                                      ),
                                                     ],
                                                   ),
                                                   const SizedBox(width: 4),

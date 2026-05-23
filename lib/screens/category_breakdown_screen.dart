@@ -182,13 +182,11 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity == null) return;
-          if (details.primaryVelocity! < -300) {
-            _nextMonth();
-          } else if (details.primaryVelocity! > 300) {
-            _previousMonth();
-          }
+        onPanEnd: (details) {
+          final vx = details.velocity.pixelsPerSecond.dx;
+          final vy = details.velocity.pixelsPerSecond.dy;
+          if (vx.abs() < 300 || vy.abs() > vx.abs()) return;
+          if (vx < 0) _nextMonth(); else _previousMonth();
         },
         child: SafeArea(
         child: Column(
@@ -317,13 +315,11 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onHorizontalDragEnd: (details) {
-                  if (details.primaryVelocity == null) return;
-                  if (details.primaryVelocity! < -300) {
-                    _nextMonth();
-                  } else if (details.primaryVelocity! > 300) {
-                    _previousMonth();
-                  }
+                onPanEnd: (details) {
+                  final vx = details.velocity.pixelsPerSecond.dx;
+                  final vy = details.velocity.pixelsPerSecond.dy;
+                  if (vx.abs() < 300 || vy.abs() > vx.abs()) return;
+                  if (vx < 0) _nextMonth(); else _previousMonth();
                 },
                 child: breakdown.isEmpty
                   ? Center(

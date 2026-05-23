@@ -30,6 +30,16 @@ class CategoryDetailScreen extends StatefulWidget {
 class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   List<Category>? _categories;
   PageController? _pageController;
+  late int _sharedYear;
+  late int _sharedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _sharedYear = now.year;
+    _sharedMonth = now.month;
+  }
 
   @override
   void didChangeDependencies() {
@@ -68,7 +78,12 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       body: PageView.builder(
         controller: _pageController,
         itemCount: cats.length,
-        itemBuilder: (_, i) => _CategoryDetailPage(category: cats[i]),
+        itemBuilder: (_, i) => _CategoryDetailPage(
+          category: cats[i],
+          initialYear: _sharedYear,
+          initialMonth: _sharedMonth,
+          onMonthChanged: (y, m) => setState(() { _sharedYear = y; _sharedMonth = m; }),
+        ),
       ),
     );
   }
@@ -80,8 +95,16 @@ enum _BreakdownMode { daily, weekly }
 
 class _CategoryDetailPage extends StatefulWidget {
   final Category category;
+  final int initialYear;
+  final int initialMonth;
+  final void Function(int year, int month) onMonthChanged;
 
-  const _CategoryDetailPage({required this.category});
+  const _CategoryDetailPage({
+    required this.category,
+    required this.initialYear,
+    required this.initialMonth,
+    required this.onMonthChanged,
+  });
 
   @override
   State<_CategoryDetailPage> createState() => _CategoryDetailPageState();
@@ -115,9 +138,8 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
   void initState() {
     super.initState();
     _category = widget.category;
-    final now = DateTime.now();
-    _selectedYear = now.year;
-    _selectedMonth = now.month;
+    _selectedYear = widget.initialYear;
+    _selectedMonth = widget.initialMonth;
     _animCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -234,6 +256,7 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
       _peekMonth = null;
       _updateTrendWindow();
     });
+    widget.onMonthChanged(_selectedYear, _selectedMonth);
   }
 
   void _cancelPeek() {

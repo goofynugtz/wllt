@@ -141,6 +141,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         final item = _categories.removeAt(oldIndex);
                         _categories.insert(newIndex, item);
                       });
+                      context.read<UserPreferencesProvider>().saveCategoryOrder(
+                        _categories.map((c) => c.id).toList(),
+                      );
                     },
                     itemBuilder: (context, index) {
                       final category = _categories[index];

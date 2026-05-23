@@ -329,7 +329,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                       child: Row(
                         children: [
                           Text(
-                            '₹',
+                            _currencyInfo(_selectedCurrencyCode)?.symbol ?? _selectedCurrencyCode,
                             style: TextStyle(
                               fontSize: 22,
                               color: cs.onSurfaceVariant,

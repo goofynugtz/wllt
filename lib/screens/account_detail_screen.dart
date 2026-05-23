@@ -45,7 +45,10 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
 
     final prefs = context.watch<UserPreferencesProvider>();
     context.watch<ExchangeRateService>();
+    // Detail screen uses the account's own baseCurrency, NOT the global display currency,
+    // so all balances and tx amounts are shown in the account's native denomination.
     final displayCurrency = live.baseCurrency;
+    // When true, historical tx amounts are converted via rates at tx date; otherwise raw amounts used.
     final convertHistory  = prefs.convertHistoricalCurrency;
 
     final transactions = context.watch<TransactionProvider>().transactions
@@ -171,6 +174,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       BuildContext context, String dateStr, List<Transaction> txs) {
     final cs             = Theme.of(context).colorScheme;
     final prefs          = context.read<UserPreferencesProvider>();
+    // Account's own base currency — tx amounts in day groups are displayed in this denomination.
     final currencyCode   = widget.account.baseCurrency;
     final currencySymbol = getCurrencyByCode(currencyCode).symbol;
     final convertHistory = prefs.convertHistoricalCurrency;

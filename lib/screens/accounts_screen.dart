@@ -43,7 +43,9 @@ class AccountsScreen extends StatelessWidget {
     final transactions = context.watch<TransactionProvider>().transactions;
     final prefs        = context.watch<UserPreferencesProvider>();
     context.watch<ExchangeRateService>();
+    // Global display currency (e.g. "USD") — used for net worth and section totals only.
     final displayCurrency = prefs.currency;
+    // When true, historical tx amounts are converted using rates at tx date; otherwise raw amounts used.
     final convertHistory  = prefs.convertHistoricalCurrency;
 
     // Prefetch rates for account base currencies that differ from display currency.
@@ -58,7 +60,7 @@ class AccountsScreen extends StatelessWidget {
       return Helpers.convertAmount(t.amount, t.baseCurrency, targetCurrency, snap?.rates);
     }
 
-    // Used for net worth / section totals — converts to global display currency.
+    // Converts balance + tx delta to displayCurrency; used for net-worth card and ASSETS/DEBT totals.
     double effectiveBalance(Account a) {
       final balanceSnap = ExchangeRateService.instance.getCachedSnapshot(a.baseCurrency, DateTime.now());
       final balanceInDisplay = Helpers.convertAmount(a.balance, a.baseCurrency, displayCurrency, balanceSnap?.rates);
@@ -68,7 +70,7 @@ class AccountsScreen extends StatelessWidget {
       return balanceInDisplay + income - expense;
     }
 
-    // Used for individual card display — converts to the account's own currency.
+    // Keeps balance in the account's own baseCurrency; shown on the card row so the number matches the account denomination.
     double effectiveBalanceInAccountCurrency(Account a) {
       final txs = transactions.where((t) => t.account == a.id);
       final income  = txs.where((t) => t.type == TransactionType.income).fold(0.0, (s, t) => s + resolveAmount(t, a.baseCurrency));
@@ -150,6 +152,7 @@ class _NetWorthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final assetPct = totalAssets > 0 ? (totalAssets / (totalAssets + totalDebt)).clamp(0.0, 1.0) : 1.0;
     final prefs = context.watch<UserPreferencesProvider>();
+    // Display currency symbol (e.g. "$") — net worth, assets, and debt totals all render in this currency.
     final currencySymbol = kCurrencies
         .firstWhere((c) => c.code == prefs.currency,
             orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
@@ -417,6 +420,7 @@ class _TappableAccountCard extends StatelessWidget {
     final amountColor = isNegative
         ? const Color(0xFFE76F51)
         : Theme.of(context).colorScheme.onSurface;
+    // Account's own currency — balance displayed in the account's denomination, not global display currency.
     final currencyInfo = kCurrencies.firstWhere(
         (c) => c.code == account.baseCurrency,
         orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'));

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:multiavatar/multiavatar.dart';
@@ -19,6 +21,7 @@ import '../services/user_service.dart';
 import '../screens/settings_screen.dart';
 import '../screens/add_account_screen.dart';
 import '../providers/app_settings_provider.dart';
+import '../providers/sms_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
@@ -26,6 +29,7 @@ import '../models/models.dart';
 import '../screens/onboarding/onboarding_flow.dart';
 import '../services/data_export_service.dart';
 import '../utils/helpers.dart';
+import '../widgets/sms_inbox_sheet.dart';
 
 class LayoutScreen extends StatefulWidget {
   const LayoutScreen({super.key});
@@ -241,18 +245,65 @@ class _LayoutScreenState extends State<LayoutScreen> {
                 ),
                 const SizedBox(width: 8),
               ],
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  LucideIcons.bell,
-                  size: 16,
-                  color: AppTheme.textPrimary,
-                ),
+              Consumer<SmsProvider>(
+                builder: (ctx, sms, _) {
+                  final prefs = ctx.watch<UserPreferencesProvider>();
+                  return FutureBuilder<PermissionStatus>(
+                    future: defaultTargetPlatform == TargetPlatform.android
+                        ? Permission.sms.status
+                        : Future.value(PermissionStatus.granted),
+                    builder: (_, snap) {
+                      final status = snap.data;
+                      final hidden = defaultTargetPlatform == TargetPlatform.android &&
+                          (!prefs.smsFeatureEnabled || status == PermissionStatus.permanentlyDenied);
+                      if (hidden) return const SizedBox.shrink();
+                      final count = sms.pendingCount;
+                      return GestureDetector(
+                        onTap: () => _showSmsInbox(ctx),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                LucideIcons.bell,
+                                size: 16,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            if (count > 0)
+                              Positioned(
+                                right: -2,
+                                top: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                  child: Text(
+                                    count > 99 ? '99+' : '$count',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
               const SizedBox(width: 8),
               GestureDetector(
@@ -326,6 +377,34 @@ class _LayoutScreenState extends State<LayoutScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showSmsInbox(BuildContext ctx) async {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final status = await Permission.sms.status;
+      if (status.isDenied) {
+        final result = await Permission.sms.request();
+        if (!result.isGranted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('SMS permission required to detect transactions'),
+            ),
+          );
+          return;
+        }
+      }
+    }
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const SmsInboxSheet(),
     );
   }
 

@@ -1,14 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../ai/categorization_adapter.dart';
+import '../ai/feedback_store.dart';
 import '../data/currencies.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../providers/account_provider.dart';
+import '../providers/ai_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
+import '../services/ai_service.dart';
 import '../services/exchange_rate_service.dart';
 import '../utils/helpers.dart';
 import 'category_icon_widget.dart';
@@ -245,7 +251,7 @@ class ManualEntryForm extends StatefulWidget {
 }
 
 class _ManualEntryFormState extends State<ManualEntryForm>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TransactionType _type;
   String _amount = '';
   String _selectedCategory = 'food';
@@ -266,6 +272,13 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   late AnimationController _calcController;
   late Animation<Offset> _calcSlide;
   final ScrollController _exprScrollController = ScrollController();
+
+  String? _aiSuggestedCategory;
+  Timer? _aiDebounce;
+  final FeedbackStore _feedbackStore = FeedbackStore();
+  bool _feedbackStoreReady = false;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnim;
 
   @override
   void initState() {
@@ -293,6 +306,24 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       end: Offset.zero,
     ).animate(
       CurvedAnimation(parent: _calcController, curve: Curves.easeOutCubic),
+    );
+
+    _feedbackStore.init().then((_) {
+      if (mounted) setState(() => _feedbackStoreReady = true);
+    });
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _pulseController.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          if (_aiSuggestedCategory != null) _pulseController.forward();
+        }
+      });
+    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
 
@@ -332,6 +363,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     _titleFocusNode.dispose();
     _calcController.dispose();
     _exprScrollController.dispose();
+    _aiDebounce?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -585,7 +618,10 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       _closeCalculator(_calcTryEvaluate(_expression) ?? _expression);
                     }
                   },
-                  onChanged: (v) => setState(() => _merchant = v),
+                  onChanged: (v) {
+                    setState(() => _merchant = v);
+                    _requestAiCategory(v);
+                  },
                   maxLines: 3,
                   minLines: 1,
                   maxLength: 60,
@@ -704,44 +740,59 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                             return Padding(
                               padding: const EdgeInsets.only(right: 12),
                               child: GestureDetector(
-                                onTap: () => setState(
-                                  () => _selectedCategory = category.id,
-                                ),
+                                onTap: () {
+                                  if (_aiSuggestedCategory != null &&
+                                      _aiSuggestedCategory != category.id &&
+                                      _feedbackStoreReady) {
+                                    _feedbackStore.recordCorrection(
+                                      merchant: _merchant,
+                                      aiSuggested: _aiSuggestedCategory!,
+                                      userChose: category.id,
+                                    );
+                                  }
+                                  _setAiSuggestion(null);
+                                  setState(() => _selectedCategory = category.id);
+                                },
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Container(
-                                      width: 64,
-                                      height: 64,
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? accentColor
-                                            : Theme.of(context).colorScheme.surfaceContainerHighest,
-                                        shape: BoxShape.circle,
-                                        border: isSelected
-                                            ? null
-                                            : Border.all(
-                                                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-                                                width: 0.5,
-                                              ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.06),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
+                                    category.id == _aiSuggestedCategory
+                                        ? AnimatedBuilder(
+                                            animation: _pulseAnim,
+                                            builder: (_, child) {
+                                              return Container(
+                                                width: 72,
+                                                height: 72,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: accentColor.withValues(
+                                                        alpha: 0.4 * _pulseAnim.value,
+                                                      ),
+                                                      blurRadius:
+                                                          16 * _pulseAnim.value,
+                                                      spreadRadius:
+                                                          4 * _pulseAnim.value,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: child,
+                                              );
+                                            },
+                                            child: _buildCategoryCircle(
+                                              context,
+                                              category,
+                                              isSelected,
+                                              accentColor,
+                                            ),
+                                          )
+                                        : _buildCategoryCircle(
+                                            context,
+                                            category,
+                                            isSelected,
+                                            accentColor,
                                           ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: CategoryIconWidget(
-                                          category: category,
-                                          size: 30,
-                                          color: isSelected
-                                              ? Colors.white
-                                              : Theme.of(context).colorScheme.onSurface,
-                                        ),
-                                      ),
-                                    ),
                                     const SizedBox(height: 4),
                                     SizedBox(
                                       width: 56,
@@ -752,7 +803,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 9,
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                         ),
                                       ),
                                     ),
@@ -1328,6 +1381,100 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       setState(() => _tags.add(tag));
     }
   }
+
+  void _setAiSuggestion(String? cat) {
+    setState(() => _aiSuggestedCategory = cat);
+    if (cat != null) {
+      _pulseController.forward();
+    } else {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+  }
+
+  void _requestAiCategory(String merchant) {
+    _aiDebounce?.cancel();
+    if (merchant.trim().length < 2) {
+      if (_aiSuggestedCategory != null) _setAiSuggestion(null);
+      return;
+    }
+    _aiDebounce = Timer(const Duration(milliseconds: 500), () async {
+      if (!mounted) return;
+      final aiProvider = context.read<AiProvider>();
+      final sub = context.read<SubscriptionProvider>();
+      if (!aiProvider.isReady || !sub.isPro) return;
+
+      // FeedbackStore correction takes priority
+      if (_feedbackStoreReady) {
+        final correction = _feedbackStore.lookup(merchant);
+        if (correction != null && _selectedCategory != correction) {
+          _setAiSuggestion(correction);
+          return;
+        }
+      }
+
+      // Deterministic map + AI fallback
+      final prefs = context.read<UserPreferencesProvider>();
+      final categoryIds = prefs.activeCategories.isNotEmpty
+          ? prefs.activeCategories
+          : Category.categories.map((c) => c.id).toList();
+
+      final suggested = await CategorizationAdapter.suggest(
+        merchant: merchant,
+        availableCategories: categoryIds,
+        infer: (p) => AiService.instance.infer(p, temperature: 0.1, maxTokens: 10),
+      );
+      if (mounted && suggested != null && suggested != _selectedCategory) {
+        _setAiSuggestion(suggested);
+      }
+    });
+  }
+
+  Widget _buildCategoryCircle(
+    BuildContext context,
+    Category category,
+    bool isSelected,
+    Color accentColor,
+  ) {
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: isSelected
+            ? accentColor
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        shape: BoxShape.circle,
+        border: isSelected
+            ? null
+            : Border.all(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.5),
+                width: 0.5,
+              ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context)
+                .colorScheme
+                .shadow
+                .withValues(alpha: 0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: CategoryIconWidget(
+          category: category,
+          size: 30,
+          color: isSelected
+              ? Colors.white
+              : Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
 }
 
 class VoiceInputForm extends StatefulWidget {
@@ -1550,274 +1697,6 @@ class _VoiceInputFormState extends State<VoiceInputForm>
 }
 
 enum VoiceStage { idle, listening, parsed }
-
-class SmsImportForm extends StatefulWidget {
-  const SmsImportForm({super.key});
-
-  @override
-  State<SmsImportForm> createState() => _SmsImportFormState();
-}
-
-class _SmsImportFormState extends State<SmsImportForm> {
-  int _currentIndex = 0;
-  final Set<String> _skipped = <String>{};
-
-  List<SmsParsed> get _pending =>
-      SmsParsed.smsParsed.where((sms) => !_skipped.contains(sms.id)).toList();
-
-  SmsParsed? get _currentCard =>
-      _currentIndex < _pending.length ? _pending[_currentIndex] : null;
-
-  @override
-  Widget build(BuildContext context) {
-    if (_currentCard == null) {
-      return Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: const Color(0xFFe8f5e9),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                LucideIcons.check,
-                size: 24,
-                color: AppTheme.incomeColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'All SMS transactions reviewed!',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text(
-                  'Done',
-                  style: TextStyle(fontSize: 13, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final category = Helpers.getCategoryById(_currentCard!.categoryId);
-
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          // Progress indicator
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: _pending.asMap().entries.map((entry) {
-              final index = entry.key;
-              final isActive = index == _currentIndex;
-              final isCompleted = index < _currentIndex;
-
-              return Container(
-                width: isActive ? 22 : 7,
-                height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? AppTheme.primaryColor
-                      : isCompleted
-                      ? AppTheme.successColor
-                      : Theme.of(context).colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              );
-            }).toList(),
-          ),
-
-          const SizedBox(height: 20),
-
-          // SMS card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _currentCard!.bank,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    Text(
-                      _currentCard!.date,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _currentCard!.transactionTitle,
-                  style: TextStyle(
-                    fontSize: 19,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      Helpers.formatINR(_currentCard!.amount),
-                      style: const TextStyle(
-                        fontFamily: 'Archia',
-                        fontSize: 26,
-                        color: AppTheme.expenseColor,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Color(
-                          int.parse(category.bg.substring(1), radix: 16) +
-                              0xFF000000,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CategoryIconWidget(
-                            category: category,
-                            size: 14,
-                            color: Color(
-                              int.parse(
-                                    category.color.substring(1),
-                                    radix: 16,
-                                  ) +
-                                  0xFF000000,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            category.name,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(
-                                int.parse(
-                                      category.color.substring(1),
-                                      radix: 16,
-                                    ) +
-                                    0xFF000000,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          Text(
-            '${_currentIndex + 1} of ${_pending.length} pending SMS',
-            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-
-          const Spacer(),
-
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _skip(_currentCard!.id),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Theme.of(context).colorScheme.outline),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Text(
-                    'Skip',
-                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _next,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text(
-                    'Accept ✓',
-                    style: TextStyle(fontSize: 13, color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Accept all remaining',
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _next() {
-    if (_currentIndex < _pending.length - 1) {
-      setState(() => _currentIndex++);
-    } else {
-      Navigator.of(context).pop();
-    }
-  }
-
-  void _skip(String id) {
-    setState(() {
-      _skipped.add(id);
-      if (_currentIndex >= _pending.length - 1) {
-        Navigator.of(context).pop();
-      }
-    });
-  }
-}
 
 class TransferForm extends StatelessWidget {
   const TransferForm({super.key});

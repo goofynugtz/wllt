@@ -70,6 +70,9 @@ dependencies:
   # HTTP client
   http: ^1.2.0
 
+  # On-device AI inference
+  flutter_gemma: ^0.16.0
+
   # Data export / import
   csv: ^6.0.0
   path_provider: ^2.1.4
@@ -79,6 +82,14 @@ dependencies:
   # Subscriptions
   purchases_flutter: ^8.10.1
   purchases_ui_flutter: ^8.10.1
+
+  # SMS parsing pipeline
+  workmanager: ^0.9.0
+  flutter_sms_inbox: ^1.0.0
+  receive_sharing_intent: ^1.8.0
+  crypto: ^3.0.0
+  permission_handler: ^11.0.0
+  collection: ^1.18.0
 
   # Auth & Cloud
   google_sign_in: ^6.2.0

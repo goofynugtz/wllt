@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../data/currencies.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
@@ -18,6 +20,11 @@ import '../providers/user_preferences_provider.dart';
 import '../screens/layout_screen.dart';
 import '../screens/category_breakdown_screen.dart';
 import '../providers/app_settings_provider.dart';
+import '../ai/insight_adapter.dart';
+import '../ai/summary_adapter.dart';
+import '../providers/ai_provider.dart';
+import '../providers/subscription_provider.dart';
+import '../services/ai_service.dart';
 
 enum _TrendRange { m1, m6, y1 }
 
@@ -51,6 +58,10 @@ class _HomeScreenState extends State<HomeScreen>
   bool? _prefetchConvert;
   int? _prefetchTxCount;
 
+  String? _aiSummary;
+  List<String> _aiInsights = [];
+  bool _aiContentLoaded = false;
+
   @override
   void initState() {
     super.initState();
@@ -58,12 +69,99 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 380),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAiContent());
   }
 
   @override
   void dispose() {
     _snapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAiContent() async {
+    if (_aiContentLoaded) return;
+    if (!mounted) return;
+    final aiProvider = context.read<AiProvider>();
+    final sub = context.read<SubscriptionProvider>();
+    if (!aiProvider.isReady || !sub.isPro) return;
+    _aiContentLoaded = true;
+
+    // Read context-dependent data before any await
+    final txProvider = context.read<TransactionProvider>();
+    final allTxSnapshot = txProvider.transactions;
+
+    final box = await Hive.openBox<String>('ai_cache');
+    final now = DateTime.now();
+
+    // Monthly summary
+    final summaryKey = 'ai_summary_${DateFormat('yyyy_MM').format(now)}';
+    var summary = box.get(summaryKey);
+    if (summary == null) {
+      final month = widget.selectedMonth;
+      final monthTx = allTxSnapshot.where((t) =>
+          t.date.year == month.year &&
+          t.date.month == month.month &&
+          t.type == TransactionType.expense).toList();
+      final totals = <String, double>{};
+      double total = 0;
+      for (final t in monthTx) {
+        totals[t.categoryId] = (totals[t.categoryId] ?? 0) + t.amount;
+        total += t.amount;
+      }
+      if (totals.isNotEmpty) {
+        summary = await SummaryAdapter.generate(
+          month: DateFormat('MMMM yyyy').format(month),
+          income: 0,
+          categoryTotals: totals,
+          totalSpent: total,
+          infer: (p) => AiService.instance.infer(p, temperature: 0.3, maxTokens: 120),
+        );
+        if (summary != null) await box.put(summaryKey, summary);
+      }
+    }
+
+    // Weekly insights
+    final weekKey = 'ai_insights_${DateFormat('yyyy_w').format(now)}';
+    List<String> insights = [];
+    final cachedInsights = box.get(weekKey);
+    if (cachedInsights != null) {
+      insights = [cachedInsights]; // single cached value
+    } else {
+      final threeMonthsAgo = now.subtract(const Duration(days: 90));
+      final recentTx = allTxSnapshot.where((t) =>
+          t.date.isAfter(threeMonthsAgo) &&
+          t.type == TransactionType.expense).toList();
+      final totals = <String, double>{};
+      for (final t in recentTx) {
+        totals[t.categoryId] = (totals[t.categoryId] ?? 0) + t.amount;
+      }
+      if (totals.isNotEmpty) {
+        final insight = await InsightAdapter.generate(
+          categoryTotals: totals,
+          budgetLimits: const {},
+          income: 0,
+          infer: (p) => AiService.instance.infer(p, temperature: 0.4, maxTokens: 80),
+        );
+        if (insight != null) {
+          insights = [insight];
+          await box.put(weekKey, insight);
+        }
+      }
+    }
+
+    // Stale insight cleanup (keys from previous weeks)
+    for (final k in box.keys.toList()) {
+      if (k.toString().startsWith('ai_insights_') && k != weekKey) {
+        await box.delete(k);
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _aiSummary = summary;
+        _aiInsights = insights;
+      });
+    }
   }
 
   static DateTime _addMonths(DateTime d, int n) {
@@ -342,6 +440,14 @@ class _HomeScreenState extends State<HomeScreen>
                             )
                           : const SizedBox.shrink(),
                     ),
+
+                    // ── AI Monthly Summary ────────────────────────────────────
+                    if (_aiSummary != null)
+                      _AiSummaryCard(text: _aiSummary!),
+
+                    // ── AI Weekly Insights ────────────────────────────────────
+                    if (_aiInsights.isNotEmpty)
+                      _AiInsightRow(insights: _aiInsights),
 
                     // ── Recent transactions ───────────────────────────────────
                     Padding(
@@ -1199,4 +1305,131 @@ class CategoryData {
   final double amount;
 
   CategoryData(this.category, this.amount);
+}
+
+// ── AI Summary Card ───────────────────────────────────────────────────────────
+
+class _AiSummaryCard extends StatelessWidget {
+  final String text;
+  const _AiSummaryCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                LucideIcons.cpu,
+                size: 14,
+                color: Theme.of(context).colorScheme.onSecondaryContainer,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Monthly Summary',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── AI Insight Row ────────────────────────────────────────────────────────────
+
+class _AiInsightRow extends StatelessWidget {
+  final List<String> insights;
+  const _AiInsightRow({required this.insights});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        itemCount: insights.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) => _AiInsightCard(text: insights[i]),
+      ),
+    );
+  }
+}
+
+class _AiInsightCard extends StatelessWidget {
+  final String text;
+  const _AiInsightCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 240,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                LucideIcons.lightbulb,
+                size: 12,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Insight',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

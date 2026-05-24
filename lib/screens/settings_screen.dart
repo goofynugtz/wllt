@@ -1,10 +1,14 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:workmanager/workmanager.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_flavor.dart';
 import '../models/models.dart';
+import '../providers/ai_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/transaction_provider.dart';
@@ -124,10 +128,22 @@ class SettingsScreen extends StatelessWidget {
             SliverToBoxAdapter(child: _buildSectionLabel(context, 'Preferences')),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
             SliverToBoxAdapter(child: _buildPreferencesCard(context, prefs)),
+            if (defaultTargetPlatform == TargetPlatform.android) ...[
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              SliverToBoxAdapter(child: _buildSectionLabel(context, 'Privacy & Permissions')),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              SliverToBoxAdapter(child: _buildPrivacyCard(context, prefs)),
+            ],
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             SliverToBoxAdapter(child: _buildSectionLabel(context, 'Premium')),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
             SliverToBoxAdapter(child: _buildPremiumCard(context, subscription)),
+            if (subscription.isPro) ...[
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              SliverToBoxAdapter(child: _buildSectionLabel(context, 'Experimental Labs')),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              SliverToBoxAdapter(child: _buildLabsCard(context)),
+            ],
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             SliverToBoxAdapter(child: _buildSectionLabel(context, 'Account & Data')),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -530,6 +546,55 @@ class SettingsScreen extends StatelessWidget {
     });
   }
 
+  Widget _buildPrivacyCard(BuildContext context, UserPreferencesProvider prefs) {
+    return _SettingsCard(
+      child: FutureBuilder<PermissionStatus>(
+        future: Permission.sms.status,
+        builder: (_, snap) {
+          final status = snap.data;
+          final isPermanent = status == PermissionStatus.permanentlyDenied;
+          return SwitchListTile(
+            title: const Text('SMS Transaction Detection'),
+            subtitle: Text(
+              isPermanent
+                  ? 'Permission denied — tap to open app settings'
+                  : 'Automatically detect transactions from bank SMS',
+              style: const TextStyle(fontSize: 12),
+            ),
+            value: prefs.smsFeatureEnabled && status == PermissionStatus.granted,
+            onChanged: (v) async {
+              if (!v) {
+                await prefs.setSmsFeatureEnabled(false);
+                await Workmanager().cancelByUniqueName('sms_scan_task');
+                return;
+              }
+              if (isPermanent) {
+                await openAppSettings();
+                return;
+              }
+              final result = await Permission.sms.request();
+              if (result.isGranted) {
+                await prefs.setSmsFeatureEnabled(true);
+                await Workmanager().registerPeriodicTask(
+                  'sms_scan_task',
+                  'sms_scan_task',
+                  frequency: const Duration(minutes: 15),
+                  existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+                );
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('SMS permission is required')),
+                  );
+                }
+              }
+            },
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildPremiumCard(BuildContext context, SubscriptionProvider subscription) {
     final isPro = subscription.isPro;
     return _SettingsCard(
@@ -640,6 +705,242 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => _showFeedbackSheet(context),
           ),
         ],
+      ),
+    );
+  }
+  Widget _buildLabsCard(BuildContext context) {
+    final ai = context.watch<AiProvider>();
+    return _SettingsCard(
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                LucideIcons.flaskConical,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSecondaryContainer,
+              ),
+            ),
+            title: const Text('AI Features', style: TextStyle(fontSize: 15)),
+            subtitle: const Text('Gemma 3 1B · ~600 MB', style: TextStyle(fontSize: 12)),
+            value: ai.isEnabled,
+            onChanged: ai.state == AiModelState.downloading
+                ? null
+                : (v) => v
+                    ? _showDownloadConfirmation(context, ai)
+                    : _showDeleteConfirmation(context, ai),
+          ),
+          if (ai.state == AiModelState.downloading) ...[
+            Divider(
+              height: 0.5,
+              thickness: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              indent: 16,
+              endIndent: 16,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        LucideIcons.download,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Downloading…',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${(ai.downloadProgress * 100).round()}%',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: ai.downloadProgress,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Wi-Fi recommended',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (ai.state == AiModelState.ready) ...[
+            Divider(
+              height: 0.5,
+              thickness: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              indent: 16,
+              endIndent: 16,
+            ),
+            _SettingsReadOnlyRow(
+              icon: LucideIcons.cpu,
+              label: 'AI Model',
+              value: 'Ready',
+            ),
+          ],
+          if (ai.state == AiModelState.error) ...[
+            Divider(
+              height: 0.5,
+              thickness: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              indent: 16,
+              endIndent: 16,
+            ),
+            _SettingsTappableRow(
+              icon: LucideIcons.alertTriangle,
+              label: 'Download failed',
+              value: 'Retry',
+              iconColor: Theme.of(context).colorScheme.error,
+              iconBgColor: Theme.of(context).colorScheme.errorContainer,
+              onTap: () => _showDownloadConfirmation(context, ai),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showDownloadConfirmation(BuildContext context, AiProvider ai) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Download AI Model (~600 MB)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(ctx).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Runs fully on-device. No data leaves your phone. Wi-Fi recommended.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      ai.enableAndDownload();
+                    },
+                    child: const Text('Download'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, AiProvider ai) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Delete downloaded model?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(ctx).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '~600 MB will be freed from your device.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(ctx).colorScheme.error,
+                    ),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      ai.disable();
+                    },
+                    child: const Text('Delete'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

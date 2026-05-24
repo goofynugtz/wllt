@@ -24,6 +24,7 @@ class StorageService {
   static const String keyDisplayName                = 'display_name';
   static const String keyAvatarSeed                 = 'avatar_seed';
   static const String keyCategoryOrder              = 'category_order';
+  static const String keyAiEnabled                  = 'ai_enabled';
   static const String keyFeedbackAutoShown          = 'feedback_auto_shown';
 
   late Box _userPrefs;
@@ -49,12 +50,20 @@ class StorageService {
   Future<void> setOnboardingComplete() =>
       _prefs.setBool(keyOnboardingComplete, true);
 
+  // ── SMS feature ───────────────────────────────────────────────────────
+  bool get smsFeatureEnabled => _prefs.getBool('sms_feature_enabled') ?? true;
+  Future<void> setSmsFeatureEnabled(bool v) => _prefs.setBool('sms_feature_enabled', v);
+
   // ── Feedback ──────────────────────────────────────────────────────────
   bool get feedbackAutoShown =>
       _prefs.getBool(keyFeedbackAutoShown) ?? false;
 
   Future<void> setFeedbackAutoShown() =>
       _prefs.setBool(keyFeedbackAutoShown, true);
+
+  // ── AI features ───────────────────────────────────────────────────────────
+  bool get aiEnabled => _prefs.getBool(keyAiEnabled) ?? false;
+  Future<void> setAiEnabled(bool v) => _prefs.setBool(keyAiEnabled, v);
 
   // ── Currency ──────────────────────────────────────────────────────────
   String get currency =>

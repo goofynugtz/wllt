@@ -34,6 +34,12 @@ class UserPreferencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get smsFeatureEnabled => _storage.smsFeatureEnabled;
+  Future<void> setSmsFeatureEnabled(bool v) async {
+    await _storage.setSmsFeatureEnabled(v);
+    notifyListeners();
+  }
+
   bool get feedbackAutoShown => _storage.feedbackAutoShown;
 
   Future<void> setFeedbackAutoShown() async {

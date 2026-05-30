@@ -4,8 +4,18 @@ import '../services/storage_service.dart';
 
 class AppSettingsProvider extends ChangeNotifier {
   final StorageService _storage;
+  bool _demoMode = false;
 
   AppSettingsProvider(this._storage);
+
+  /// Session-only demo flag — never persisted. Set to true to show dummy data
+  /// without requiring auth (used for marketing iframe embeds).
+  bool get demoMode => _demoMode;
+  void setDemoMode(bool value) {
+    if (_demoMode == value) return;
+    _demoMode = value;
+    notifyListeners();
+  }
 
   ThemeMode get themeMode => _storage.themeMode;
   Color     get colorSeed => _storage.colorSeed;

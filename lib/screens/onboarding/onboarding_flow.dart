@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/user_preferences_provider.dart';
 import '../../screens/layout_screen.dart';
 import 'onboarding_page1_screen.dart';
+import 'onboarding_page1_web.dart';
 import 'onboarding_page2_screen.dart';
 import 'onboarding_page3_screen.dart';
 import 'onboarding_page4_screen.dart';
@@ -60,10 +62,13 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           controller: _controller,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            OnboardingPage1Screen(
-              onNextGoogle: () => _goTo(1),
-              onNextOffline: () => _goTo(1),
-            ),
+            if (kIsWeb)
+              OnboardingPage1WebScreen(onNextGoogle: () => _goTo(1))
+            else
+              OnboardingPage1Screen(
+                onNextGoogle: () => _goTo(1),
+                onNextOffline: () => _goTo(1),
+              ),
             OnboardingPage2Screen(
               onNext: () => _goTo(2),
               onBack: () => _goTo(0),

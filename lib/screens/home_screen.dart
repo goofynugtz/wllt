@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Transaction;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart' hide Category;
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../data/currencies.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
@@ -24,7 +26,9 @@ import '../ai/insight_adapter.dart';
 import '../ai/summary_adapter.dart';
 import '../providers/ai_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../models/insight_card.dart';
 import '../services/ai_service.dart';
+import '../services/insight_service.dart';
 
 enum _TrendRange { m1, m6, y1 }
 
@@ -51,6 +55,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   double _dragOffset = 0.0;
+  double _cardWidth = 0;
   late AnimationController _snapController;
   _TrendRange _trendRange = _TrendRange.m6;
 
@@ -61,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen>
   String? _aiSummary;
   List<String> _aiInsights = [];
   bool _aiContentLoaded = false;
+  String? _webInsightWeekKey;
 
   @override
   void initState() {
@@ -78,9 +84,18 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
+  static const _kDemoInsight =
+      'Your spending looks healthy! Groceries and transport are your top categories this week. Consider setting a budget to track your goals.';
+
   Future<void> _loadAiContent() async {
     if (_aiContentLoaded) return;
     if (!mounted) return;
+
+    if (kIsWeb) {
+      await _loadWebInsights();
+      return;
+    }
+
     final aiProvider = context.read<AiProvider>();
     final sub = context.read<SubscriptionProvider>();
     if (!aiProvider.isReady || !sub.isPro) return;
@@ -98,10 +113,12 @@ class _HomeScreenState extends State<HomeScreen>
     var summary = box.get(summaryKey);
     if (summary == null) {
       final month = widget.selectedMonth;
-      final monthTx = allTxSnapshot.where((t) =>
-          t.date.year == month.year &&
-          t.date.month == month.month &&
-          t.type == TransactionType.expense).toList();
+      final monthTx = allTxSnapshot
+          .where((t) =>
+              t.date.year == month.year &&
+              t.date.month == month.month &&
+              t.type == TransactionType.expense)
+          .toList();
       final totals = <String, double>{};
       double total = 0;
       for (final t in monthTx) {
@@ -114,7 +131,8 @@ class _HomeScreenState extends State<HomeScreen>
           income: 0,
           categoryTotals: totals,
           totalSpent: total,
-          infer: (p) => AiService.instance.infer(p, temperature: 0.3, maxTokens: 120),
+          infer: (p) =>
+              AiService.instance.infer(p, temperature: 0.3, maxTokens: 120),
         );
         if (summary != null) await box.put(summaryKey, summary);
       }
@@ -125,12 +143,14 @@ class _HomeScreenState extends State<HomeScreen>
     List<String> insights = [];
     final cachedInsights = box.get(weekKey);
     if (cachedInsights != null) {
-      insights = [cachedInsights]; // single cached value
+      insights = [cachedInsights];
     } else {
       final threeMonthsAgo = now.subtract(const Duration(days: 90));
-      final recentTx = allTxSnapshot.where((t) =>
-          t.date.isAfter(threeMonthsAgo) &&
-          t.type == TransactionType.expense).toList();
+      final recentTx = allTxSnapshot
+          .where((t) =>
+              t.date.isAfter(threeMonthsAgo) &&
+              t.type == TransactionType.expense)
+          .toList();
       final totals = <String, double>{};
       for (final t in recentTx) {
         totals[t.categoryId] = (totals[t.categoryId] ?? 0) + t.amount;
@@ -140,11 +160,25 @@ class _HomeScreenState extends State<HomeScreen>
           categoryTotals: totals,
           budgetLimits: const {},
           income: 0,
-          infer: (p) => AiService.instance.infer(p, temperature: 0.4, maxTokens: 80),
+          infer: (p) =>
+              AiService.instance.infer(p, temperature: 0.4, maxTokens: 80),
         );
         if (insight != null) {
           insights = [insight];
           await box.put(weekKey, insight);
+
+          // Mirror to Firestore for cross-device visibility on web.
+          final prefs = context.read<UserPreferencesProvider>();
+          if (prefs.authMode == 'google' && prefs.googleUid != null) {
+            InsightService(
+              db: FirebaseFirestore.instance,
+              uid: prefs.googleUid!,
+            ).save(InsightCard(
+              weekKey: weekKey,
+              text: insight,
+              generatedAt: DateTime.now(),
+            ));
+          }
         }
       }
     }
@@ -162,6 +196,46 @@ class _HomeScreenState extends State<HomeScreen>
         _aiInsights = insights;
       });
     }
+  }
+
+  Future<void> _loadWebInsights() async {
+    _aiContentLoaded = true;
+    final settings = context.read<AppSettingsProvider>();
+
+    if (settings.demoMode) {
+      if (mounted) setState(() => _aiInsights = [_kDemoInsight]);
+      return;
+    }
+
+    final prefs = context.read<UserPreferencesProvider>();
+    if (prefs.authMode != 'google' || prefs.googleUid == null) return;
+
+    final weekKey = 'ai_insights_${DateFormat('yyyy_w').format(DateTime.now())}';
+    final svc = InsightService(
+      db: FirebaseFirestore.instance,
+      uid: prefs.googleUid!,
+    );
+    final card = await svc.getThisWeek(weekKey);
+    if (card != null && mounted) {
+      setState(() {
+        _aiInsights = [card.text];
+        _webInsightWeekKey = weekKey;
+      });
+    }
+  }
+
+  Future<void> _dismissWebInsight() async {
+    final key = _webInsightWeekKey;
+    if (key == null) return;
+    final prefs = context.read<UserPreferencesProvider>();
+    if (prefs.googleUid != null) {
+      InsightService(db: FirebaseFirestore.instance, uid: prefs.googleUid!)
+          .deleteCard(key);
+    }
+    setState(() {
+      _aiInsights = [];
+      _webInsightWeekKey = null;
+    });
   }
 
   static DateTime _addMonths(DateTime d, int n) {
@@ -343,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       onHorizontalDragEnd: (details) {
                         widget.pageScrollEnabled?.value = true;
-                        final w = MediaQuery.of(context).size.width;
+                        final w = _cardWidth > 0 ? _cardWidth : MediaQuery.of(context).size.width;
                         final v = details.primaryVelocity ?? 0;
                         if (v < -300 || _dragOffset < -w * 0.4) {
                           _animateTo(-w, w);
@@ -355,10 +429,11 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       onHorizontalDragCancel: () {
                         widget.pageScrollEnabled?.value = true;
-                        _animateTo(0, MediaQuery.of(context).size.width);
+                        _animateTo(0, _cardWidth > 0 ? _cardWidth : MediaQuery.of(context).size.width);
                       },
                       child: LayoutBuilder(builder: (ctx, box) {
                         final w = box.maxWidth;
+                        _cardWidth = w;
                         return ClipRect(
                           child: Stack(
                             children: [
@@ -447,7 +522,10 @@ class _HomeScreenState extends State<HomeScreen>
 
                     // ── AI Weekly Insights ────────────────────────────────────
                     if (_aiInsights.isNotEmpty)
-                      _AiInsightRow(insights: _aiInsights),
+                      _AiInsightRow(
+                        insights: _aiInsights,
+                        onDismiss: _webInsightWeekKey != null ? _dismissWebInsight : null,
+                      ),
 
                     // ── Recent transactions ───────────────────────────────────
                     Padding(
@@ -1361,7 +1439,8 @@ class _AiSummaryCard extends StatelessWidget {
 
 class _AiInsightRow extends StatelessWidget {
   final List<String> insights;
-  const _AiInsightRow({required this.insights});
+  final VoidCallback? onDismiss;
+  const _AiInsightRow({required this.insights, this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -1372,7 +1451,10 @@ class _AiInsightRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         itemCount: insights.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => _AiInsightCard(text: insights[i]),
+        itemBuilder: (_, i) => _AiInsightCard(
+          text: insights[i],
+          onDismiss: i == 0 ? onDismiss : null,
+        ),
       ),
     );
   }
@@ -1380,7 +1462,8 @@ class _AiInsightRow extends StatelessWidget {
 
 class _AiInsightCard extends StatelessWidget {
   final String text;
-  const _AiInsightCard({required this.text});
+  final VoidCallback? onDismiss;
+  const _AiInsightCard({required this.text, this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -1414,6 +1497,17 @@ class _AiInsightCard extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
+              if (onDismiss != null) ...[
+                const Spacer(),
+                GestureDetector(
+                  onTap: onDismiss,
+                  child: Icon(
+                    LucideIcons.x,
+                    size: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 6),

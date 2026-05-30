@@ -1,4 +1,6 @@
-import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_sms_inbox/flutter_sms_inbox.dart'
+    if (dart.library.html) '../platform/sms_stub.dart';
 
 class SmsMessage {
   final String? id;
@@ -11,6 +13,7 @@ class SmsMessage {
 
 class SmsReader {
   static Future<List<SmsMessage>> readSince(DateTime since) async {
+    if (kIsWeb) return [];
     try {
       final query = SmsQuery();
       final messages = await query.querySms(

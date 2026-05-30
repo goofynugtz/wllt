@@ -2,7 +2,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:workmanager/workmanager.dart';
+import 'package:workmanager/workmanager.dart'
+    if (dart.library.html) '../platform/workmanager_web.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -134,15 +135,17 @@ class SettingsScreen extends StatelessWidget {
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               SliverToBoxAdapter(child: _buildPrivacyCard(context, prefs)),
             ],
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            SliverToBoxAdapter(child: _buildSectionLabel(context, 'Premium')),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            SliverToBoxAdapter(child: _buildPremiumCard(context, subscription)),
-            if (subscription.isPro) ...[
+            if (!kIsWeb) ...[
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              SliverToBoxAdapter(child: _buildSectionLabel(context, 'Experimental Labs')),
+              SliverToBoxAdapter(child: _buildSectionLabel(context, 'Premium')),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverToBoxAdapter(child: _buildLabsCard(context)),
+              SliverToBoxAdapter(child: _buildPremiumCard(context, subscription)),
+              if (subscription.isPro) ...[
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                SliverToBoxAdapter(child: _buildSectionLabel(context, 'Experimental Labs')),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                SliverToBoxAdapter(child: _buildLabsCard(context)),
+              ],
             ],
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             SliverToBoxAdapter(child: _buildSectionLabel(context, 'Account & Data')),
@@ -325,32 +328,34 @@ class SettingsScreen extends StatelessWidget {
               endIndent: 16,
             ),
           ],
-          _SettingsTappableRow(
-            icon: LucideIcons.download,
-            label: 'Export data',
-            value: 'CSV',
-            onTap: () => _handleExport(context),
-          ),
-          Divider(
-            height: 0.5,
-            thickness: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-            indent: 16,
-            endIndent: 16,
-          ),
-          _SettingsTappableRow(
-            icon: LucideIcons.upload,
-            label: 'Import data',
-            value: 'CSV',
-            onTap: () => _handleImport(context),
-          ),
-          Divider(
-            height: 0.5,
-            thickness: 0.5,
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-            indent: 16,
-            endIndent: 16,
-          ),
+          if (!kIsWeb) ...[
+            _SettingsTappableRow(
+              icon: LucideIcons.download,
+              label: 'Export data',
+              value: 'CSV',
+              onTap: () => _handleExport(context),
+            ),
+            Divider(
+              height: 0.5,
+              thickness: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              indent: 16,
+              endIndent: 16,
+            ),
+            _SettingsTappableRow(
+              icon: LucideIcons.upload,
+              label: 'Import data',
+              value: 'CSV',
+              onTap: () => _handleImport(context),
+            ),
+            Divider(
+              height: 0.5,
+              thickness: 0.5,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              indent: 16,
+              endIndent: 16,
+            ),
+          ],
           _SettingsTappableRow(
             icon: LucideIcons.trash2,
             label: 'Reset all data',
@@ -710,120 +715,35 @@ class SettingsScreen extends StatelessWidget {
   }
   Widget _buildLabsCard(BuildContext context) {
     final ai = context.watch<AiProvider>();
+    final subtitle = switch (ai.state) {
+      AiModelState.ready       => 'Gemma 3 1B · On-device',
+      AiModelState.downloading => 'Downloading…',
+      AiModelState.error       => 'Download failed — tap to retry',
+      _                        => 'Gemma 3 1B · ~600 MB',
+    };
     return _SettingsCard(
-      child: Column(
-        children: [
-          SwitchListTile(
-            secondary: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                LucideIcons.flaskConical,
-                size: 18,
-                color: Theme.of(context).colorScheme.onSecondaryContainer,
-              ),
-            ),
-            title: const Text('AI Features', style: TextStyle(fontSize: 15)),
-            subtitle: const Text('Gemma 3 1B · ~600 MB', style: TextStyle(fontSize: 12)),
-            value: ai.isEnabled,
-            onChanged: ai.state == AiModelState.downloading
-                ? null
-                : (v) => v
-                    ? _showDownloadConfirmation(context, ai)
-                    : _showDeleteConfirmation(context, ai),
+      child: SwitchListTile(
+        secondary: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(14),
           ),
-          if (ai.state == AiModelState.downloading) ...[
-            Divider(
-              height: 0.5,
-              thickness: 0.5,
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-              indent: 16,
-              endIndent: 16,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        LucideIcons.download,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Downloading…',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${(ai.downloadProgress * 100).round()}%',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: ai.downloadProgress,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Wi-Fi recommended',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (ai.state == AiModelState.ready) ...[
-            Divider(
-              height: 0.5,
-              thickness: 0.5,
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-              indent: 16,
-              endIndent: 16,
-            ),
-            _SettingsReadOnlyRow(
-              icon: LucideIcons.cpu,
-              label: 'AI Model',
-              value: 'Ready',
-            ),
-          ],
-          if (ai.state == AiModelState.error) ...[
-            Divider(
-              height: 0.5,
-              thickness: 0.5,
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-              indent: 16,
-              endIndent: 16,
-            ),
-            _SettingsTappableRow(
-              icon: LucideIcons.alertTriangle,
-              label: 'Download failed',
-              value: 'Retry',
-              iconColor: Theme.of(context).colorScheme.error,
-              iconBgColor: Theme.of(context).colorScheme.errorContainer,
-              onTap: () => _showDownloadConfirmation(context, ai),
-            ),
-          ],
-        ],
+          child: Icon(
+            LucideIcons.flaskConical,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
+        ),
+        title: const Text('AI Features', style: TextStyle(fontSize: 15)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+        value: ai.isEnabled,
+        onChanged: ai.state == AiModelState.downloading
+            ? null
+            : (v) => v
+                ? _showDownloadConfirmation(context, ai)
+                : _showDeleteConfirmation(context, ai),
       ),
     );
   }
@@ -836,52 +756,7 @@ class SettingsScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Download AI Model (~600 MB)',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(ctx).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Runs fully on-device. No data leaves your phone. Wi-Fi recommended.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      ai.enableAndDownload();
-                    },
-                    child: const Text('Download'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _DownloadSheet(ai: ai),
     );
   }
 
@@ -941,6 +816,183 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Download sheet ────────────────────────────────────────────────────────────
+
+class _DownloadSheet extends StatefulWidget {
+  final AiProvider ai;
+  const _DownloadSheet({required this.ai});
+
+  @override
+  State<_DownloadSheet> createState() => _DownloadSheetState();
+}
+
+class _DownloadSheetState extends State<_DownloadSheet> {
+  bool _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _started = widget.ai.state == AiModelState.downloading;
+    widget.ai.addListener(_onStateChange);
+  }
+
+  @override
+  void dispose() {
+    widget.ai.removeListener(_onStateChange);
+    super.dispose();
+  }
+
+  void _onStateChange() {
+    if (!mounted) return;
+    if (_started && widget.ai.state == AiModelState.ready) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {});
+  }
+
+  void _start() {
+    setState(() => _started = true);
+    widget.ai.enableAndDownload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.ai.state;
+    final progress = widget.ai.downloadProgress;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!_started) ...[
+            Text(
+              'Download AI Model (~600 MB)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Runs fully on-device. No data leaves your phone. Wi-Fi recommended.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _start,
+                    child: const Text('Download'),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (state == AiModelState.downloading) ...[
+            Text(
+              'Downloading AI Model',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(
+                  LucideIcons.download,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Downloading…',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${(progress * 100).round()}%',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: progress,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Wi-Fi recommended',
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ] else if (state == AiModelState.error) ...[
+            Text(
+              'Download failed',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Something went wrong. Check your connection and try again.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _start,
+                    child: const Text('Retry'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

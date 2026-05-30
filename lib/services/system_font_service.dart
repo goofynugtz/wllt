@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 
 /// Loads the device's active system font into Flutter at startup by reading
@@ -18,6 +19,7 @@ class SystemFontService {
   /// Returns `'sans-serif'` on failure (native call unavailable, font file
   /// unreadable, or non-Android platform).
   static Future<String> loadSystemFont() async {
+    if (kIsWeb) return 'sans-serif';
     try {
       final bytes =
           await _channel.invokeMethod<Uint8List>('getSystemFontBytes');

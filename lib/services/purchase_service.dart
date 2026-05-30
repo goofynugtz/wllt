@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart'
+    if (dart.library.html) '../platform/purchases_web.dart';
 
 class PurchaseService {
   PurchaseService._();
@@ -8,7 +9,7 @@ class PurchaseService {
   // Swap these for real platform-specific keys before release:
   //   iOS:     appl_XXXX  (from RevenueCat dashboard → iOS app → API keys)
   //   Android: goog_XXXX  (from RevenueCat dashboard → Android app → API keys)
-  static const _apiKey = 'test_MsPYemZlEQsOwdvwJWoOLCoolQK';
+  static const _apiKey = 'goog_pfkKRnePXwTtaSYlXsWrvjVRTzE';
 
   static const String entitlementId = 'pro';
 

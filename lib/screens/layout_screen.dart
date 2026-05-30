@@ -245,7 +245,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
                 ),
                 const SizedBox(width: 8),
               ],
-              Consumer<SmsProvider>(
+              if (!kIsWeb) Consumer<SmsProvider>(
                 builder: (ctx, sms, _) {
                   final prefs = ctx.watch<UserPreferencesProvider>();
                   return FutureBuilder<PermissionStatus>(
@@ -480,54 +480,169 @@ class _LayoutScreenState extends State<LayoutScreen> {
   @override
   Widget build(BuildContext context) {
     final isPro = context.watch<SubscriptionProvider>().isPro;
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundDark,
-      body: Container(
-        constraints: const BoxConstraints(maxWidth: 430),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
+    final isWide = MediaQuery.of(context).size.width >= 768;
+    return isWide ? _buildWideScaffold(context) : _buildNarrowScaffold(context, isPro);
+  }
+
+  Widget _buildDemoBanner(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Theme.of(context).colorScheme.primaryContainer,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+      child: Text(
+        'Demo mode — data is not saved. Sign in to keep your transactions.',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 11,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
         ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _buildTopHeader(context),
-              Expanded(
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: _pageScrollEnabled,
-                  builder: (_, enabled, _) => PageView(
-                    controller: _pageController,
-                    physics: enabled
-                        ? const PageScrollPhysics()
-                        : const NeverScrollableScrollPhysics(),
-                    onPageChanged: (index) => setState(() {
-                      _currentIndex = index;
-                    }),
-                    children: [
-                      HomeScreen(
-                        selectedMonth: _selectedMonth,
-                        onMonthChanged: _changeMonth,
-                        onNavigateToHistory: () => _navigateToTab(1),
-                        pageScrollEnabled: _pageScrollEnabled,
-                        onCategoryBreakdownTap: _handleCategoryBreakdownTap,
-                      ),
-                      TransactionsScreen(selectedMonth: _selectedMonth),
-                      const AccountsScreen(),
-                      const SettingsScreen(),
-                    ],
+      ),
+    );
+  }
+
+  Widget _buildSideRail(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: 88,
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border(
+          right: BorderSide(
+            color: Colors.black.withValues(alpha: 0.08),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            ..._navItems.asMap().entries.map((entry) {
+              final i = entry.key;
+              final item = entry.value;
+              final isActive = _currentIndex == i;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: GestureDetector(
+                  onTap: () => _navigateToTab(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    width: double.infinity,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: isActive ? cs.primaryContainer : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          item.icon,
+                          size: 20,
+                          color: isActive ? cs.onPrimaryContainer : cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: isActive ? cs.onPrimaryContainer : cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildPages() => [
+    HomeScreen(
+      selectedMonth: _selectedMonth,
+      onMonthChanged: _changeMonth,
+      onNavigateToHistory: () => _navigateToTab(1),
+      pageScrollEnabled: _pageScrollEnabled,
+      onCategoryBreakdownTap: _handleCategoryBreakdownTap,
+    ),
+    TransactionsScreen(selectedMonth: _selectedMonth),
+    const AccountsScreen(),
+    const SettingsScreen(),
+  ];
+
+  Widget _buildWideScaffold(BuildContext context) {
+    final demoMode = context.watch<AppSettingsProvider>().demoMode;
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Row(
+        children: [
+          _buildSideRail(context),
+          Expanded(
+            child: Column(
+              children: [
+                _buildTopHeader(context),
+                if (demoMode) _buildDemoBanner(context),
+                Expanded(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _pageScrollEnabled,
+                    builder: (_, enabled, __) => PageView(
+                      controller: _pageController,
+                      physics: enabled
+                          ? const PageScrollPhysics()
+                          : const NeverScrollableScrollPhysics(),
+                      onPageChanged: (index) => setState(() => _currentIndex = index),
+                      children: _buildPages(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+        ],
+      ),
+      floatingActionButton: _buildFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  Widget _buildNarrowScaffold(BuildContext context, bool isPro) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _buildTopHeader(context),
+            if (context.watch<AppSettingsProvider>().demoMode) _buildDemoBanner(context),
+            Expanded(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _pageScrollEnabled,
+                builder: (_, enabled, __) => PageView(
+                  controller: _pageController,
+                  physics: enabled
+                      ? const PageScrollPhysics()
+                      : const NeverScrollableScrollPhysics(),
+                  onPageChanged: (index) => setState(() => _currentIndex = index),
+                  children: _buildPages(),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       floatingActionButton: _buildFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: ValueListenableBuilder<AdConfig>(
         valueListenable: AdConfigService.instance.config,
-        builder: (_, cfg, child) {
-          final showBanner = cfg.showBannerAd && !_bannerAdDismissed && !isPro;
+        builder: (_, cfg, __) {
+          final showBanner = !kIsWeb && cfg.showBannerAd && !_bannerAdDismissed && !isPro;
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -536,7 +651,6 @@ class _LayoutScreenState extends State<LayoutScreen> {
                   onDismiss: () => setState(() => _bannerAdDismissed = true),
                 ),
               Container(
-                constraints: const BoxConstraints(maxWidth: 430),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   border: Border(

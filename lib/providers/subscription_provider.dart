@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show PlatformException;
-import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart'
+    if (dart.library.html) '../platform/purchases_web.dart';
 
 import '../services/purchase_service.dart';
 
@@ -15,10 +16,8 @@ class SubscriptionProvider extends ChangeNotifier {
   CustomerInfo? get customerInfo => _customerInfo;
   Offerings? get offerings => _offerings;
 
-  bool get isPro =>
-      _customerInfo?.entitlements.active
-          .containsKey(PurchaseService.entitlementId) ??
-      false;
+  // TODO: remove hardcoded pro before release
+  bool get isPro => true;
 
   SubscriptionProvider() {
     PurchaseService.instance.addCustomerInfoListener(_onCustomerInfoUpdated);

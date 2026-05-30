@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:flutter_gemma/flutter_gemma.dart'
+    if (dart.library.html) '../platform/gemma_web.dart';
 
 typedef ProgressCallback = void Function(double progress);
 

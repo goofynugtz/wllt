@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart'
+    if (dart.library.html) '../platform/purchases_web.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart'
+    if (dart.library.html) '../platform/purchases_web.dart';
 
 import '../providers/subscription_provider.dart';
 import '../services/purchase_service.dart';

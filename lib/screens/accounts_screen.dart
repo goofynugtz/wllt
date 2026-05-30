@@ -48,12 +48,14 @@ class AccountsScreen extends StatelessWidget {
     // When true, historical tx amounts are converted using rates at tx date; otherwise raw amounts used.
     final convertHistory  = prefs.convertHistoricalCurrency;
 
-    // Prefetch rates for account base currencies that differ from display currency.
-    for (final a in accounts) {
-      if (a.baseCurrency != displayCurrency) {
-        ExchangeRateService.instance.fetchSnapshot(a.baseCurrency, DateTime.now());
+    // Prefetch rates after frame — avoids triggering rebuilds during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final a in accounts) {
+        if (a.baseCurrency != displayCurrency) {
+          ExchangeRateService.instance.fetchSnapshot(a.baseCurrency, DateTime.now());
+        }
       }
-    }
+    });
 
     double resolveAmount(Transaction t, String targetCurrency) {
       final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);

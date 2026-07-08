@@ -32,6 +32,7 @@ class InferenceModel {
     int randomSeed = 1,
   }) async =>
       Session._();
+  Future<void> close() async {}
 }
 
 class Session {

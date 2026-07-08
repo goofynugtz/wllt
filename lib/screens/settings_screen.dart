@@ -741,9 +741,19 @@ class SettingsScreen extends StatelessWidget {
         value: ai.isEnabled,
         onChanged: ai.state == AiModelState.downloading
             ? null
-            : (v) => v
-                ? _showDownloadConfirmation(context, ai)
-                : _showDeleteConfirmation(context, ai),
+            : (v) async {
+                if (!v) {
+                  _showDeleteConfirmation(context, ai);
+                  return;
+                }
+                // Model may already be on disk (previous install, interrupted
+                // toggle-off) — skip the download sheet and just load it.
+                if (await ai.isModelDownloaded) {
+                  await ai.enableAndDownload();
+                } else if (context.mounted) {
+                  _showDownloadConfirmation(context, ai);
+                }
+              },
       ),
     );
   }
@@ -887,6 +897,18 @@ class _DownloadSheetState extends State<_DownloadSheet> {
               style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Powered by Gemma. By downloading, you agree to the Gemma '
+              'Terms of Use: ai.google.dev/gemma/terms',
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 24),

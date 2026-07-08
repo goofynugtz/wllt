@@ -3,7 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../data/currencies.dart';
@@ -15,14 +15,17 @@ import '../widgets/category_icon_badge.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/trial_banner.dart';
 import '../widgets/spending_trend_card.dart';
+import '../widgets/suggested_actions_card.dart';
 import '../services/ad_config_service.dart';
 import '../services/exchange_rate_service.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/layout_screen.dart';
 import '../screens/category_breakdown_screen.dart';
+import '../screens/insight_chat_screen.dart';
 import '../providers/app_settings_provider.dart';
 import '../ai/insight_adapter.dart';
+import '../ai/insight_facts.dart';
 import '../ai/summary_adapter.dart';
 import '../providers/ai_provider.dart';
 import '../providers/subscription_provider.dart';
@@ -67,6 +70,8 @@ class _HomeScreenState extends State<HomeScreen>
   List<String> _aiInsights = [];
   bool _aiContentLoaded = false;
   String? _webInsightWeekKey;
+  DateTime? _devAiDate;
+  bool _aiGenerating = false;
 
   @override
   void initState() {
@@ -87,6 +92,17 @@ class _HomeScreenState extends State<HomeScreen>
   static const _kDemoInsight =
       'Your spending looks healthy! Groceries and transport are your top categories this week. Consider setting a budget to track your goals.';
 
+  /// ISO-8601 week cache key, e.g. 'ai_insights_2026_w28'. Computed manually
+  /// because intl's DateFormat does not implement the 'w' pattern — it emits
+  /// a literal 'w', which made every week share one cache key.
+  static String _weekKeyFor(DateTime date) {
+    final d = DateTime(date.year, date.month, date.day);
+    final thursday = d.add(Duration(days: 4 - d.weekday));
+    final firstDay = DateTime(thursday.year, 1, 1);
+    final week = thursday.difference(firstDay).inDays ~/ 7 + 1;
+    return 'ai_insights_${thursday.year}_w$week';
+  }
+
   Future<void> _loadAiContent() async {
     if (_aiContentLoaded) return;
     if (!mounted) return;
@@ -101,74 +117,72 @@ class _HomeScreenState extends State<HomeScreen>
     if (!aiProvider.isReady || !sub.isPro) return;
     _aiContentLoaded = true;
 
+    await _generateAiContent(asOf: DateTime.now());
+  }
+
+  /// Generates the monthly summary and weekly insight as of [asOf]. Both the
+  /// data windows and the cache keys derive from [asOf], so the dev date
+  /// picker can replay any period. [force] (dev-only) bypasses the Hive cache
+  /// in both directions and skips the Firestore mirror so test runs never
+  /// touch real cached or synced data.
+  Future<void> _generateAiContent({
+    required DateTime asOf,
+    bool force = false,
+  }) async {
     // Read context-dependent data before any await
-    final txProvider = context.read<TransactionProvider>();
-    final allTxSnapshot = txProvider.transactions;
+    final allTxSnapshot = context.read<TransactionProvider>().transactions;
+    final prefs = context.read<UserPreferencesProvider>();
+    final currencySymbol = kCurrencies
+        .firstWhere((c) => c.code == prefs.currency,
+            orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+        .symbol;
+
+    if (force) setState(() => _aiGenerating = true);
 
     final box = await Hive.openBox<String>('ai_cache');
-    final now = DateTime.now();
+
+    final facts = InsightFacts.compute(
+      transactions: allTxSnapshot,
+      asOf: asOf,
+      currencySymbol: currencySymbol,
+      budgetLimits: {for (final b in Budget.budgets) b.categoryId: b.amount},
+    );
 
     // Monthly summary
-    final summaryKey = 'ai_summary_${DateFormat('yyyy_MM').format(now)}';
-    var summary = box.get(summaryKey);
-    if (summary == null) {
-      final month = widget.selectedMonth;
-      final monthTx = allTxSnapshot
-          .where((t) =>
-              t.date.year == month.year &&
-              t.date.month == month.month &&
-              t.type == TransactionType.expense)
-          .toList();
-      final totals = <String, double>{};
-      double total = 0;
-      for (final t in monthTx) {
-        totals[t.categoryId] = (totals[t.categoryId] ?? 0) + t.amount;
-        total += t.amount;
-      }
-      if (totals.isNotEmpty) {
-        summary = await SummaryAdapter.generate(
-          month: DateFormat('MMMM yyyy').format(month),
-          income: 0,
-          categoryTotals: totals,
-          totalSpent: total,
-          infer: (p) =>
-              AiService.instance.infer(p, temperature: 0.3, maxTokens: 120),
-        );
-        if (summary != null) await box.put(summaryKey, summary);
-      }
+    final summaryKey = 'ai_summary_${DateFormat('yyyy_MM').format(asOf)}';
+    var summary = force ? null : box.get(summaryKey);
+    if (summary == null && facts.categoryTotals.isNotEmpty) {
+      summary = await SummaryAdapter.generate(
+        month: DateFormat('MMMM yyyy').format(asOf),
+        income: facts.income,
+        categoryTotals: facts.categoryTotals,
+        totalSpent: facts.totalSpent,
+        facts: facts.factLines,
+        currencySymbol: currencySymbol,
+        infer: (p) =>
+            AiService.instance.infer(p, temperature: 0.3, maxTokens: 120),
+      );
+      if (summary != null && !force) await box.put(summaryKey, summary);
     }
 
-    // Weekly insights
-    final weekKey = 'ai_insights_${DateFormat('yyyy_w').format(now)}';
+    // Weekly insight
+    final weekKey = _weekKeyFor(asOf);
     List<String> insights = [];
-    final cachedInsights = box.get(weekKey);
-    if (cachedInsights != null) {
-      insights = [cachedInsights];
+    final cachedInsight = force ? null : box.get(weekKey);
+    if (cachedInsight != null) {
+      insights = [cachedInsight];
     } else {
-      final threeMonthsAgo = now.subtract(const Duration(days: 90));
-      final recentTx = allTxSnapshot
-          .where((t) =>
-              t.date.isAfter(threeMonthsAgo) &&
-              t.type == TransactionType.expense)
-          .toList();
-      final totals = <String, double>{};
-      for (final t in recentTx) {
-        totals[t.categoryId] = (totals[t.categoryId] ?? 0) + t.amount;
-      }
-      if (totals.isNotEmpty) {
-        final insight = await InsightAdapter.generate(
-          categoryTotals: totals,
-          budgetLimits: const {},
-          income: 0,
-          infer: (p) =>
-              AiService.instance.infer(p, temperature: 0.4, maxTokens: 80),
-        );
-        if (insight != null) {
-          insights = [insight];
+      final insight = await InsightAdapter.generate(
+        facts: facts.factLines,
+        infer: (p) =>
+            AiService.instance.infer(p, temperature: 0.4, maxTokens: 100),
+      );
+      if (insight != null) {
+        insights = [insight];
+        if (!force) {
           await box.put(weekKey, insight);
 
           // Mirror to Firestore for cross-device visibility on web.
-          final prefs = context.read<UserPreferencesProvider>();
           if (prefs.authMode == 'google' && prefs.googleUid != null) {
             InsightService(
               db: FirebaseFirestore.instance,
@@ -183,10 +197,14 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
 
-    // Stale insight cleanup (keys from previous weeks)
-    for (final k in box.keys.toList()) {
-      if (k.toString().startsWith('ai_insights_') && k != weekKey) {
-        await box.delete(k);
+    // Stale insight cleanup — always relative to the real current week so a
+    // dev test run doesn't wipe the live cache entry.
+    if (!force) {
+      final currentWeekKey = _weekKeyFor(DateTime.now());
+      for (final k in box.keys.toList()) {
+        if (k.toString().startsWith('ai_insights_') && k != currentWeekKey) {
+          await box.delete(k);
+        }
       }
     }
 
@@ -194,8 +212,52 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() {
         _aiSummary = summary;
         _aiInsights = insights;
+        _aiGenerating = false;
       });
     }
+  }
+
+  /// Dev-mode only: pick a date and regenerate AI content as of that date.
+  Future<void> _pickAiDate() async {
+    if (_aiGenerating) return;
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _devAiDate ?? now,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(now.year + 1, 12, 31),
+      helpText: 'Generate AI insights as of…',
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _devAiDate = picked);
+    await _generateAiContent(asOf: picked, force: true);
+  }
+
+  /// Opens the ephemeral insight chat. Facts are recomputed with the same
+  /// inputs the insight generation uses, so the model talks about the data
+  /// behind the card the user tapped.
+  void _openInsightChat() {
+    if (_aiInsights.isEmpty) return;
+    final allTx = context.read<TransactionProvider>().transactions;
+    final prefs = context.read<UserPreferencesProvider>();
+    final currencySymbol = kCurrencies
+        .firstWhere((c) => c.code == prefs.currency,
+            orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
+        .symbol;
+    final facts = InsightFacts.compute(
+      transactions: allTx,
+      asOf: DateTime.now(),
+      currencySymbol: currencySymbol,
+      budgetLimits: {for (final b in Budget.budgets) b.categoryId: b.amount},
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InsightChatScreen(
+          insightText: _aiInsights.first,
+          factLines: facts.factLines,
+        ),
+      ),
+    );
   }
 
   Future<void> _loadWebInsights() async {
@@ -210,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen>
     final prefs = context.read<UserPreferencesProvider>();
     if (prefs.authMode != 'google' || prefs.googleUid == null) return;
 
-    final weekKey = 'ai_insights_${DateFormat('yyyy_w').format(DateTime.now())}';
+    final weekKey = _weekKeyFor(DateTime.now());
     final svc = InsightService(
       db: FirebaseFirestore.instance,
       uid: prefs.googleUid!,
@@ -268,8 +330,17 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final allTx = context.watch<TransactionProvider>().transactions;
-    context.watch<AppSettingsProvider>(); // rebuild on color/theme changes
+    final settings =
+        context.watch<AppSettingsProvider>(); // rebuild on color/theme changes
     context.watch<ExchangeRateService>(); // rebuild when new rates arrive
+
+    // Dev-mode date picker on the insight card — lets you replay AI
+    // generation for any period against the current data set.
+    final aiReady = context.watch<AiProvider>().isReady;
+    final showAiDevPicker = !kIsWeb && settings.devMode && aiReady;
+    // Chat entry: on-device model ready (mobile + Pro + AI on) and a real
+    // generated insight showing. Web and the dev placeholder never open chat.
+    final canOpenInsightChat = !kIsWeb && aiReady && _aiInsights.isNotEmpty;
 
     final monthTransactions = allTx
         .where(
@@ -521,11 +592,30 @@ class _HomeScreenState extends State<HomeScreen>
                       _AiSummaryCard(text: _aiSummary!),
 
                     // ── AI Weekly Insights ────────────────────────────────────
-                    if (_aiInsights.isNotEmpty)
+                    if (showAiDevPicker && _aiGenerating)
+                      _AiInsightRow(
+                        insights: const ['Generating insights…'],
+                        onPickDate: _pickAiDate,
+                      )
+                    else if (_aiInsights.isNotEmpty)
                       _AiInsightRow(
                         insights: _aiInsights,
                         onDismiss: _webInsightWeekKey != null ? _dismissWebInsight : null,
+                        onPickDate: showAiDevPicker ? _pickAiDate : null,
+                        onTap: canOpenInsightChat ? _openInsightChat : null,
+                      )
+                    else if (showAiDevPicker)
+                      // Keeps the picker reachable when the chosen period has
+                      // no data — otherwise the row (and the icon) vanish.
+                      _AiInsightRow(
+                        insights: const [
+                          'No AI insight for this period. Tap the calendar to test another date.',
+                        ],
+                        onPickDate: _pickAiDate,
                       ),
+
+                    // ── Suggested Actions checklist ───────────────────────────
+                    const SuggestedActionsCard(),
 
                     // ── Recent transactions ───────────────────────────────────
                     Padding(
@@ -1394,7 +1484,8 @@ class _AiSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      // 20px sides — aligns with the chips/trend/breakdown grid.
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondaryContainer,
@@ -1440,89 +1531,166 @@ class _AiSummaryCard extends StatelessWidget {
 class _AiInsightRow extends StatelessWidget {
   final List<String> insights;
   final VoidCallback? onDismiss;
-  const _AiInsightRow({required this.insights, this.onDismiss});
+  final VoidCallback? onPickDate;
+  final VoidCallback? onTap;
+  const _AiInsightRow({
+    required this.insights,
+    this.onDismiss,
+    this.onPickDate,
+    this.onTap,
+  });
+
+  /// Matches the _InsightChip ("Top Spender") height.
+  static const double _wideHeight = 86;
+
+  /// Approximates SpendingTrendCard's rendered height
+  /// (16×2 padding + ~20 header + 12 gap + 120 chart).
+  static const double _tallHeight = 184;
+
+  /// Card body text; also used to measure whether the wide variant fits.
+  static const TextStyle _bodyStyle = TextStyle(fontSize: 12);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 96,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        itemCount: insights.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => _AiInsightCard(
-          text: insights[i],
-          onDismiss: i == 0 ? onDismiss : null,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final fullWidth = constraints.maxWidth;
+
+        // Single insight: full width. Chip height when the text fits 2
+        // lines; Spending Trend height otherwise.
+        if (insights.length == 1) {
+          final painter = TextPainter(
+            text: TextSpan(text: insights.first, style: _bodyStyle),
+            maxLines: 2,
+            textDirection: TextDirection.ltr,
+          )..layout(maxWidth: fullWidth - 28); // minus card padding
+          final fitsWide = !painter.didExceedMaxLines;
+          return SizedBox(
+            height: fitsWide ? _wideHeight : _tallHeight,
+            width: double.infinity,
+            child: _AiInsightCard(
+              text: insights.first,
+              maxLines: fitsWide ? 2 : 8,
+              onDismiss: onDismiss,
+              onPickDate: onPickDate,
+              onTap: onTap,
+            ),
+          );
+        }
+
+        // Multiple insights: chip width ("Top Spender"), Spending Trend
+        // height, horizontally scrollable.
+        final chipWidth = (fullWidth - 12) / 2;
+        return SizedBox(
+          height: _tallHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: insights.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => SizedBox(
+              width: chipWidth,
+              child: _AiInsightCard(
+                text: insights[i],
+                maxLines: 8,
+                onDismiss: i == 0 ? onDismiss : null,
+                onPickDate: i == 0 ? onPickDate : null,
+                onTap: onTap,
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }
 
 class _AiInsightCard extends StatelessWidget {
   final String text;
+  final int maxLines;
   final VoidCallback? onDismiss;
-  const _AiInsightCard({required this.text, this.onDismiss});
+
+  /// Dev-mode date picker trigger; renders a calendar icon when non-null.
+  final VoidCallback? onPickDate;
+  final VoidCallback? onTap;
+  const _AiInsightCard({
+    required this.text,
+    required this.maxLines,
+    this.onDismiss,
+    this.onPickDate,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 240,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
-          width: 0.5,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+            width: 0.5,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                LucideIcons.lightbulb,
-                size: 12,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Insight',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  LucideIcons.lightbulb,
+                  size: 12,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-              if (onDismiss != null) ...[
-                const Spacer(),
-                GestureDetector(
-                  onTap: onDismiss,
-                  child: Icon(
-                    LucideIcons.x,
-                    size: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                const SizedBox(width: 4),
+                Text(
+                  'Insight',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
+                if (onPickDate != null || onDismiss != null) const Spacer(),
+                if (onPickDate != null)
+                  GestureDetector(
+                    onTap: onPickDate,
+                    child: Icon(
+                      LucideIcons.calendar,
+                      size: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                if (onPickDate != null && onDismiss != null)
+                  const SizedBox(width: 10),
+                if (onDismiss != null)
+                  GestureDetector(
+                    onTap: onDismiss,
+                    child: Icon(
+                      LucideIcons.x,
+                      size: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
               ],
-            ],
-          ),
-          const SizedBox(height: 6),
-          Expanded(
-            child: Text(
-              text,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurface,
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: maxLines,
+                overflow: TextOverflow.ellipsis,
+                style: _AiInsightRow._bodyStyle.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

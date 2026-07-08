@@ -38,16 +38,17 @@ class AccountProvider extends ChangeNotifier {
   void reloadIfNeeded(bool newDevMode) {
     if (_devMode == newDevMode) return;
     _devMode = newDevMode;
-    if (!kIsWeb || _cloud == null) {
-      _accounts = _devMode
-          ? List<Account>.from(Account.dummyData)
-          : _storage.getAccounts();
+    if (_devMode) {
+      _accounts = List<Account>.from(Account.dummyData);
+      notifyListeners();
+    } else if (!kIsWeb || _cloud == null) {
+      _accounts = _storage.getAccounts();
       notifyListeners();
     }
   }
 
   void setCloudUid(String uid) {
-    if (_cloud != null) return;
+    if (_cloud != null || _devMode) return;
     _cloud = CloudDataService(db: FirebaseFirestore.instance, uid: uid);
     if (kIsWeb) {
       _cloud!.loadAccounts().then((list) {

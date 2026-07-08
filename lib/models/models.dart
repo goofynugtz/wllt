@@ -297,10 +297,31 @@ class Transaction {
     baseCurrency: json['baseCurrency'] as String? ?? 'USD',
   );
 
-  static List<Transaction> get dummyData =>
-      _dummyDataSource.map((tx) => tx.copyWith(baseCurrency: 'INR')).toList();
+  /// Fixed-calendar entries plus device-clock-anchored entries. Fixed months
+  /// that fall in the current or previous month are dropped because the
+  /// dynamic blocks already cover them — otherwise rent/salary/subscriptions
+  /// would double up whenever the device clock overlaps a fixed month.
+  static List<Transaction> get dummyData {
+    final now = DateTime.now();
+    final prev = DateTime(now.year, now.month - 1);
+    bool coveredByDynamic(DateTime d) =>
+        (d.year == now.year && d.month == now.month) ||
+        (d.year == prev.year && d.month == prev.month);
+    return [
+      ..._dynamicDummySource,
+      ..._fixedDummySource.where((tx) => !coveredByDynamic(tx.date)),
+    ].map((tx) => tx.copyWith(baseCurrency: 'INR')).toList();
+  }
 
-  static final List<Transaction> _dummyDataSource = [
+  /// Date [monthsAgo] months before now, on [day]. Keeps the dynamic dummy
+  /// blocks anchored to the device clock so dev mode always has current-month
+  /// and previous-month data (DateTime normalizes month <= 0 into prior years).
+  static DateTime _dm(int monthsAgo, int day) {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month - monthsAgo, day);
+  }
+
+  static final List<Transaction> _fixedDummySource = [
     Transaction(
       id: 't1',
       transactionTitle: 'Big Bazaar',
@@ -544,62 +565,108 @@ class Transaction {
       account: 'a2',
       tags: ['transport'],
     ),
-    // Today & yesterday entries for Recent section demo
-    Transaction(
-      id: 't25',
-      transactionTitle: 'Uber Eats',
-      categoryId: 'restaurant',
-      amount: 340,
-      type: TransactionType.expense,
-      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-      account: 'a2',
-      tags: ['restaurant'],
-    ),
-    Transaction(
-      id: 't26',
-      transactionTitle: 'Jio Recharge',
-      categoryId: 'phone',
-      amount: 299,
-      type: TransactionType.expense,
-      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-      account: 'a1',
-      tags: ['phone'],
-    ),
-    Transaction(
-      id: 't27',
-      transactionTitle: 'Salary Credit',
-      categoryId: 'work',
-      amount: 85000,
-      type: TransactionType.income,
-      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
-      account: 'a1',
-      tags: ['work'],
-    ),
-    Transaction(
-      id: 't28',
-      transactionTitle: 'Amazon Prime',
-      categoryId: 'movies',
-      amount: 299,
-      type: TransactionType.expense,
-      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
-      account: 'a2',
-      tags: ['movies'],
-    ),
+    // ── August 2026 ──────────────────────────────────────────────────────────
+    // Festive month: Rakhi gifts plus the annual health-insurance premium.
+    Transaction(id: 'th01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 8, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'th02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 8, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'th03', transactionTitle: 'Groww SIP', categoryId: 'savings', amount: 10000, type: TransactionType.expense, date: DateTime(2026, 8, 2), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'th04', transactionTitle: 'ACT Fibernet', categoryId: 'internet', amount: 1180, type: TransactionType.expense, date: DateTime(2026, 8, 3), account: 'HDFC Bank', tags: ['internet']),
+    Transaction(id: 'th05', transactionTitle: 'GitHub Copilot', categoryId: 'work', amount: 850, type: TransactionType.expense, date: DateTime(2026, 8, 4), account: 'ICICI Bank', tags: ['work']),
+    Transaction(id: 'th06', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2420, type: TransactionType.expense, date: DateTime(2026, 8, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'th07', transactionTitle: 'Jio Recharge', categoryId: 'phone', amount: 299, type: TransactionType.expense, date: DateTime(2026, 8, 6), account: 'HDFC Bank', tags: ['phone']),
+    Transaction(id: 'th08', transactionTitle: 'HDFC Ergo Premium', categoryId: 'savings', amount: 12500, type: TransactionType.expense, date: DateTime(2026, 8, 7), account: 'HDFC Bank', note: 'Annual health insurance', tags: ['savings']),
+    Transaction(id: 'th09', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1580, type: TransactionType.expense, date: DateTime(2026, 8, 9), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'th10', transactionTitle: 'Spotify', categoryId: 'music', amount: 119, type: TransactionType.expense, date: DateTime(2026, 8, 10), account: 'ICICI Bank', tags: ['music']),
+    Transaction(id: 'th11', transactionTitle: 'Amazon', categoryId: 'gifts', amount: 1850, type: TransactionType.expense, date: DateTime(2026, 8, 12), account: 'ICICI Bank', note: 'Rakhi gifts', tags: ['gifts']),
+    Transaction(id: 'th12', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 410, type: TransactionType.expense, date: DateTime(2026, 8, 14), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'th13', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2026, 8, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'th14', transactionTitle: 'Third Wave Coffee', categoryId: 'coffee', amount: 420, type: TransactionType.expense, date: DateTime(2026, 8, 18), account: 'Cash', tags: ['coffee']),
+    Transaction(id: 'th15', transactionTitle: 'Ola', categoryId: 'transport', amount: 350, type: TransactionType.expense, date: DateTime(2026, 8, 20), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'th16', transactionTitle: 'Udemy', categoryId: 'education', amount: 649, type: TransactionType.expense, date: DateTime(2026, 8, 22), account: 'ICICI Bank', note: 'Kubernetes course', tags: ['education']),
+    Transaction(id: 'th17', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 740, type: TransactionType.expense, date: DateTime(2026, 8, 24), account: 'ICICI Bank', tags: ['groceries']),
+    Transaction(id: 'th18', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 480, type: TransactionType.expense, date: DateTime(2026, 8, 28), account: 'HDFC Bank', tags: ['restaurant']),
 
-    // ── April 2026 (current month) ──────────────────────────────────────────
-    Transaction(id: 'ta01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['home']),
-    Transaction(id: 'ta02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['savings']),
-    Transaction(id: 'ta03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2200, type: TransactionType.expense, date: DateTime(2026, 4, 5), account: 'HDFC Bank', tags: ['groceries']),
-    Transaction(id: 'ta04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 520, type: TransactionType.expense, date: DateTime(2026, 4, 7), account: 'ICICI Bank', tags: ['restaurant']),
-    Transaction(id: 'ta05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1750, type: TransactionType.expense, date: DateTime(2026, 4, 8), account: 'HDFC Bank', tags: ['utilities']),
-    Transaction(id: 'ta06', transactionTitle: 'Ola', categoryId: 'transport', amount: 210, type: TransactionType.expense, date: DateTime(2026, 4, 10), account: 'Cash', tags: ['transport']),
-    Transaction(id: 'ta07', transactionTitle: 'Flipkart', categoryId: 'shopping', amount: 1890, type: TransactionType.expense, date: DateTime(2026, 4, 12), account: 'ICICI Bank', tags: ['shopping']),
-    Transaction(id: 'ta08', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 390, type: TransactionType.expense, date: DateTime(2026, 4, 14), account: 'HDFC Bank', tags: ['restaurant']),
-    Transaction(id: 'ta09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1650, type: TransactionType.expense, date: DateTime(2026, 4, 16), account: 'HDFC Bank', tags: ['groceries']),
-    Transaction(id: 'ta10', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2026, 4, 18), account: 'ICICI Bank', tags: ['movies']),
-    Transaction(id: 'ta11', transactionTitle: 'Uber', categoryId: 'transport', amount: 340, type: TransactionType.expense, date: DateTime(2026, 4, 20), account: 'HDFC Bank', tags: ['transport']),
-    Transaction(id: 'ta12', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 720, type: TransactionType.expense, date: DateTime(2026, 4, 22), account: 'ICICI Bank', tags: ['groceries']),
-    Transaction(id: 'ta13', transactionTitle: 'Rapido', categoryId: 'transport', amount: 95, type: TransactionType.expense, date: DateTime(2026, 4, 24), account: 'Cash', tags: ['transport']),
+    // ── July 2026 ────────────────────────────────────────────────────────────
+    Transaction(id: 'tf01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 7, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tf02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 7, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tf03', transactionTitle: 'Groww SIP', categoryId: 'savings', amount: 10000, type: TransactionType.expense, date: DateTime(2026, 7, 2), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tf04', transactionTitle: 'ACT Fibernet', categoryId: 'internet', amount: 1180, type: TransactionType.expense, date: DateTime(2026, 7, 3), account: 'HDFC Bank', tags: ['internet']),
+    Transaction(id: 'tf05', transactionTitle: 'GitHub Copilot', categoryId: 'work', amount: 850, type: TransactionType.expense, date: DateTime(2026, 7, 4), account: 'ICICI Bank', tags: ['work']),
+    Transaction(id: 'tf06', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 2240, type: TransactionType.expense, date: DateTime(2026, 7, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tf07', transactionTitle: 'Jio Recharge', categoryId: 'phone', amount: 299, type: TransactionType.expense, date: DateTime(2026, 7, 6), account: 'HDFC Bank', tags: ['phone']),
+    Transaction(id: 'tf08', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1620, type: TransactionType.expense, date: DateTime(2026, 7, 8), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tf09', transactionTitle: 'Spotify', categoryId: 'music', amount: 119, type: TransactionType.expense, date: DateTime(2026, 7, 10), account: 'ICICI Bank', tags: ['music']),
+    Transaction(id: 'tf10', transactionTitle: 'Practo Consult', categoryId: 'doctor', amount: 500, type: TransactionType.expense, date: DateTime(2026, 7, 11), account: 'ICICI Bank', tags: ['doctor']),
+    Transaction(id: 'tf11', transactionTitle: 'Indian Oil', categoryId: 'transport', amount: 1800, type: TransactionType.expense, date: DateTime(2026, 7, 13), account: 'HDFC Bank', note: 'Full tank', tags: ['transport']),
+    Transaction(id: 'tf12', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2026, 7, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tf13', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 460, type: TransactionType.expense, date: DateTime(2026, 7, 17), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tf14', transactionTitle: 'PVR Cinemas', categoryId: 'movies', amount: 780, type: TransactionType.expense, date: DateTime(2026, 7, 19), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tf15', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 850, type: TransactionType.expense, date: DateTime(2026, 7, 21), account: 'ICICI Bank', tags: ['groceries']),
+    Transaction(id: 'tf16', transactionTitle: 'Amazon', categoryId: 'shopping', amount: 3200, type: TransactionType.expense, date: DateTime(2026, 7, 23), account: 'ICICI Bank', note: 'Mechanical keyboard', tags: ['shopping']),
+    Transaction(id: 'tf17', transactionTitle: 'Uber', categoryId: 'transport', amount: 280, type: TransactionType.expense, date: DateTime(2026, 7, 26), account: 'HDFC Bank', tags: ['transport']),
+    Transaction(id: 'tf18', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 390, type: TransactionType.expense, date: DateTime(2026, 7, 29), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── June 2026 ────────────────────────────────────────────────────────────
+    // Freelance payout funds a WFH-setup splurge; AWS bill for a side project.
+    Transaction(id: 'te01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 6, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'te02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 6, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'te03', transactionTitle: 'Groww SIP', categoryId: 'savings', amount: 10000, type: TransactionType.expense, date: DateTime(2026, 6, 2), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'te04', transactionTitle: 'ACT Fibernet', categoryId: 'internet', amount: 1180, type: TransactionType.expense, date: DateTime(2026, 6, 3), account: 'HDFC Bank', tags: ['internet']),
+    Transaction(id: 'te05', transactionTitle: 'GitHub Copilot', categoryId: 'work', amount: 850, type: TransactionType.expense, date: DateTime(2026, 6, 4), account: 'ICICI Bank', tags: ['work']),
+    Transaction(id: 'te06', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1980, type: TransactionType.expense, date: DateTime(2026, 6, 6), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'te07', transactionTitle: 'Jio Recharge', categoryId: 'phone', amount: 299, type: TransactionType.expense, date: DateTime(2026, 6, 6), account: 'HDFC Bank', tags: ['phone']),
+    Transaction(id: 'te08', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1750, type: TransactionType.expense, date: DateTime(2026, 6, 9), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'te09', transactionTitle: 'Spotify', categoryId: 'music', amount: 119, type: TransactionType.expense, date: DateTime(2026, 6, 10), account: 'ICICI Bank', tags: ['music']),
+    Transaction(id: 'te10', transactionTitle: 'Freelance Project', categoryId: 'savings', amount: 30000, type: TransactionType.income, date: DateTime(2026, 6, 12), account: 'HDFC Bank', note: 'API integration for client', tags: ['savings']),
+    Transaction(id: 'te11', transactionTitle: 'Croma', categoryId: 'shopping', amount: 24500, type: TransactionType.expense, date: DateTime(2026, 6, 14), account: 'ICICI Bank', note: '27-inch monitor for WFH', tags: ['shopping']),
+    Transaction(id: 'te12', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 530, type: TransactionType.expense, date: DateTime(2026, 6, 15), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'te13', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2026, 6, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'te14', transactionTitle: 'Blue Tokai', categoryId: 'coffee', amount: 380, type: TransactionType.expense, date: DateTime(2026, 6, 18), account: 'Cash', tags: ['coffee']),
+    Transaction(id: 'te15', transactionTitle: 'Rapido', categoryId: 'transport', amount: 120, type: TransactionType.expense, date: DateTime(2026, 6, 20), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'te16', transactionTitle: 'AWS', categoryId: 'work', amount: 920, type: TransactionType.expense, date: DateTime(2026, 6, 21), account: 'ICICI Bank', note: 'Side-project hosting', tags: ['work']),
+    Transaction(id: 'te17', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1540, type: TransactionType.expense, date: DateTime(2026, 6, 24), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'te18', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 360, type: TransactionType.expense, date: DateTime(2026, 6, 27), account: 'HDFC Bank', tags: ['restaurant']),
+
+    // ── May 2026 ─────────────────────────────────────────────────────────────
+    // Conference-trip month: flight, hotel, client dinner, airport cabs.
+    Transaction(id: 'tc01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 5, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tc02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 5, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tc03', transactionTitle: 'Groww SIP', categoryId: 'savings', amount: 10000, type: TransactionType.expense, date: DateTime(2026, 5, 2), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tc04', transactionTitle: 'ACT Fibernet', categoryId: 'internet', amount: 1180, type: TransactionType.expense, date: DateTime(2026, 5, 3), account: 'HDFC Bank', tags: ['internet']),
+    Transaction(id: 'tc05', transactionTitle: 'GitHub Copilot', categoryId: 'work', amount: 850, type: TransactionType.expense, date: DateTime(2026, 5, 4), account: 'ICICI Bank', tags: ['work']),
+    Transaction(id: 'tc06', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 2100, type: TransactionType.expense, date: DateTime(2026, 5, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tc07', transactionTitle: 'Jio Recharge', categoryId: 'phone', amount: 299, type: TransactionType.expense, date: DateTime(2026, 5, 6), account: 'HDFC Bank', tags: ['phone']),
+    Transaction(id: 'tc08', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 2250, type: TransactionType.expense, date: DateTime(2026, 5, 8), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tc09', transactionTitle: 'Spotify', categoryId: 'music', amount: 119, type: TransactionType.expense, date: DateTime(2026, 5, 10), account: 'ICICI Bank', tags: ['music']),
+    Transaction(id: 'tc10', transactionTitle: 'IndiGo Airlines', categoryId: 'travel', amount: 5600, type: TransactionType.expense, date: DateTime(2026, 5, 12), account: 'ICICI Bank', note: 'BLR-DEL, tech conference', tags: ['travel']),
+    Transaction(id: 'tc11', transactionTitle: 'OYO Rooms', categoryId: 'travel', amount: 4200, type: TransactionType.expense, date: DateTime(2026, 5, 13), account: 'ICICI Bank', note: '2 nights, conference stay', tags: ['travel']),
+    Transaction(id: 'tc12', transactionTitle: 'Barbeque Nation', categoryId: 'restaurant', amount: 1850, type: TransactionType.expense, date: DateTime(2026, 5, 14), account: 'ICICI Bank', note: 'Client dinner', tags: ['restaurant']),
+    Transaction(id: 'tc13', transactionTitle: 'Uber', categoryId: 'transport', amount: 640, type: TransactionType.expense, date: DateTime(2026, 5, 15), account: 'HDFC Bank', note: 'Airport drop', tags: ['transport']),
+    Transaction(id: 'tc14', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2026, 5, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tc15', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 420, type: TransactionType.expense, date: DateTime(2026, 5, 19), account: 'HDFC Bank', tags: ['restaurant']),
+    Transaction(id: 'tc16', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 690, type: TransactionType.expense, date: DateTime(2026, 5, 22), account: 'ICICI Bank', tags: ['groceries']),
+    Transaction(id: 'tc17', transactionTitle: 'Myntra', categoryId: 'shopping', amount: 2300, type: TransactionType.expense, date: DateTime(2026, 5, 24), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tc18', transactionTitle: 'Cult.fit', categoryId: 'fitness', amount: 1580, type: TransactionType.expense, date: DateTime(2026, 5, 26), account: 'ICICI Bank', tags: ['fitness']),
+
+    // ── April 2026 ───────────────────────────────────────────────────────────
+    Transaction(id: 'tb01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tb02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: DateTime(2026, 4, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tb03', transactionTitle: 'Groww SIP', categoryId: 'savings', amount: 10000, type: TransactionType.expense, date: DateTime(2026, 4, 2), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tb04', transactionTitle: 'ACT Fibernet', categoryId: 'internet', amount: 1180, type: TransactionType.expense, date: DateTime(2026, 4, 3), account: 'HDFC Bank', tags: ['internet']),
+    Transaction(id: 'tb05', transactionTitle: 'GitHub Copilot', categoryId: 'work', amount: 850, type: TransactionType.expense, date: DateTime(2026, 4, 4), account: 'ICICI Bank', tags: ['work']),
+    Transaction(id: 'tb06', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2350, type: TransactionType.expense, date: DateTime(2026, 4, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tb07', transactionTitle: 'Jio Recharge', categoryId: 'phone', amount: 299, type: TransactionType.expense, date: DateTime(2026, 4, 6), account: 'HDFC Bank', tags: ['phone']),
+    Transaction(id: 'tb08', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 480, type: TransactionType.expense, date: DateTime(2026, 4, 8), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'tb09', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1900, type: TransactionType.expense, date: DateTime(2026, 4, 9), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tb10', transactionTitle: 'Spotify', categoryId: 'music', amount: 119, type: TransactionType.expense, date: DateTime(2026, 4, 10), account: 'ICICI Bank', tags: ['music']),
+    Transaction(id: 'tb11', transactionTitle: 'Apollo Pharmacy', categoryId: 'doctor', amount: 620, type: TransactionType.expense, date: DateTime(2026, 4, 12), account: 'HDFC Bank', tags: ['doctor']),
+    Transaction(id: 'tb12', transactionTitle: 'Indian Oil', categoryId: 'transport', amount: 2000, type: TransactionType.expense, date: DateTime(2026, 4, 13), account: 'HDFC Bank', note: 'Full tank', tags: ['transport']),
+    Transaction(id: 'tb13', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: DateTime(2026, 4, 15), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tb14', transactionTitle: 'Udemy', categoryId: 'education', amount: 799, type: TransactionType.expense, date: DateTime(2026, 4, 18), account: 'ICICI Bank', note: 'System design course', tags: ['education']),
+    Transaction(id: 'tb15', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 780, type: TransactionType.expense, date: DateTime(2026, 4, 20), account: 'ICICI Bank', tags: ['groceries']),
+    Transaction(id: 'tb16', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 350, type: TransactionType.expense, date: DateTime(2026, 4, 24), account: 'HDFC Bank', tags: ['restaurant']),
+    Transaction(id: 'tb17', transactionTitle: 'Amazon', categoryId: 'shopping', amount: 1450, type: TransactionType.expense, date: DateTime(2026, 4, 26), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'tb18', transactionTitle: 'Uber', categoryId: 'transport', amount: 310, type: TransactionType.expense, date: DateTime(2026, 4, 28), account: 'HDFC Bank', tags: ['transport']),
 
     // ── January 2026 ────────────────────────────────────────────────────────
     Transaction(id: 'tj01', transactionTitle: 'House Rent', categoryId: 'home', amount: 18000, type: TransactionType.expense, date: DateTime(2026, 1, 1), account: 'HDFC Bank', tags: ['home']),
@@ -708,6 +775,83 @@ class Transaction {
     Transaction(id: 'tm08', transactionTitle: 'Ola', categoryId: 'transport', amount: 200, type: TransactionType.expense, date: DateTime(2025, 5, 21), account: 'Cash', tags: ['transport']),
     Transaction(id: 'tm09', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 1550, type: TransactionType.expense, date: DateTime(2025, 5, 25), account: 'HDFC Bank', tags: ['groceries']),
     Transaction(id: 'tm10', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 360, type: TransactionType.expense, date: DateTime(2025, 5, 29), account: 'HDFC Bank', tags: ['restaurant']),
+  ];
+
+  /// Entries anchored to the device clock: today/yesterday rows plus full
+  /// current- and previous-month blocks, so dev mode always has fresh data
+  /// even after the fixed calendar above runs out.
+  static final List<Transaction> _dynamicDummySource = [
+    // Today & yesterday entries for Recent section demo
+    Transaction(
+      id: 't25',
+      transactionTitle: 'Uber Eats',
+      categoryId: 'restaurant',
+      amount: 340,
+      type: TransactionType.expense,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+      account: 'a2',
+      tags: ['restaurant'],
+    ),
+    Transaction(
+      id: 't26',
+      transactionTitle: 'Jio Recharge',
+      categoryId: 'phone',
+      amount: 299,
+      type: TransactionType.expense,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+      account: 'a1',
+      tags: ['phone'],
+    ),
+    Transaction(
+      id: 't27',
+      transactionTitle: 'Salary Credit',
+      categoryId: 'work',
+      amount: 85000,
+      type: TransactionType.income,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
+      account: 'a1',
+      tags: ['work'],
+    ),
+    Transaction(
+      id: 't28',
+      transactionTitle: 'Amazon Prime',
+      categoryId: 'movies',
+      amount: 299,
+      type: TransactionType.expense,
+      date: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1),
+      account: 'a2',
+      tags: ['movies'],
+    ),
+
+    // ── Current month (anchored to device clock) ─────────────────────────────
+    Transaction(id: 'ta01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: _dm(0, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'ta02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: _dm(0, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'ta03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2200, type: TransactionType.expense, date: _dm(0, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'ta04', transactionTitle: 'Zomato', categoryId: 'restaurant', amount: 520, type: TransactionType.expense, date: _dm(0, 7), account: 'ICICI Bank', tags: ['restaurant']),
+    Transaction(id: 'ta05', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1750, type: TransactionType.expense, date: _dm(0, 8), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'ta06', transactionTitle: 'Ola', categoryId: 'transport', amount: 210, type: TransactionType.expense, date: _dm(0, 10), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'ta07', transactionTitle: 'Flipkart', categoryId: 'shopping', amount: 1890, type: TransactionType.expense, date: _dm(0, 12), account: 'ICICI Bank', tags: ['shopping']),
+    Transaction(id: 'ta08', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 390, type: TransactionType.expense, date: _dm(0, 14), account: 'HDFC Bank', tags: ['restaurant']),
+    Transaction(id: 'ta09', transactionTitle: 'BigBasket', categoryId: 'groceries', amount: 1650, type: TransactionType.expense, date: _dm(0, 16), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'ta10', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: _dm(0, 18), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'ta11', transactionTitle: 'Uber', categoryId: 'transport', amount: 340, type: TransactionType.expense, date: _dm(0, 20), account: 'HDFC Bank', tags: ['transport']),
+    Transaction(id: 'ta12', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 720, type: TransactionType.expense, date: _dm(0, 22), account: 'ICICI Bank', tags: ['groceries']),
+    Transaction(id: 'ta13', transactionTitle: 'Rapido', categoryId: 'transport', amount: 95, type: TransactionType.expense, date: _dm(0, 24), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'ta14', transactionTitle: 'Spotify', categoryId: 'music', amount: 119, type: TransactionType.expense, date: _dm(0, 10), account: 'ICICI Bank', tags: ['music']),
+
+    // ── Previous month (anchored to device clock) ────────────────────────────
+    // Repeats Netflix/Spotify/Zomato/Swiggy so recurring-charge detection and
+    // month-over-month comparisons have material in dev mode.
+    Transaction(id: 'tp01', transactionTitle: 'House Rent', categoryId: 'home', amount: 19000, type: TransactionType.expense, date: _dm(1, 1), account: 'HDFC Bank', tags: ['home']),
+    Transaction(id: 'tp02', transactionTitle: 'Salary Credit', categoryId: 'savings', amount: 85000, type: TransactionType.income, date: _dm(1, 1), account: 'HDFC Bank', tags: ['savings']),
+    Transaction(id: 'tp03', transactionTitle: 'D-Mart', categoryId: 'groceries', amount: 2050, type: TransactionType.expense, date: _dm(1, 5), account: 'HDFC Bank', tags: ['groceries']),
+    Transaction(id: 'tp04', transactionTitle: 'BESCOM', categoryId: 'utilities', amount: 1690, type: TransactionType.expense, date: _dm(1, 8), account: 'HDFC Bank', tags: ['utilities']),
+    Transaction(id: 'tp05', transactionTitle: 'Spotify', categoryId: 'music', amount: 119, type: TransactionType.expense, date: _dm(1, 10), account: 'ICICI Bank', tags: ['music']),
+    Transaction(id: 'tp06', transactionTitle: 'Ola', categoryId: 'transport', amount: 260, type: TransactionType.expense, date: _dm(1, 12), account: 'Cash', tags: ['transport']),
+    Transaction(id: 'tp07', transactionTitle: 'Netflix', categoryId: 'movies', amount: 649, type: TransactionType.expense, date: _dm(1, 18), account: 'ICICI Bank', tags: ['movies']),
+    Transaction(id: 'tp08', transactionTitle: 'Swiggy', categoryId: 'restaurant', amount: 310, type: TransactionType.expense, date: _dm(1, 20), account: 'HDFC Bank', tags: ['restaurant']),
+    Transaction(id: 'tp09', transactionTitle: 'Blinkit', categoryId: 'groceries', amount: 830, type: TransactionType.expense, date: _dm(1, 24), account: 'ICICI Bank', tags: ['groceries']),
+    Transaction(id: 'tp10', transactionTitle: 'Amazon Prime', categoryId: 'movies', amount: 299, type: TransactionType.expense, date: _dm(1, 26), account: 'ICICI Bank', tags: ['movies']),
   ];
 }
 

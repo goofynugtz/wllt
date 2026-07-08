@@ -21,6 +21,7 @@ import 'providers/app_settings_provider.dart';
 import 'providers/budget_provider.dart';
 import 'providers/sms_provider.dart';
 import 'providers/subscription_provider.dart';
+import 'providers/suggested_actions_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/user_preferences_provider.dart';
 import 'screens/layout_screen.dart';
@@ -115,7 +116,7 @@ class WalletApp extends StatelessWidget {
           create: (_) => TransactionProvider(
             storage,
             devMode: storage.devMode,
-            cloudUid: kIsWeb ? currentUid : null,
+            cloudUid: kIsWeb && !startInDemoMode ? currentUid : null,
           ),
           update: (_, settings, prev) =>
               prev!..reloadIfNeeded(settings.devMode || settings.demoMode),
@@ -124,7 +125,7 @@ class WalletApp extends StatelessWidget {
           create: (_) => AccountProvider(
             storage,
             devMode: storage.devMode,
-            cloudUid: kIsWeb ? currentUid : null,
+            cloudUid: kIsWeb && !startInDemoMode ? currentUid : null,
           ),
           update: (_, settings, prev) =>
               prev!..reloadIfNeeded(settings.devMode || settings.demoMode),
@@ -145,6 +146,9 @@ class WalletApp extends StatelessWidget {
             prev!.updateIsPro(sub.isPro);
             return prev;
           },
+        ),
+        ChangeNotifierProvider(
+          create: (_) => SuggestedActionsProvider()..init(),
         ),
         ChangeNotifierProvider<ExchangeRateService>.value(
           value: ExchangeRateService.instance,

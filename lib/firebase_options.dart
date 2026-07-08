@@ -11,13 +11,12 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 
 class DefaultFirebaseOptions {
-  // TODO: Replace placeholder values with your Firebase Web app's config.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_WEB_API_KEY',
-    appId: 'REPLACE_WITH_WEB_APP_ID',
-    messagingSenderId: 'REPLACE_WITH_SENDER_ID',
-    projectId: 'REPLACE_WITH_PROJECT_ID',
-    authDomain: 'REPLACE_WITH_AUTH_DOMAIN',
-    storageBucket: 'REPLACE_WITH_STORAGE_BUCKET',
+    apiKey: 'AIzaSyBCG1g_zRTon6FFCTclvlinzYl1irNsTH4',
+    appId: '1:211606633990:web:0b1699e674c3f914f00d87',
+    messagingSenderId: '211606633990',
+    projectId: 'wllt-ac320',
+    authDomain: 'wllt-ac320.firebaseapp.com',
+    storageBucket: 'wllt-ac320.firebasestorage.app',
   );
 }

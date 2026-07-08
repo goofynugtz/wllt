@@ -62,7 +62,12 @@ class AiProvider extends ChangeNotifier {
     }
   }
 
+  /// True if the model file is already on disk (survives toggle-off crashes,
+  /// reinstalls that keep app data, etc.). Checked before offering a download.
+  Future<bool> get isModelDownloaded => AiService.instance.modelFileExists;
+
   /// Download model then initialize. Called when user confirms in settings.
+  /// Skips the network entirely if the file is already installed.
   Future<void> enableAndDownload() async {
     if (!_isPro) return;
     _state = AiModelState.downloading;
@@ -70,12 +75,14 @@ class AiProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await AiService.instance.downloadModel(
-        onProgress: (p) {
-          _downloadProgress = p;
-          notifyListeners();
-        },
-      );
+      if (!await AiService.instance.modelFileExists) {
+        await AiService.instance.downloadModel(
+          onProgress: (p) {
+            _downloadProgress = p;
+            notifyListeners();
+          },
+        );
+      }
       await AiService.instance.initModel();
       await _storage.setAiEnabled(true);
       _state = AiModelState.ready;

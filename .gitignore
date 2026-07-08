@@ -60,3 +60,5 @@ app.*.map.json
 # Claude Code — local-only settings (API keys, personal overrides).
 # settings.json and skills/ are committed as project config.
 .claude/settings.local.json
+gemma3-1b-it-int4.task
+.env

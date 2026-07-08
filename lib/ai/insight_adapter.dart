@@ -3,31 +3,28 @@ import 'categorization_adapter.dart' show InferFn;
 class InsightAdapter {
   InsightAdapter._();
 
+  /// Generates one actionable saving suggestion from pre-computed [facts]
+  /// (see InsightFacts). Returns null when there is nothing to say or
+  /// inference fails.
   static Future<String?> generate({
-    required Map<String, double> categoryTotals,
-    required Map<String, double> budgetLimits,
-    required double income,
+    required List<String> facts,
     required InferFn infer,
   }) async {
-    final lines = categoryTotals.entries.map((e) {
-      final budget = budgetLimits[e.key];
-      if (budget != null && budget > 0) {
-        final pct = ((e.value / budget - 1) * 100).round();
-        final sign = pct >= 0 ? '+$pct%' : '$pct%';
-        return '${e.key} ₹${e.value.toStringAsFixed(0)} (budget ₹${budget.toStringAsFixed(0)} $sign)';
-      }
-      return '${e.key} ₹${e.value.toStringAsFixed(0)}';
-    }).join(', ');
+    if (facts.isEmpty) return null;
 
     final prompt = '<start_of_turn>user\n'
-        'One actionable spending insight, max 2 sentences.\n'
-        '$lines\n'
+        'You are a personal finance coach. Spending facts:\n'
+        '${facts.map((f) => '- $f').join('\n')}\n'
+        'Point out the single biggest saving opportunity and one concrete '
+        'action (e.g. cancel a subscription, cap a category). '
+        'Cite exact amounts from the facts. Max 2 sentences.\n'
         '<end_of_turn>\n'
         '<start_of_turn>model\n';
 
     try {
       final raw = await infer(prompt);
-      return raw.trim();
+      final text = raw.trim();
+      return text.isEmpty ? null : text;
     } catch (_) {
       return null;
     }

@@ -8,13 +8,24 @@ class AiService {
   AiService._();
   static final instance = AiService._();
 
-  // Model configuration — developer must replace with actual values
-  // Get the model from Kaggle or Hugging Face in MediaPipe LlmInference (.task) format
-  // See: https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference
-  static const _modelUrl =
-      'https://huggingface.co/REPLACE_WITH_GEMMA3_1B_MODEL_REPO/resolve/main/gemma3-1b-it-cpu-int4.task';
-  // If the model requires a Hugging Face token:
-  static const String? _hfToken = null; // 'hf_REPLACE_WITH_TOKEN';
+  // Gemma 3 1B int4 in MediaPipe LlmInference (.task) format.
+  // Source resolution:
+  //   HF_TOKEN provided → Hugging Face (gated Gemma repo, token required)
+  //   no HF_TOKEN       → self-hosted MODEL_URL (default for all builds)
+  //   flutter run --dart-define=HF_TOKEN=hf_xxx
+  //   flutter run --dart-define=MODEL_URL=https://your-bucket/gemma3-1b-it-int4.task
+  // NOTE: dart-define values are embedded in the binary. HF token is for
+  // testing builds only — public releases must ship without it.
+  static const _hfUrl =
+      'https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task';
+  static const _selfHostedUrl = String.fromEnvironment(
+    'MODEL_URL',
+    defaultValue:
+        'https://pub-c5cf7c64e3d44baea74a98f0d802eab7.r2.dev/gemma3-1b-it-int4.task',
+  );
+  static const _hfTokenEnv = String.fromEnvironment('HF_TOKEN');
+  static String? get _hfToken => _hfTokenEnv.isEmpty ? null : _hfTokenEnv;
+  static String get _modelUrl => _hfToken == null ? _selfHostedUrl : _hfUrl;
   // Model ID used internally by flutter_gemma — matches the filename part of _modelUrl
   static const _modelId = 'gemma3-1b-it-cpu-int4.task';
 
@@ -50,7 +61,9 @@ class AiService {
   /// Safe to call multiple times — no-op if already initialized.
   Future<void> initModel() async {
     if (_model != null) return;
-    _model = await FlutterGemma.getActiveModel(maxTokens: 512);
+    // 1024: chat prompt (facts + trimmed history) plus a 150-token reply
+    // needs more headroom than the one-shot summary/insight prompts.
+    _model = await FlutterGemma.getActiveModel(maxTokens: 1024);
     debugPrint('[AiService] Model loaded');
   }
 
@@ -84,8 +97,19 @@ class AiService {
   }
 
   /// Delete the installed model and reset initialized state.
+  /// Closes the loaded model first — the native engine keeps the file
+  /// mmap'd, so deleting without closing leaves the ~555 MB held on disk
+  /// until the process exits.
   Future<void> deleteModel() async {
+    final model = _model;
     _model = null;
+    if (model != null) {
+      try {
+        await model.close();
+      } catch (e) {
+        debugPrint('[AiService] Model close failed: $e');
+      }
+    }
     final installed = await FlutterGemma.isModelInstalled(_modelId);
     if (installed) {
       await FlutterGemma.uninstallModel(_modelId);

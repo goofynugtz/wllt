@@ -38,10 +38,11 @@ class TransactionProvider extends ChangeNotifier {
   void reloadIfNeeded(bool newDevMode) {
     if (_devMode == newDevMode) return;
     _devMode = newDevMode;
-    if (!kIsWeb || _cloud == null) {
-      _transactions = _devMode
-          ? List<Transaction>.from(Transaction.dummyData)
-          : _storage.getTransactions();
+    if (_devMode) {
+      _transactions = List<Transaction>.from(Transaction.dummyData);
+      notifyListeners();
+    } else if (!kIsWeb || _cloud == null) {
+      _transactions = _storage.getTransactions();
       notifyListeners();
     }
   }
@@ -49,7 +50,7 @@ class TransactionProvider extends ChangeNotifier {
   /// On web: loads from Firestore and replaces the transaction list.
   /// On mobile: enables write-through to Firestore without overwriting Hive data.
   void setCloudUid(String uid) {
-    if (_cloud != null) return;
+    if (_cloud != null || _devMode) return;
     _cloud = CloudDataService(db: FirebaseFirestore.instance, uid: uid);
     if (kIsWeb) {
       _cloud!.loadTransactions().then((list) {

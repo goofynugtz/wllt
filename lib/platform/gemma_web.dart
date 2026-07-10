@@ -1,3 +1,5 @@
+import 'dart:async';
+
 // Web stub for flutter_gemma — all operations are no-ops.
 
 enum ModelType { gemmaIt }
@@ -39,6 +41,7 @@ class Session {
   Session._();
   Future<void> addQueryChunk(Message message) async {}
   Future<String> getResponse() async => '';
+  Stream<String> getResponseAsync() async* {}
   Future<void> close() async {}
 }
 

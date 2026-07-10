@@ -19,25 +19,25 @@ class ParsedSmsResult {
 class SmsParser {
   // Tier 1: HDFC — "Rs.349 debited from a/c XX1234 on UPI to ZOMATO"
   static final _hdfcPattern = RegExp(
-    r"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited).*?(?:UPI\s+to|for)\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|Bal|Avl|Available|\n|$)",
+    r"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited).*?(?:UPI\s+to|for)\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|Bal|Avl|Available|\n|$)",
     caseSensitive: false,
   );
 
   // Tier 2: ICICI — "Acct XX1234 debited for Rs 520; Info: Swiggy"
   static final _iciciPattern = RegExp(
-    r"(?:debited|credited)\s+for\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?).*?Info:\s*([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|Avl|$)",
+    r"(?:debited|credited)\s+for\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?).*?Info:\s*([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|Avl|$)",
     caseSensitive: false,
   );
 
   // Tier 3: SBI — "A/c XXXX1234 is debited Rs.1,850 for BESCOM"
   static final _sbiPattern = RegExp(
-    r"(?:a\/c|account)\s+\w+\s+is\s+(debited|credited)\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+on\s+[A-Za-z0-9\-\/]+\s+for\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|Avl|$)",
+    r"(?:a\/c|account)\s+\w+\s+is\s+(debited|credited)\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+on\s+[A-Za-z0-9\-\/]+\s+for\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|Avl|$)",
     caseSensitive: false,
   );
 
   // Tier 4: Generic bank — "INR 1,240 debited from Axis Bank A/c for DMart"
   static final _genericBankPattern = RegExp(
-    r"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited)\s+from\s+[A-Za-z\s]+(?:Bank|A\/c|Acct)[A-Za-z0-9\s]*for\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|Bal|$)",
+    r"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited)\s+from\s+[A-Za-z\s]+(?:Bank|A\/c|Acct)[A-Za-z0-9\s]*for\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|Bal|$)",
     caseSensitive: false,
   );
 
@@ -47,7 +47,13 @@ class SmsParser {
     caseSensitive: false,
   );
 
-  // Tier 6: Generic debit/credit (amount + type only, no merchant)
+  // Tier 6: Acct Dr/Cr — "Acct XXX099 Dr. INR 52.00 on 07/07/26 to KAVALI SANJ; UPI: ..."
+  static final _acctDrCrPattern = RegExp(
+    r"acct\s+\w+\s+(dr|cr)\.?\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+on\s+[\d\/\-]+\s+to\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:;|\.|Bal|Avl|$)",
+    caseSensitive: false,
+  );
+
+  // Tier 7: Generic debit/credit (amount + type only, no merchant)
   static final _genericPattern = RegExp(
     r'(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited)',
     caseSensitive: false,
@@ -128,13 +134,26 @@ class SmsParser {
       }
     }
 
-    final m6 = _genericPattern.firstMatch(body);
+    final m6 = _acctDrCrPattern.firstMatch(body);
     if (m6 != null) {
-      final amount = _parseAmount(m6.group(1)!);
+      final amount = _parseAmount(m6.group(2)!);
       if (amount != null) {
         return ParsedSmsResult(
           amount: amount,
-          type: _typeFrom(m6.group(2)!),
+          type: _typeFrom(m6.group(1)!),
+          merchant: _cleanMerchant(m6.group(3)),
+          accountHint: accountHint,
+        );
+      }
+    }
+
+    final m7 = _genericPattern.firstMatch(body);
+    if (m7 != null) {
+      final amount = _parseAmount(m7.group(1)!);
+      if (amount != null) {
+        return ParsedSmsResult(
+          amount: amount,
+          type: _typeFrom(m7.group(2)!),
           accountHint: accountHint,
         );
       }
@@ -147,7 +166,7 @@ class SmsParser {
       double.tryParse(raw.replaceAll(',', '').trim());
 
   static TransactionType _typeFrom(String keyword) =>
-      keyword.toLowerCase() == 'credited' ? TransactionType.income : TransactionType.expense;
+      keyword.toLowerCase().startsWith('cr') ? TransactionType.income : TransactionType.expense;
 
   static TransactionType _typeFromBody(String body) {
     final lower = body.toLowerCase();

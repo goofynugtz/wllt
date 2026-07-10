@@ -1,5 +1,3 @@
-import 'categorization_adapter.dart' show InferFn;
-
 /// One prior exchange in the ephemeral insight chat, oldest first.
 class ChatTurn {
   final bool isUser;
@@ -18,10 +16,36 @@ class ChatReply {
   bool get isSuggestion => actionText != null;
 }
 
+/// Produces a stream of raw model token deltas for [prompt], as
+/// [AiService.inferStream] does.
+typedef InferStreamFn = Stream<String> Function(String prompt);
+
+/// Events emitted by [ChatAdapter.generateStream], oldest first, always
+/// terminated by exactly one [ChatStreamDone].
+sealed class ChatStreamEvent {}
+
+/// The growing, marker-safe prefix of the reply's conversational text. Each
+/// event's [text] is a superset of the previous event's — safe to render
+/// directly, it never shrinks or exposes a partial marker (the one
+/// exception is a single trailing-whitespace trim the instant a marker
+/// resolves, matching the final parsed text).
+class ChatStreamText extends ChatStreamEvent {
+  final String text;
+  ChatStreamText(this.text);
+}
+
+/// Terminal event. [reply] is null when the model produced nothing usable
+/// or inference failed — caller shows an error bubble with retry.
+class ChatStreamDone extends ChatStreamEvent {
+  final ChatReply? reply;
+  ChatStreamDone(this.reply);
+}
+
 class ChatAdapter {
   ChatAdapter._();
 
   static const _marker = 'action:';
+  static const _coachLabel = 'coach:';
 
   /// ~700 tokens at ~4 chars/token for the facts + history + message block.
   /// The model context is 1024; this leaves room for the rule text and the
@@ -29,7 +53,8 @@ class ChatAdapter {
   static const _charBudget = 2800;
 
   /// The model tends to continue the dialogue past its own turn; anything
-  /// after these markers is hallucinated conversation, not the reply.
+  /// after these markers is hallucinated conversation, not the reply. Only
+  /// these — not [_marker] — signal the reply itself has ended.
   static const _stopMarkers = [
     '<end_of_turn>',
     '<start_of_turn>',
@@ -37,17 +62,56 @@ class ChatAdapter {
     '\nCoach:',
   ];
 
-  /// Runs one chat turn. Rebuilds the full prompt every call (stateless —
+  /// Strings watched for partial-match hold-back at the tail of the safe
+  /// prefix, so a marker never flashes on screen mid-character.
+  static final _watchStrings = [..._stopMarkers, _marker];
+
+  /// Runs one chat turn as a stream of events: zero or more [ChatStreamText]
+  /// (a growing, marker-safe prefix of the reply) followed by exactly one
+  /// [ChatStreamDone]. Rebuilds the full prompt every call (stateless —
   /// AiService uses one session per inference) in Gemma's multi-turn format,
-  /// so the model never sees name labels it could echo back. Returns null
-  /// when the model produced nothing usable or inference failed; caller
-  /// shows an error bubble with retry.
-  static Future<ChatReply?> generate({
+  /// so the model never sees name labels it could echo back.
+  static Stream<ChatStreamEvent> generateStream({
     required List<String> facts,
     required List<ChatTurn> history,
     required String userMessage,
-    required InferFn infer,
-  }) async {
+    required InferStreamFn inferStream,
+  }) async* {
+    final prompt = _buildPrompt(
+      facts: facts,
+      history: history,
+      userMessage: userMessage,
+    );
+
+    final buffer = StringBuffer();
+    var lastVisible = '';
+    ChatReply? reply;
+    try {
+      await for (final chunk in inferStream(prompt)) {
+        buffer.write(chunk);
+        final raw = buffer.toString();
+        final seen = _visibleFrom(raw);
+        if (seen.visible != lastVisible) {
+          lastVisible = seen.visible;
+          yield ChatStreamText(lastVisible);
+        }
+        if (seen.complete) {
+          reply = _parse(raw);
+          break;
+        }
+      }
+      reply ??= _parse(buffer.toString());
+    } catch (_) {
+      reply = null;
+    }
+    yield ChatStreamDone(reply);
+  }
+
+  static String _buildPrompt({
+    required List<String> facts,
+    required List<ChatTurn> history,
+    required String userMessage,
+  }) {
     final factBlock = facts.map((f) => '- $f').join('\n');
 
     // Drop oldest turns until facts + history + message fit the budget.
@@ -79,12 +143,71 @@ class ChatAdapter {
       prompt.write('<start_of_turn>user\n$userMessage\n<end_of_turn>\n'
           '<start_of_turn>model\n');
     }
+    return prompt.toString();
+  }
 
-    try {
-      return _parse(await infer(prompt.toString()));
-    } catch (_) {
-      return null;
+  /// Safe-to-render visible text for the raw buffer accumulated so far, and
+  /// whether the reply itself is now known-complete (a stop marker fully
+  /// matched, so anything further is hallucinated continuation — safe to
+  /// stop listening). [_marker] ("action:") caps how far [visible] grows
+  /// but does *not* mark completion — the action body keeps streaming in
+  /// after it.
+  static ({String visible, bool complete}) _visibleFrom(String raw) {
+    final t = raw.trimLeft();
+    final lower = t.toLowerCase();
+    var start = 0;
+    if (lower.startsWith(_coachLabel)) {
+      start = _coachLabel.length;
+      while (start < t.length && t[start] == ' ') {
+        start++;
+      }
+    } else if (_coachLabel.startsWith(lower)) {
+      // Buffer so far is a strict prefix of "coach:" — could still become
+      // the echoed label. Nothing safe to show yet.
+      return (visible: '', complete: false);
     }
+
+    final rest = t.substring(start);
+    var stopCut = rest.length;
+    for (final stop in _stopMarkers) {
+      final i = rest.indexOf(stop);
+      if (i != -1 && i < stopCut) stopCut = i;
+    }
+    final actionIdx = rest.toLowerCase().indexOf(_marker);
+    final cut = actionIdx != -1 && actionIdx < stopCut ? actionIdx : stopCut;
+
+    final region = rest.substring(0, cut);
+    final hold = _holdback(region);
+    final visible = region.substring(0, region.length - hold);
+
+    // Once cut is pinned by either kind of marker, region can never grow
+    // again — safe to trim trailing whitespace to match the final parse.
+    final frozen = cut < rest.length;
+    final complete = stopCut < rest.length;
+    return (
+      visible: frozen ? visible.trimRight() : visible,
+      complete: complete,
+    );
+  }
+
+  /// Longest suffix of [region] that is a strict prefix of any watched
+  /// marker string — withheld because it might still grow into a full
+  /// match on the next chunk.
+  static int _holdback(String region) {
+    var hold = 0;
+    for (final watch in _watchStrings) {
+      final caseSensitive = watch != _marker;
+      final hay = caseSensitive ? region : region.toLowerCase();
+      final needle = caseSensitive ? watch : watch.toLowerCase();
+      final maxLen = (needle.length - 1).clamp(0, hay.length);
+      for (var k = maxLen; k > hold; k--) {
+        if (hay.substring(hay.length - k) == needle.substring(0, k)) {
+          hold = k;
+          break;
+        }
+      }
+    }
+    return hold;
   }
 
   static ChatReply? _parse(String raw) {
@@ -96,8 +219,8 @@ class ChatAdapter {
     }
 
     // Strip an echoed leading speaker label.
-    if (text.toLowerCase().startsWith('coach:')) {
-      text = text.substring('coach:'.length).trim();
+    if (text.toLowerCase().startsWith(_coachLabel)) {
+      text = text.substring(_coachLabel.length).trim();
     }
 
     // Split out the ACTION suggestion wherever it appears. toLowerCase is

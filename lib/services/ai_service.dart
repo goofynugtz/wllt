@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart'
     if (dart.library.html) '../platform/gemma_web.dart';
@@ -91,6 +94,40 @@ class AiService {
       return await session
           .getResponse()
           .timeout(const Duration(seconds: 10));
+    } finally {
+      await session.close();
+    }
+  }
+
+  /// Streams inference for [prompt] one raw token delta at a time. Creates
+  /// and closes a session per call, same as [infer]. [temperature]:
+  /// randomness (0.1 = deterministic, 0.4 = creative). Times out (throwing
+  /// TimeoutException) if no chunk arrives within 10s — this is a per-chunk
+  /// idle timeout, not a cap on total reply time.
+  ///
+  /// Unlike [infer] (used for deterministic extraction — categorization,
+  /// SMS parsing — where near-greedy decoding is wanted), this samples from
+  /// the top 40 tokens with a fresh random seed each call. [infer]'s
+  /// `topK: 1` makes it near-argmax regardless of temperature, which is
+  /// correct for extraction but produces repetitive, near-identical phrasing
+  /// for the conversational replies this method streams for chat.
+  Stream<String> inferStream(
+    String prompt, {
+    double temperature = 0.1,
+  }) async* {
+    final model = _model;
+    if (model == null) {
+      throw StateError('AiService: model not initialized — call initModel() first');
+    }
+
+    final session = await model.createSession(
+      temperature: temperature,
+      topK: 40,
+      randomSeed: Random().nextInt(1 << 32),
+    );
+    try {
+      await session.addQueryChunk(Message.text(text: prompt, isUser: true));
+      yield* session.getResponseAsync().timeout(const Duration(seconds: 10));
     } finally {
       await session.close();
     }

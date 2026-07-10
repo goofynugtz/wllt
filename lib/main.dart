@@ -214,18 +214,19 @@ class _ThemedAppState extends State<_ThemedApp> {
       _sharingSubscription =
           ReceiveSharingIntent.instance.getMediaStream().listen((event) {
         for (final item in event) {
-          if (item.type == SharedMediaType.text && item.message != null) {
-            _handleSharedText(item.message!);
+          if (item.type == SharedMediaType.text) {
+            _handleSharedText(item.path);
           }
         }
       });
 
       ReceiveSharingIntent.instance.getInitialMedia().then((event) {
         for (final item in event) {
-          if (item.type == SharedMediaType.text && item.message != null) {
-            _handleSharedText(item.message!);
+          if (item.type == SharedMediaType.text) {
+            _handleSharedText(item.path);
           }
         }
+        ReceiveSharingIntent.instance.reset();
       });
     }
 

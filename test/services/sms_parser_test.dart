@@ -55,5 +55,17 @@ void main() {
       expect(r, isNotNull);
       expect(r!.amount, 1240.00);
     });
+
+    test('parses Canara Acct Dr. semicolon-delimited debit', () {
+      final r = SmsParser.parse(
+        'CANBNK',
+        'Dear Customer, Acct XXX099 Dr. INR 52.00 on 07/07/26 to KAVALI  SANJ; UPI: 655449588903; Bal INR 11,215.12.Not you?SMS BLOCKUPI to 9901771222-CanaraBank',
+      );
+      expect(r, isNotNull);
+      expect(r!.amount, 52.00);
+      expect(r.type, TransactionType.expense);
+      expect(r.merchant?.toLowerCase(), contains('kavali'));
+      expect(r.accountHint, 'Canara');
+    });
   });
 }

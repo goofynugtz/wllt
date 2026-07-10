@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -41,12 +43,32 @@ class _ChatMessage {
   });
 }
 
+/// Where the in-flight reply is: not generating, waiting for the first
+/// token (dots), or actively revealing streamed text.
+enum _Phase { idle, thinking, streaming }
+
 class _InsightChatScreenState extends State<InsightChatScreen> {
   final _messages = <_ChatMessage>[];
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
-  bool _generating = false;
+
+  _Phase _phase = _Phase.idle;
   String? _lastUserMessage;
+
+  // Typewriter reveal: the model-safe text known so far ([_targetText]) vs.
+  // what's currently on screen ([_displayedText]); a ticker advances the
+  // latter toward the former at a capped, catch-up-aware pace.
+  String _targetText = '';
+  String _displayedText = '';
+  Timer? _revealTimer;
+  StreamSubscription<ChatStreamEvent>? _streamSub;
+
+  static const _tick = Duration(milliseconds: 16);
+  // Target baseline; the actual floor is higher in practice because
+  // charsThisTick rounds up to at least 1 char per 16ms tick (~62/sec).
+  static const _baseCharsPerSecond = 40.0;
+  static const _catchUpBacklogChars = 60;
+  static const _catchUpDurationMs = 500;
 
   @override
   void initState() {
@@ -58,6 +80,8 @@ class _InsightChatScreenState extends State<InsightChatScreen> {
 
   @override
   void dispose() {
+    _streamSub?.cancel();
+    _revealTimer?.cancel();
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -89,59 +113,92 @@ class _InsightChatScreenState extends State<InsightChatScreen> {
     });
   }
 
-  Future<void> _send() async {
+  void _send() {
     final text = _inputController.text.trim();
-    if (text.isEmpty || _generating) return;
+    if (text.isEmpty || _phase != _Phase.idle) return;
     _inputController.clear();
     setState(() {
       _messages.add(_ChatMessage(isUser: true, text: text));
     });
-    await _generate(text);
+    _generate(text);
   }
 
   /// Re-runs generation for the last user message after an error bubble.
-  Future<void> _retry() async {
+  void _retry() {
     final text = _lastUserMessage;
-    if (text == null || _generating) return;
+    if (text == null || _phase != _Phase.idle) return;
     setState(() {
       _messages.removeWhere((m) => m.isError);
     });
-    await _generate(text);
+    _generate(text);
   }
 
-  Future<void> _generate(String userMessage) async {
+  void _generate(String userMessage) {
     _lastUserMessage = userMessage;
     // History for the model excludes the message being answered — it goes
     // into the prompt's final user turn instead.
     final turns = _historyForModel;
     final history = turns.sublist(0, turns.length - 1);
-    setState(() => _generating = true);
+
+    setState(() {
+      _phase = _Phase.thinking;
+      _targetText = '';
+      _displayedText = '';
+    });
     _scrollToBottom();
 
-    final reply = await ChatAdapter.generate(
+    final stream = ChatAdapter.generateStream(
       facts: widget.factLines,
       history: history,
       userMessage: userMessage,
-      infer: (p) =>
-          AiService.instance.infer(p, temperature: 0.4, maxTokens: 150),
+      inferStream: (p) => AiService.instance.inferStream(p, temperature: 0.7),
     );
 
-    if (!mounted) return;
-    setState(() {
-      _generating = false;
-      _messages.add(reply == null
-          ? const _ChatMessage(
-              isUser: false,
-              text: "Couldn't think of a reply. Try again.",
-              isError: true,
-            )
-          : _ChatMessage(
-              isUser: false,
-              text: reply.text,
-              actionText: reply.actionText,
-            ));
+    _streamSub = stream.listen((event) {
+      if (!mounted) return;
+      switch (event) {
+        case ChatStreamText(:final text):
+          setState(() {
+            if (_phase == _Phase.thinking) _phase = _Phase.streaming;
+            _targetText = text;
+          });
+          _revealTimer ??= Timer.periodic(_tick, _onRevealTick);
+          _scrollToBottom();
+        case ChatStreamDone(:final reply):
+          _revealTimer?.cancel();
+          _revealTimer = null;
+          setState(() {
+            _phase = _Phase.idle;
+            _messages.add(reply == null
+                ? const _ChatMessage(
+                    isUser: false,
+                    text: "Couldn't think of a reply. Try again.",
+                    isError: true,
+                  )
+                : _ChatMessage(
+                    isUser: false,
+                    text: reply.text,
+                    actionText: reply.actionText,
+                  ));
+          });
+          _scrollToBottom();
+      }
     });
-    _scrollToBottom();
+  }
+
+  void _onRevealTick(Timer t) {
+    if (!mounted) return;
+    if (_displayedText.length >= _targetText.length) return;
+    final backlog = _targetText.length - _displayedText.length;
+    final charsPerSecond = backlog > _catchUpBacklogChars
+        ? backlog * 1000 / _catchUpDurationMs
+        : _baseCharsPerSecond;
+    final charsThisTick =
+        (charsPerSecond * _tick.inMilliseconds / 1000).ceil().clamp(1, backlog);
+    setState(() {
+      _displayedText =
+          _targetText.substring(0, _displayedText.length + charsThisTick);
+    });
   }
 
   @override
@@ -155,9 +212,13 @@ class _InsightChatScreenState extends State<InsightChatScreen> {
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                itemCount: _messages.length + (_generating ? 1 : 0),
+                itemCount: _messages.length + (_phase == _Phase.idle ? 0 : 1),
                 itemBuilder: (context, i) {
-                  if (i == _messages.length) return const _ThinkingBubble();
+                  if (i == _messages.length) {
+                    return _phase == _Phase.thinking || _displayedText.isEmpty
+                        ? const _ThinkingDots()
+                        : _StreamingBubble(text: _displayedText);
+                  }
                   return _MessageBubble(
                     message: _messages[i],
                     onRetry: _messages[i].isError ? _retry : null,
@@ -196,7 +257,7 @@ class _InsightChatScreenState extends State<InsightChatScreen> {
           ),
           const SizedBox(width: 8),
           IconButton.filled(
-            onPressed: _generating ? null : _send,
+            onPressed: _phase == _Phase.idle ? _send : null,
             icon: const Icon(LucideIcons.send, size: 18),
           ),
         ],
@@ -346,19 +407,53 @@ class _ActionChip extends StatelessWidget {
   }
 }
 
-class _ThinkingBubble extends StatefulWidget {
-  const _ThinkingBubble();
+/// Live preview of the reply while it's still streaming in: same shape as
+/// a non-user [_MessageBubble] but no action chip or retry affordance —
+/// those only make sense once the reply is finalized.
+class _StreamingBubble extends StatelessWidget {
+  final String text;
+
+  const _StreamingBubble({required this.text});
 
   @override
-  State<_ThinkingBubble> createState() => _ThinkingBubbleState();
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(fontSize: 13, color: scheme.onSurface),
+        ),
+      ),
+    );
+  }
 }
 
-class _ThinkingBubbleState extends State<_ThinkingBubble>
+/// Bouncing 3-dot "typing" indicator shown while waiting for the first
+/// token of a reply.
+class _ThinkingDots extends StatefulWidget {
+  const _ThinkingDots();
+
+  @override
+  State<_ThinkingDots> createState() => _ThinkingDotsState();
+}
+
+class _ThinkingDotsState extends State<_ThinkingDots>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
+  )..repeat();
 
   @override
   void dispose() {
@@ -373,17 +468,38 @@ class _ThinkingBubbleState extends State<_ThinkingBubble>
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: FadeTransition(
-          opacity: Tween(begin: 0.35, end: 1.0).animate(_controller),
-          child: Text(
-            'Thinking…',
-            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                // Stagger each dot by a third of the cycle; bounce via a
+                // triangle wave so the motion eases up and back down.
+                final t = (_controller.value + i / 3) % 1.0;
+                final bounce = (t < 0.5 ? t : 1 - t) * 2; // 0..1..0
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Transform.translate(
+                    offset: Offset(0, -4 * bounce),
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: scheme.onSurfaceVariant,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
         ),
       ),
     );

@@ -35,27 +35,46 @@ class SmsParser {
     caseSensitive: false,
   );
 
-  // Tier 4: Generic bank — "INR 1,240 debited from Axis Bank A/c for DMart"
+  // Tier 4: Generic bank, amount-first — covers most banks regardless of exact
+  // account phrasing: "INR 1,240 debited from Axis Bank A/c for DMart",
+  // "Rs.500 withdrawn from A/c XX1234 at ATM Sector18", "Rs 500 debited from
+  // A/c XX1234 towards Electricity Bill". Skips over whatever sits between the
+  // verb and the merchant instead of requiring literal "Bank/A/c/Acct" tokens,
+  // so odd bank-specific phrasing doesn't break the match. "to" is excluded
+  // when it precedes an account/card reference so "credited to a/c XX1234"
+  // doesn't get swallowed as a merchant name.
   static final _genericBankPattern = RegExp(
-    r"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited)\s+from\s+[A-Za-z\s]+(?:Bank|A\/c|Acct)[A-Za-z0-9\s]*for\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|Bal|$)",
+    r"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(?:is\s+|has\s+been\s+|was\s+)?(debited|credited|spent|withdrawn|charged)\b"
+    r".*?\b(?:for|towards|at|to(?!\s*(?:a/?c\b|acct\b|account\b|card\b)))\s+"
+    r"([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|,|\s+Bal|\s+Avl|\s+on\s+\d|\n|$)",
     caseSensitive: false,
   );
 
-  // Tier 5: Generic UPI — "₹349 paid to Zomato via UPI"
+  // Tier 5: Card spend alert, verb-first — "You've spent INR 555.00 on your
+  // HDFC Bank card **1234 at AMAZON on 15/07/26". Amount follows the verb
+  // here instead of leading it, so it needs its own pattern rather than
+  // reusing genericBankPattern's amount-first shape.
+  static final _cardSpendPattern = RegExp(
+    r"(spent|charged)\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?).*?\bat\s+"
+    r"([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\s+on\s+\d|\.|;|,|\n|$)",
+    caseSensitive: false,
+  );
+
+  // Tier 6: Generic UPI — "₹349 paid to Zomato via UPI"
   static final _upiPattern = RegExp(
     r"(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(?:paid|sent)\s+to\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)\s+(?:via|using|through)\s+UPI",
     caseSensitive: false,
   );
 
-  // Tier 6: Acct Dr/Cr — "Acct XXX099 Dr. INR 52.00 on 07/07/26 to KAVALI SANJ; UPI: ..."
+  // Tier 7: Acct Dr/Cr — "Acct XXX099 Dr. INR 52.00 on 07/07/26 to KAVALI SANJ; UPI: ..."
   static final _acctDrCrPattern = RegExp(
     r"acct\s+\w+\s+(dr|cr)\.?\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+on\s+[\d\/\-]+\s+to\s+([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:;|\.|Bal|Avl|$)",
     caseSensitive: false,
   );
 
-  // Tier 7: Generic debit/credit (amount + type only, no merchant)
+  // Tier 8: Generic debit/credit/spend (amount + type only, no merchant)
   static final _genericPattern = RegExp(
-    r'(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited)',
+    r'(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+(debited|credited|spent|withdrawn|charged)',
     caseSensitive: false,
   );
 
@@ -64,10 +83,28 @@ class SmsParser {
     'AXISBK': 'Axis', 'KOTAKB': 'Kotak', 'PNBSMS': 'PNB',
     'CANBNK': 'Canara', 'BOIIND': 'Bank of India', 'INDBNK': 'Indian Bank',
     'YESBNK': 'Yes Bank', 'IDFCBK': 'IDFC', 'RBLBNK': 'RBL',
+    'BOBIBN': 'Bank of Baroda', 'UNIONB': 'Union Bank', 'IDIBNK': 'IDBI',
+    'FEDBNK': 'Federal Bank', 'INDUSB': 'IndusInd', 'HSBCIN': 'HSBC',
+    'CITIBK': 'Citibank', 'SCBLTD': 'Standard Chartered', 'PYTMBK': 'Paytm Payments Bank',
+    'SIBLTD': 'South Indian Bank', 'KTKBNK': 'Karnataka Bank', 'JKBANK': 'J&K Bank',
+    'DBSBNK': 'DBS', 'AUBANK': 'AU Small Finance', 'DCBBNK': 'DCB Bank',
+    'UCOBNK': 'UCO Bank', 'CBINBK': 'Central Bank of India', 'MAHABK': 'Bank of Maharashtra',
   };
 
+  /// Matches sender IDs case-insensitively, tolerating DLT prefixes/suffixes
+  /// carriers add around the bank code (e.g. "AD-HDFCBK-S", "VM-ICICIB").
+  static String? _accountHintFor(String sender) {
+    final upper = sender.toUpperCase();
+    final direct = _senderHints[upper];
+    if (direct != null) return direct;
+    for (final entry in _senderHints.entries) {
+      if (upper.contains(entry.key)) return entry.value;
+    }
+    return null;
+  }
+
   static ParsedSmsResult? parse(String sender, String body) {
-    final accountHint = _senderHints[sender.toUpperCase()];
+    final accountHint = _accountHintFor(sender);
 
     final m1 = _hdfcPattern.firstMatch(body);
     if (m1 != null) {
@@ -121,39 +158,52 @@ class SmsParser {
       }
     }
 
-    final m5 = _upiPattern.firstMatch(body);
+    final m5 = _cardSpendPattern.firstMatch(body);
     if (m5 != null) {
-      final amount = _parseAmount(m5.group(1)!);
+      final amount = _parseAmount(m5.group(2)!);
       if (amount != null) {
         return ParsedSmsResult(
           amount: amount,
           type: TransactionType.expense,
-          merchant: _cleanMerchant(m5.group(2)),
+          merchant: _cleanMerchant(m5.group(3)),
           accountHint: accountHint,
         );
       }
     }
 
-    final m6 = _acctDrCrPattern.firstMatch(body);
+    final m6 = _upiPattern.firstMatch(body);
     if (m6 != null) {
-      final amount = _parseAmount(m6.group(2)!);
+      final amount = _parseAmount(m6.group(1)!);
       if (amount != null) {
         return ParsedSmsResult(
           amount: amount,
-          type: _typeFrom(m6.group(1)!),
-          merchant: _cleanMerchant(m6.group(3)),
+          type: TransactionType.expense,
+          merchant: _cleanMerchant(m6.group(2)),
           accountHint: accountHint,
         );
       }
     }
 
-    final m7 = _genericPattern.firstMatch(body);
+    final m7 = _acctDrCrPattern.firstMatch(body);
     if (m7 != null) {
-      final amount = _parseAmount(m7.group(1)!);
+      final amount = _parseAmount(m7.group(2)!);
       if (amount != null) {
         return ParsedSmsResult(
           amount: amount,
-          type: _typeFrom(m7.group(2)!),
+          type: _typeFrom(m7.group(1)!),
+          merchant: _cleanMerchant(m7.group(3)),
+          accountHint: accountHint,
+        );
+      }
+    }
+
+    final m8 = _genericPattern.firstMatch(body);
+    if (m8 != null) {
+      final amount = _parseAmount(m8.group(1)!);
+      if (amount != null) {
+        return ParsedSmsResult(
+          amount: amount,
+          type: _typeFrom(m8.group(2)!),
           accountHint: accountHint,
         );
       }

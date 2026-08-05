@@ -15,7 +15,7 @@ import '../services/sms_rules_engine.dart';
 import '../services/sms_pending_store.dart';
 import '../services/storage_service.dart';
 import '../ai/sms_parser_adapter.dart';
-import '../ai/categorization_adapter.dart' show InferFn;
+import '../ai/categorization_adapter.dart';
 
 enum ProcessResult { added, alreadyCaptured, alreadyPending, blocked, filtered }
 
@@ -76,24 +76,42 @@ class SmsProvider extends ChangeNotifier {
     if (!SmsFilter.isFinancial(sender, body)) return ProcessResult.filtered;
 
     ParsedSmsResult? parsed = SmsParser.parse(sender, body);
+    final regexFailed = parsed == null;
 
-    // If deterministic parse failed and AI is available, try AI parsing
-    if (parsed == null && aiInfer != null) {
+    // If deterministic parse failed and AI is available, try AI parsing —
+    // covers merchant/amount/type plus, now, account.
+    if (regexFailed && aiInfer != null) {
       final aiResult = await SmsParserAdapter.parse(
         rawSms: body,
         infer: aiInfer,
+        availableAccounts: _accounts.accounts.map((a) => a.displayName).toList(),
       );
       if (aiResult != null) {
         parsed = ParsedSmsResult(
           merchant: aiResult.merchant,
           amount: aiResult.amount,
           type: aiResult.type == 'credit' ? TransactionType.income : TransactionType.expense,
+          accountHint: aiResult.account,
         );
       }
     }
 
     final hint = SmsRulesEngine.categorize(parsed?.merchant);
-    final categoryId = hint != null ? _resolveCategoryId(hint) : null;
+    var categoryId = hint != null ? _resolveCategoryId(hint) : null;
+
+    // Rules engine missed and we already had to invoke AI for extraction
+    // (regex failed) — let AI suggest a category too.
+    if (categoryId == null && regexFailed && parsed?.merchant != null && aiInfer != null) {
+      final categoryIds = _prefs.activeCategories.isNotEmpty
+          ? _prefs.activeCategories
+          : Category.categories.map((c) => c.id).toList();
+      categoryId = await CategorizationAdapter.suggest(
+        merchant: parsed!.merchant!,
+        availableCategories: categoryIds,
+        infer: aiInfer,
+      );
+    }
+
     final accountHint = parsed?.accountHint ?? _hintFromSender(sender);
 
     final item = PendingSmsTransaction(

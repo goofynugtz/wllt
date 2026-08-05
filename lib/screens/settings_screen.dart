@@ -140,7 +140,7 @@ class SettingsScreen extends StatelessWidget {
               SliverToBoxAdapter(child: _buildSectionLabel(context, 'Premium')),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               SliverToBoxAdapter(child: _buildPremiumCard(context, subscription)),
-              if (subscription.isPro) ...[
+              if (subscription.isPro && kFlavor != AppFlavor.release) ...[
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 SliverToBoxAdapter(child: _buildSectionLabel(context, 'Experimental Labs')),
                 const SliverToBoxAdapter(child: SizedBox(height: 8)),

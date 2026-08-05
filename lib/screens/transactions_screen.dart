@@ -335,11 +335,15 @@ enum TransactionFilter {
 class TransactionRow extends StatelessWidget {
   final Transaction transaction;
   final bool isFirst;
+  // Overrides the global preferred currency — e.g. account_detail_screen
+  // passes the account's own currency so rows match its balance/day totals.
+  final String? currencyOverride;
 
   const TransactionRow({
     super.key,
     required this.transaction,
     required this.isFirst,
+    this.currencyOverride,
   });
 
   @override
@@ -352,7 +356,7 @@ class TransactionRow extends StatelessWidget {
     final accountName = _resolvedAccount?.displayName ?? transaction.account;
 
     final prefs = context.watch<UserPreferencesProvider>();
-    final displayCurrency = prefs.currency;
+    final displayCurrency = currencyOverride ?? prefs.currency;
     final convertHistory = prefs.convertHistoricalCurrency;
 
     final double displayAmount;

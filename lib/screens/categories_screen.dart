@@ -28,18 +28,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   void _loadCategories() {
-    final prefs = context.read<UserPreferencesProvider>();
-    final activeIds = prefs.activeCategories.toSet();
-    final customMap = {for (final c in prefs.customCategories) c.id: c};
-    final builtinIds = Category.categories.map((c) => c.id).toSet();
-    _categories = [
-      // Built-in categories, using custom overrides (edits) if saved
-      ...Category.categories
-          .where((c) => activeIds.isEmpty || activeIds.contains(c.id))
-          .map((c) => customMap[c.id] ?? c),
-      // Pure custom (user-created, not overriding a built-in)
-      ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
-    ];
+    _categories = context.read<UserPreferencesProvider>().orderedCategories;
   }
 
   void _reloadCategories() {

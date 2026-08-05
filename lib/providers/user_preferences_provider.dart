@@ -78,6 +78,30 @@ class UserPreferencesProvider extends ChangeNotifier {
 
   List<String> get categoryOrder => _storage.categoryOrder;
 
+  /// Active + custom categories, merged and sorted per the user's saved
+  /// [categoryOrder] — single source of truth so every screen that lists
+  /// categories (CategoriesScreen, AddTransactionPage, ...) renders the same
+  /// order the user last arranged.
+  List<Category> get orderedCategories {
+    final activeIds = activeCategories.toSet();
+    final customMap = {for (final c in customCategories) c.id: c};
+    final builtinIds = Category.categories.map((c) => c.id).toSet();
+    final unordered = [
+      ...Category.categories
+          .where((c) => activeIds.isEmpty || activeIds.contains(c.id))
+          .map((c) => customMap[c.id] ?? c),
+      ...customCategories.where((c) => !builtinIds.contains(c.id)),
+    ];
+    final order = categoryOrder;
+    if (order.isEmpty) return unordered;
+    return [
+      ...order
+          .map((id) => unordered.where((c) => c.id == id).firstOrNull)
+          .whereType<Category>(),
+      ...unordered.where((c) => !order.contains(c.id)),
+    ];
+  }
+
   Future<void> saveCategoryOrder(List<String> ids) async {
     await _storage.setCategoryOrder(ids);
     notifyListeners();

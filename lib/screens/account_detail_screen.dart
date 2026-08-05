@@ -215,7 +215,9 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
               child: Column(
                 children: txs.asMap().entries.map((e) {
                   return TransactionRow(
-                      transaction: e.value, isFirst: e.key == 0);
+                      transaction: e.value,
+                      isFirst: e.key == 0,
+                      currencyOverride: currencyCode);
                 }).toList(),
               ),
             ),

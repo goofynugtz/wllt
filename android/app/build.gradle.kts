@@ -36,7 +36,25 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    // flutter_gemma bundles MediaPipe's vision + image-generator + qdrant
+    // native libs unconditionally (tasks-vision-image-generator dep), but
+    // this app only does text chat/insights — no image generation, no
+    // vision, no RAG/vector search. Confirmed zero references to those
+    // APIs in lib/. Strips ~55-90MB of dead native code per ABI.
+    packaging {
+        jniLibs {
+            excludes += setOf(
+                "**/libmediapipe_tasks_vision_jni.so",
+                "**/libmediapipe_tasks_vision_image_generator_jni.so",
+                "**/libimagegenerator_gpu.so",
+                "**/libqdrant_edge_ffi.so",
+            )
         }
     }
 }

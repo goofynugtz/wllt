@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
@@ -191,7 +192,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                     controller: _methodController,
                     scrollDirection: Axis.vertical,
                     itemCount: _labels.length,
-                    onPageChanged: (i) => setState(() => _method = _methods[i]),
+                    onPageChanged: (i) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _method = _methods[i]);
+                    },
                     itemBuilder: (_, i) => Text(
                       _labels[i],
                       style: textStyle,
@@ -261,7 +265,19 @@ class _ManualEntryFormState extends State<ManualEntryForm>
   Account? _account;
   CardEntry? _selectedCard;
   bool _accountInitialized = false;
+  bool _hadNoAccountsAtInit = false;
   bool _amountConverted = false;
+  // Snapshots of the amount/account as first displayed (post currency-resolution) —
+  // compared against live state to derive dirtiness; see _hasChanges.
+  String _initialAmount = '';
+  String _initialAccountId = '';
+  // The amount as last typed/loaded, and the currency it's expressed in.
+  // Every displayed amount is (re)computed from this single anchor via the
+  // Hive-backed ExchangeRateService cache — never from the currently
+  // displayed value — so switching accounts back and forth never compounds
+  // rounding drift; the same anchor always converts to the same result.
+  String _anchorAmount = '';
+  String _anchorCurrency = '';
   bool _showCalculator = false;
   late TextEditingController _titleController;
   final FocusNode _titleFocusNode = FocusNode();
@@ -288,6 +304,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       _type = widget.initialType;
       final amt = tx.amount;
       _amount = amt == amt.truncate() ? amt.toInt().toString() : amt.toStringAsFixed(2);
+      _anchorAmount = _amount;
+      _anchorCurrency = tx.baseCurrency;
       _selectedCategory = tx.categoryId;
       _merchant = tx.transactionTitle;
       _selectedDate = tx.date;
@@ -332,30 +350,62 @@ class _ManualEntryFormState extends State<ManualEntryForm>
     super.didChangeDependencies();
     if (!_accountInitialized) {
       final accounts = context.read<AccountProvider>().accounts;
-      if (accounts.isNotEmpty) {
-        final tx = widget.editTransaction;
-        _account = tx != null
-            ? accounts.firstWhere((a) => a.id == tx.account, orElse: () => accounts.first)
-            : accounts.first;
+      final tx = widget.editTransaction;
+      if (tx != null) {
+        // Respect a transaction saved with no account — don't force one on.
+        _account = accounts.where((a) => a.id == tx.account).firstOrNull;
+      } else if (accounts.isNotEmpty) {
+        _account = accounts.first;
       }
+      _hadNoAccountsAtInit = accounts.isEmpty;
       _accountInitialized = true;
+      _initialAccountId = _account?.id ?? '';
     }
     if (!_amountConverted && widget.editTransaction != null) {
-      final tx = widget.editTransaction!;
-      final currentCurrency = context.read<UserPreferencesProvider>().currency;
-      if (tx.baseCurrency != currentCurrency) {
-        final snapshot = ExchangeRateService.instance.getCachedSnapshot(tx.baseCurrency, tx.date);
-        final rate = snapshot?.rates[currentCurrency];
-        if (rate != null) {
-          final converted = tx.amount * rate;
-          _amount = converted == converted.truncate()
-              ? converted.toInt().toString()
-              : converted.toStringAsFixed(2);
-        }
-      }
+      // Match whatever currency is actually shown (the selected account's,
+      // falling back to the global preference) — not blindly the global
+      // preference — otherwise the amount and the currency label disagree.
+      final targetCurrency = _account?.baseCurrency ??
+          context.read<UserPreferencesProvider>().currency;
+      _amount = _convertedAmount(_anchorAmount, _anchorCurrency, targetCurrency);
       _amountConverted = true;
+      _initialAmount = _amount;
     }
   }
+
+  // Converts [amountStr] from [fromCurrency] to [toCurrency] via the same
+  // Hive-backed rate cache (ExchangeRateService) the rest of the app uses
+  // for display conversion — always a single hop from the stable anchor,
+  // so repeated conversions never compound rounding.
+  String _convertedAmount(String amountStr, String fromCurrency, String toCurrency) {
+    if (fromCurrency == toCurrency || amountStr.isEmpty) return amountStr;
+    final amountValue = double.tryParse(amountStr);
+    if (amountValue == null) return amountStr;
+    final snapshot = ExchangeRateService.instance.getCachedSnapshot(fromCurrency, _selectedDate);
+    final converted = Helpers.convertAmount(amountValue, fromCurrency, toCurrency, snapshot?.rates);
+    return converted == converted.truncate()
+        ? converted.toInt().toString()
+        : converted.toStringAsFixed(2);
+  }
+
+  // True once any field differs from the original record — gates the Save
+  // button in edit mode so an untouched record can't be silently re-saved.
+  // Computed (not a manually-flipped flag) so every field is covered by
+  // construction instead of requiring a setState call to remember to set it.
+  bool get _hasChanges {
+    final tx = widget.editTransaction;
+    if (tx == null) return true;
+    return _type != tx.type ||
+        _merchant.trim() != tx.transactionTitle.trim() ||
+        _amount != _initialAmount ||
+        _selectedCategory != tx.categoryId ||
+        _selectedDate != tx.date ||
+        (_account?.id ?? '') != _initialAccountId ||
+        !_sameTags(_tags, tx.tags);
+  }
+
+  bool _sameTags(List<String> a, List<String> b) =>
+      a.length == b.length && a.toSet().containsAll(b);
 
   @override
   void dispose() {
@@ -417,6 +467,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 
   void _selectPaymentMethod(Account account, CardEntry? card) {
     setState(() {
+      _amount = _convertedAmount(_anchorAmount, _anchorCurrency, account.baseCurrency);
       _account = account;
       _selectedCard = card;
     });
@@ -435,6 +486,11 @@ class _ManualEntryFormState extends State<ManualEntryForm>
       if (!mounted) return;
       setState(() {
         _amount = result;
+        // Manual edit — this becomes the new source of truth for future
+        // account-switch conversions, in whatever currency is showing now.
+        _anchorAmount = result;
+        _anchorCurrency = _account?.baseCurrency ??
+            context.read<UserPreferencesProvider>().currency;
         _showCalculator = false;
         _expression = '';
         _calcPreview = '';
@@ -578,25 +634,7 @@ class _ManualEntryFormState extends State<ManualEntryForm>
         .firstWhere((c) => c.code == effectiveCurrency,
             orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
         .symbol;
-    final activeIds = prefs.activeCategories.toSet();
-    final customMap = {for (final c in prefs.customCategories) c.id: c};
-    final builtinIds = Category.categories.map((c) => c.id).toSet();
-    final baseCategories = activeIds.isEmpty
-        ? Category.categories
-        : Category.categories.where((c) => activeIds.contains(c.id)).toList();
-    final unordered = [
-      ...baseCategories.map((c) => customMap[c.id] ?? c),
-      ...prefs.customCategories.where((c) => !builtinIds.contains(c.id)),
-    ];
-    final savedOrder = prefs.categoryOrder;
-    final displayCategories = savedOrder.isEmpty
-        ? unordered
-        : [
-            ...savedOrder
-                .map((id) => unordered.where((c) => c.id == id).firstOrNull)
-                .whereType<Category>(),
-            ...unordered.where((c) => !savedOrder.contains(c.id)),
-          ];
+    final displayCategories = prefs.orderedCategories;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -913,7 +951,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                       Builder(builder: (context) {
                         final providerAccounts = context.watch<AccountProvider>().accounts;
                         // Auto-select when first account arrives without requiring re-open
-                        if (_account == null && providerAccounts.isNotEmpty) {
+                        // (only if there were none at open — don't override a
+                        // transaction that was intentionally saved with no account).
+                        if (_account == null && _hadNoAccountsAtInit && providerAccounts.isNotEmpty) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (mounted && _account == null) {
                               setState(() => _account = providerAccounts.first);
@@ -1142,7 +1182,8 @@ class _ManualEntryFormState extends State<ManualEntryForm>
               child: FilledButton(
                 onPressed: (_amount.isNotEmpty &&
                         _merchant.trim().isNotEmpty &&
-                        _selectedCategory.isNotEmpty)
+                        _selectedCategory.isNotEmpty &&
+                        (widget.editTransaction == null || _hasChanges))
                     ? _saveTransaction
                     : null,
                 style: FilledButton.styleFrom(

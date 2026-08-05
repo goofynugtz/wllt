@@ -50,4 +50,38 @@ void main() {
     final result = await SmsParserAdapter.parse(rawSms: sms, infer: throwInfer);
     expect(result, isNull);
   });
+
+  Future<String> accountMatchInfer(String p) async =>
+      '{"merchant":"Zomato","amount":349.0,"type":"debit","account":"HDFC Savings"}';
+  Future<String> accountMismatchInfer(String p) async =>
+      '{"merchant":"Zomato","amount":349.0,"type":"debit","account":"Random Bank"}';
+
+  test('includes account when LLM returns one from the provided list', () async {
+    final result = await SmsParserAdapter.parse(
+      rawSms: sms,
+      infer: accountMatchInfer,
+      availableAccounts: ['HDFC Savings', 'ICICI Credit Card'],
+    );
+    expect(result, isNotNull);
+    expect(result!.account, equals('HDFC Savings'));
+  });
+
+  test('returns null account when LLM output is not in the provided list', () async {
+    final result = await SmsParserAdapter.parse(
+      rawSms: sms,
+      infer: accountMismatchInfer,
+      availableAccounts: ['HDFC Savings', 'ICICI Credit Card'],
+    );
+    expect(result, isNotNull);
+    expect(result!.account, isNull);
+  });
+
+  test('returns null account when no availableAccounts provided', () async {
+    final result = await SmsParserAdapter.parse(
+      rawSms: sms,
+      infer: accountMatchInfer,
+    );
+    expect(result, isNotNull);
+    expect(result!.account, isNull);
+  });
 }

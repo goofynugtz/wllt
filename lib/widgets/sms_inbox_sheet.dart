@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/sms_provider.dart';
+import '../providers/app_settings_provider.dart';
 import 'sms_pending_card.dart';
 
 class SmsInboxSheet extends StatefulWidget {
@@ -25,6 +26,11 @@ class _SmsInboxSheetState extends State<SmsInboxSheet> {
       builder: (_, controller) {
         return Consumer<SmsProvider>(
           builder: (ctx, sms, _) {
+            final devMode = ctx.watch<AppSettingsProvider>().devMode;
+            final items = devMode
+                ? sms.pending
+                : sms.pending.where((p) => (p.amount ?? 0) != 0).toList();
+
             if (sms.highlightedId != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final key = _itemKeys[sms.highlightedId];
@@ -76,7 +82,7 @@ class _SmsInboxSheetState extends State<SmsInboxSheet> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      if (sms.pendingCount > 0)
+                      if (items.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
@@ -84,7 +90,7 @@ class _SmsInboxSheetState extends State<SmsInboxSheet> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '${sms.pendingCount}',
+                            '${items.length}',
                             style: TextStyle(
                               fontSize: 12,
                               color: cs.onPrimaryContainer,
@@ -96,7 +102,7 @@ class _SmsInboxSheetState extends State<SmsInboxSheet> {
                   ),
                 ),
                 Expanded(
-                  child: sms.pending.isEmpty
+                  child: items.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -113,10 +119,10 @@ class _SmsInboxSheetState extends State<SmsInboxSheet> {
                       : ListView.separated(
                           controller: controller,
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                          itemCount: sms.pending.length,
+                          itemCount: items.length,
                           separatorBuilder: (_, _) => const SizedBox(height: 12),
                           itemBuilder: (ctx, i) {
-                            final item = sms.pending[i];
+                            final item = items[i];
                             _itemKeys.putIfAbsent(item.id, () => GlobalKey());
                             return SmsPendingCard(
                               key: _itemKeys[item.id],

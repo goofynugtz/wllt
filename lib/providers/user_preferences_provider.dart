@@ -68,6 +68,13 @@ class UserPreferencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  int get groupTransactionsThreshold => _storage.groupTransactionsThreshold;
+
+  Future<void> setGroupTransactionsThreshold(int value) async {
+    await _storage.setGroupTransactionsThreshold(value);
+    notifyListeners();
+  }
+
   Future<void> setCategories(List<String> ids) async {
     await _storage.setActiveCategories(ids);
     _syncService?.syncPreferences();

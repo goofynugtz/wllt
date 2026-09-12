@@ -23,6 +23,15 @@ class SmsParser {
     caseSensitive: false,
   );
 
+  // Tier 1b: HDFC UPI "Sent" — "Sent Rs.577.00\nFrom HDFC Bank A/C *7897\nTo
+  // 13 DHABHA\nOn 23/08/26". No debited/credited verb, so it needs its own
+  // pattern rather than reusing _hdfcPattern.
+  static final _hdfcSentPattern = RegExp(
+    r"Sent\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?)\s+From\s+[\s\S]*?\s+To\s+"
+    r"([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|,|\s+On\s+\d|\n|$)",
+    caseSensitive: false,
+  );
+
   // Tier 2: ICICI — "Acct XX1234 debited for Rs 520; Info: Swiggy"
   static final _iciciPattern = RegExp(
     r"(?:debited|credited)\s+for\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d+)?).*?Info:\s*([A-Za-z0-9][A-Za-z0-9\s&'.,-]{1,35}?)(?:\.|;|Avl|$)",
@@ -114,6 +123,19 @@ class SmsParser {
           amount: amount,
           type: _typeFrom(m1.group(2)!),
           merchant: _cleanMerchant(m1.group(3)),
+          accountHint: accountHint,
+        );
+      }
+    }
+
+    final m1b = _hdfcSentPattern.firstMatch(body);
+    if (m1b != null) {
+      final amount = _parseAmount(m1b.group(1)!);
+      if (amount != null) {
+        return ParsedSmsResult(
+          amount: amount,
+          type: TransactionType.expense,
+          merchant: _cleanMerchant(m1b.group(2)),
           accountHint: accountHint,
         );
       }

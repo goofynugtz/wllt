@@ -287,9 +287,75 @@ class SettingsScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const CategoriesScreen()),
             ),
           ),
+          Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+            indent: 16,
+            endIndent: 16,
+          ),
+          _SettingsTappableRow(
+            icon: LucideIcons.layers,
+            label: 'Group transactions',
+            value: prefs.groupTransactionsThreshold > 0
+                ? 'Under ${prefs.groupTransactionsThreshold}/day'
+                : 'Off',
+            onTap: () => _showGroupTransactionsDialog(context, prefs),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _showGroupTransactionsDialog(
+    BuildContext context,
+    UserPreferencesProvider prefs,
+  ) async {
+    final controller = TextEditingController(
+      text: prefs.groupTransactionsThreshold > 0
+          ? prefs.groupTransactionsThreshold.toString()
+          : '',
+    );
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Group transactions'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Days with fewer transactions than this number are grouped '
+              'together in the transactions list. Set 0 to disable.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(hintText: 'e.g. 4'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final parsed = int.tryParse(controller.text.trim()) ?? 0;
+              Navigator.of(ctx).pop(parsed < 0 ? 0 : parsed);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (value != null) {
+      await prefs.setGroupTransactionsThreshold(value);
+    }
   }
 
   Widget _buildAccountCard(

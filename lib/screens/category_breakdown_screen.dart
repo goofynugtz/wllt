@@ -10,6 +10,7 @@ import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../services/exchange_rate_service.dart';
 import '../utils/helpers.dart';
+import '../widgets/category_filter_sheet.dart';
 import '../widgets/category_icon_badge.dart';
 import 'category_detail_screen.dart';
 
@@ -113,8 +114,6 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
         t.date.year == _selectedYear &&
         t.date.month == _selectedMonth);
 
-    final totalExpense = monthTx.fold(0.0, (s, t) => s + resolveAmount(t));
-
     final breakdown = Helpers.getExpenseCategories(activeIds: activeIds)
         .map((cat) {
           final amount = monthTx
@@ -125,6 +124,10 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
         .where((cd) => cd.amount > 0)
         .toList()
       ..sort((a, b) => b.amount.compareTo(a.amount));
+
+    // Denominator for percentages: only the shown (active) categories, so
+    // hiding a category doesn't leave the rest summing to under 100%.
+    final totalExpense = breakdown.fold(0.0, (s, cd) => s + cd.amount);
 
     final monthLabel = '${Helpers.months[_selectedMonth - 1]} $_selectedYear';
 
@@ -213,7 +216,15 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
                         style: TextStyle(fontSize: 16, color: cs.onSurface),
                       ),
                     ),
-                    const SizedBox(width: 40),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(LucideIcons.slidersHorizontal, size: 20),
+                        onPressed: () => showCategoryFilterSheet(context),
+                      ),
+                    ),
                   ],
                 ),
               ),

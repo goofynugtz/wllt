@@ -26,6 +26,7 @@ class StorageService {
   static const String keyCategoryOrder              = 'category_order';
   static const String keyAiEnabled                  = 'ai_enabled';
   static const String keyFeedbackAutoShown          = 'feedback_auto_shown';
+  static const String keyGroupTransactionsThreshold = 'group_transactions_threshold';
 
   late Box _userPrefs;
   late Box _categories;
@@ -78,6 +79,15 @@ class StorageService {
 
   Future<void> setConvertHistoricalCurrency(bool value) =>
       _userPrefs.put(keyConvertHistoricalCurrency, value);
+
+  // ── Group transactions ──────────────────────────────────────────────────
+  /// Days with fewer transactions than this are collapsed into one group in
+  /// TransactionsScreen. 0 disables grouping.
+  int get groupTransactionsThreshold =>
+      (_userPrefs.get(keyGroupTransactionsThreshold) as int?) ?? 0;
+
+  Future<void> setGroupTransactionsThreshold(int value) =>
+      _userPrefs.put(keyGroupTransactionsThreshold, value);
 
   // ── Auth ──────────────────────────────────────────────────────────────
   String get authMode =>

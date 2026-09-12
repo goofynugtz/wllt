@@ -38,6 +38,18 @@ void main() {
       expect(r.merchant?.toLowerCase(), contains('zomato'));
     });
 
+    test('parses HDFC UPI "Sent" format', () {
+      final r = SmsParser.parse(
+        'HDFCBK',
+        'Sent Rs.577.00\nFrom HDFC Bank A/C *7897\nTo 13 DHABHA\nOn 23/08/26\nRef 623543213734\nNot You?\nCall 18002586161/SMS BLOCK UPI to 7308080808',
+      );
+      expect(r, isNotNull);
+      expect(r!.amount, 577.00);
+      expect(r.type, TransactionType.expense);
+      expect(r.merchant?.toLowerCase(), contains('dhabha'));
+      expect(r.accountHint, 'HDFC');
+    });
+
     test('parses credit transaction as income', () {
       final r = SmsParser.parse('HDFCBK', 'Rs.85,000.00 credited to a/c XX1234. NEFT from EMPLOYER LTD.');
       expect(r, isNotNull);

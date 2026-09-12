@@ -25,6 +25,7 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   final TextEditingController _searchController = TextEditingController();
   TransactionFilter _filter = TransactionFilter.all;
+  final Set<String> _expandedGroups = {};
 
   String? _prefetchCurrency;
   bool? _prefetchConvert;
@@ -208,10 +209,161 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   )
                 : ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: grouped.entries.map((entry) {
-                      return _buildDayGroup(entry.key, entry.value, currencySymbol);
-                    }).toList(),
+                    children: _buildGroupedList(grouped, prefs, currencySymbol),
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Runs consecutive low-volume days (below [UserPreferencesProvider.groupTransactionsThreshold])
+  /// together into a single collapsible group; everything else renders as its own day.
+  List<Widget> _buildGroupedList(
+    Map<String, List<Transaction>> grouped,
+    UserPreferencesProvider prefs,
+    String currencySymbol,
+  ) {
+    final entries = grouped.entries.toList();
+    final threshold = prefs.groupTransactionsThreshold;
+    final blocks = <Widget>[];
+    var i = 0;
+    while (i < entries.length) {
+      if (threshold > 0 && entries[i].value.length < threshold) {
+        var j = i + 1;
+        while (j < entries.length && entries[j].value.length < threshold) {
+          j++;
+        }
+        if (j - i > 1) {
+          blocks.add(_buildCollapsedDayGroup(entries.sublist(i, j), currencySymbol));
+          i = j;
+          continue;
+        }
+      }
+      blocks.add(_buildDayGroup(entries[i].key, entries[i].value, currencySymbol));
+      i++;
+    }
+    return blocks;
+  }
+
+  /// Merged card for a run of low-volume days: one rounded, shared-border
+  /// list of every transaction in the run, with a range/total header on top.
+  /// Tapping the header unfolds the run back into independent per-day cards.
+  Widget _buildCollapsedDayGroup(
+    List<MapEntry<String, List<Transaction>>> run,
+    String currencySymbol,
+  ) {
+    final groupKey = run.first.key;
+    final isExpanded = _expandedGroups.contains(groupKey);
+
+    final prefs = context.watch<UserPreferencesProvider>();
+    final displayCurrency = prefs.currency;
+    final convertHistory = prefs.convertHistoricalCurrency;
+
+    double resolved(Transaction t) {
+      if (!convertHistory && t.baseCurrency != displayCurrency) return t.amount;
+      final snap = ExchangeRateService.instance.getCachedSnapshot(t.baseCurrency, t.date);
+      return Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+    }
+
+    final allTx = run.expand((e) => e.value).toList();
+    final groupExpense = allTx
+        .where((t) => t.type == TransactionType.expense)
+        .fold(0.0, (sum, t) => sum + resolved(t));
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        children: [
+          // Group header — tap toggles merged vs. per-day view
+          InkWell(
+            onTap: () => setState(() {
+              if (isExpanded) {
+                _expandedGroups.remove(groupKey);
+              } else {
+                _expandedGroups.add(groupKey);
+              }
+            }),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        child: Icon(
+                          LucideIcons.chevronDown,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${Helpers.formatDateLabel(run.last.key)} – ${Helpers.formatDateLabel(run.first.key)}',
+                        style: AppTheme.trackingWideSecondary,
+                      ),
+                    ],
+                  ),
+                  if (groupExpense > 0)
+                    Text(
+                      '−${Helpers.formatAmount(groupExpense, currencySymbol)}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.expenseColor,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SizeTransition(
+                  sizeFactor: animation,
+                  axisAlignment: -1,
+                  child: child,
+                ),
+              ),
+              child: !isExpanded
+                  ? ClipRRect(
+                      key: const ValueKey('collapsed'),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Column(
+                          children: allTx.asMap().entries.map((entry) {
+                            return TransactionRow(
+                              transaction: entry.value,
+                              isFirst: entry.key == 0,
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    )
+                  : Column(
+                      key: const ValueKey('expanded'),
+                      children: run.map((e) => _buildDayGroup(e.key, e.value, currencySymbol)).toList(),
+                    ),
+            ),
           ),
         ],
       ),

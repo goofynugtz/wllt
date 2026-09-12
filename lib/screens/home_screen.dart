@@ -12,6 +12,7 @@ import '../models/models.dart';
 import '../models/ad_config.dart';
 import '../utils/helpers.dart';
 import '../widgets/category_icon_badge.dart';
+import '../widgets/category_filter_sheet.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/trial_banner.dart';
 import '../widgets/spending_trend_card.dart';
@@ -555,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen>
                               reverseTransitionDuration: const Duration(milliseconds: 300),
                             ),
                           ),
-                          child: _buildCategoryBreakdown(categoryBreakdown, totalExpense, currencySymbol),
+                          child: _buildCategoryBreakdown(categoryBreakdown, currencySymbol),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -829,11 +830,24 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildCategoryBreakdown(
     List<CategoryData> breakdown,
-    double totalExpense,
     String currencySymbol,
   ) {
+    // Denominator for percentages: only the shown (active) categories, so
+    // hiding a category doesn't leave the rest summing to under 100%.
+    final totalExpense = breakdown.fold(0.0, (s, cd) => s + cd.amount);
+
     return _SectionCard(
       title: 'Category Breakdown',
+      trailing: SizedBox(
+        width: 28,
+        height: 28,
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          icon: Icon(LucideIcons.slidersHorizontal,
+              size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          onPressed: () => showCategoryFilterSheet(context),
+        ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1320,9 +1334,10 @@ class _HomeScreenState extends State<HomeScreen>
 
 class _SectionCard extends StatelessWidget {
   final String? title;
+  final Widget? trailing;
   final Widget child;
 
-  const _SectionCard({this.title, required this.child});
+  const _SectionCard({this.title, this.trailing, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -1340,12 +1355,18 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title ?? '',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title ?? '',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
           ),
           const SizedBox(height: 12),
           child,

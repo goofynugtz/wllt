@@ -45,6 +45,7 @@ class CategoryFilterSheet extends StatefulWidget {
 class _CategoryFilterSheetState extends State<CategoryFilterSheet> {
   final List<Category> _expenseCategories = Helpers.getExpenseCategories();
   late Set<String> _selected;
+  String _query = '';
 
   @override
   void initState() {
@@ -55,20 +56,48 @@ class _CategoryFilterSheetState extends State<CategoryFilterSheet> {
         : _expenseCategories.map((c) => c.id).where(active.contains).toSet();
   }
 
-  void _toggle(String id) => setState(() {
-        if (_selected.contains(id)) {
-          _selected.remove(id);
-        } else {
-          _selected.add(id);
-        }
-      });
+  List<Category> get _visibleCategories {
+    if (_query.isEmpty) return _expenseCategories;
+    final q = _query.toLowerCase();
+    return _expenseCategories
+        .where((c) => c.name.toLowerCase().contains(q))
+        .toList();
+  }
 
-  void _selectAll() =>
-      setState(() => _selected = _expenseCategories.map((c) => c.id).toSet());
+  void _toggle(String id) {
+    final next = Set<String>.from(_selected);
+    if (next.contains(id)) {
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    if (next.isEmpty) {
+      _showMinSelectionError();
+      return;
+    }
+    setState(() => _selected = next);
+    _persist();
+  }
 
-  void _deselectAll() => setState(() => _selected.clear());
+  void _selectAll() {
+    setState(() => _selected = _expenseCategories.map((c) => c.id).toSet());
+    _persist();
+  }
 
-  Future<void> _save() async {
+  void _deselectAll() {
+    if (_selected.length <= 1) return;
+    setState(() => _selected = {_expenseCategories.first.id});
+    _persist();
+    _showMinSelectionError();
+  }
+
+  void _showMinSelectionError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Atleast one category should be selected')),
+    );
+  }
+
+  Future<void> _persist() async {
     final prefs = context.read<UserPreferencesProvider>();
     final allExpenseIds = _expenseCategories.map((c) => c.id).toSet();
     final allOtherIds = {
@@ -82,7 +111,6 @@ class _CategoryFilterSheetState extends State<CategoryFilterSheet> {
       allOtherIds: allOtherIds,
     );
     await prefs.setCategories(merged);
-    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -147,45 +175,38 @@ class _CategoryFilterSheetState extends State<CategoryFilterSheet> {
                 ],
               ),
             ),
-            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: TextField(
+                onChanged: (v) => setState(() => _query = v),
+                decoration: InputDecoration(
+                  hintText: 'Search categories',
+                  prefixIcon: Icon(LucideIcons.search, size: 18, color: cs.onSurfaceVariant),
+                  isDense: true,
+                  filled: true,
+                  fillColor: cs.surfaceContainerLow,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: CategorySelectionGrid(
-                  categories: _expenseCategories,
+                  categories: _visibleCategories,
                   selectedIds: _selected,
+                  lockedIds: _selected.length == 1 ? _selected : const {},
                   onToggle: _toggle,
                   scrollController: scrollController,
                   clipBehavior: Clip.hardEdge,
                 ),
               ),
             ),
-            DecoratedBox(
-              decoration: BoxDecoration(color: cs.surface),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _selected.isEmpty ? null : _save,
-                          child: const Text('Save'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            const SafeArea(top: false, child: SizedBox(height: 8)),
           ],
         ),
       ),

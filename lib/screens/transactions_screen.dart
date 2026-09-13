@@ -271,19 +271,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         .where((t) => t.type == TransactionType.expense)
         .fold(0.0, (sum, t) => sum + resolved(t));
 
+    void toggle() => setState(() {
+      if (isExpanded) {
+        _expandedGroups.remove(groupKey);
+      } else {
+        _expandedGroups.add(groupKey);
+      }
+    });
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Column(
         children: [
-          // Group header — tap toggles merged vs. per-day view
-          InkWell(
-            onTap: () => setState(() {
-              if (isExpanded) {
-                _expandedGroups.remove(groupKey);
-              } else {
-                _expandedGroups.add(groupKey);
-              }
-            }),
+          // Group header — tap toggles merged vs. per-day view.
+          // Only the chevron button ripples; the rest of the row is inert.
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: toggle,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Row(
@@ -291,20 +295,30 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 children: [
                   Row(
                     children: [
-                      AnimatedRotation(
-                        turns: isExpanded ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeInOut,
-                        child: Icon(
-                          LucideIcons.chevronDown,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
                       Text(
                         '${Helpers.formatDateLabel(run.last.key)} – ${Helpers.formatDateLabel(run.first.key)}',
                         style: AppTheme.trackingWideSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: toggle,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: AnimatedRotation(
+                              turns: isExpanded ? 0.5 : 0,
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeInOut,
+                              child: Icon(
+                                LucideIcons.chevronDown,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -322,48 +336,43 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           const SizedBox(height: 8),
 
-          AnimatedSize(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            alignment: Alignment.topCenter,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: SizeTransition(
-                  sizeFactor: animation,
-                  axisAlignment: -1,
-                  child: child,
-                ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SizeTransition(
+                sizeFactor: animation,
+                axisAlignment: -1,
+                child: child,
               ),
-              child: !isExpanded
-                  ? ClipRRect(
-                      key: const ValueKey('collapsed'),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Column(
-                          children: allTx.asMap().entries.map((entry) {
-                            return TransactionRow(
-                              transaction: entry.value,
-                              isFirst: entry.key == 0,
-                            );
-                          }).toList(),
+            ),
+            child: !isExpanded
+                ? ClipRRect(
+                    key: const ValueKey('collapsed'),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          width: 0.5,
                         ),
                       ),
-                    )
-                  : Column(
-                      key: const ValueKey('expanded'),
-                      children: run.map((e) => _buildDayGroup(e.key, e.value, currencySymbol)).toList(),
+                      child: Column(
+                        children: allTx.asMap().entries.map((entry) {
+                          return TransactionRow(
+                            transaction: entry.value,
+                            isFirst: entry.key == 0,
+                          );
+                        }).toList(),
+                      ),
                     ),
-            ),
+                  )
+                : Column(
+                    key: const ValueKey('expanded'),
+                    children: run.map((e) => _buildDayGroup(e.key, e.value, currencySymbol)).toList(),
+                  ),
           ),
         ],
       ),

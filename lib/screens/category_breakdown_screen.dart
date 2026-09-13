@@ -221,7 +221,7 @@ class _CategoryBreakdownScreenState extends State<CategoryBreakdownScreen>
                       height: 40,
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(LucideIcons.slidersHorizontal, size: 20),
+                        icon: const Icon(LucideIcons.settings, size: 20),
                         onPressed: () => showCategoryFilterSheet(context),
                       ),
                     ),

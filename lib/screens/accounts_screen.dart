@@ -610,35 +610,35 @@ class _BankBadge extends StatelessWidget {
 
     final hasSvg = account.bankLogoPath != null;
 
+    if (hasSvg) {
+      return SizedBox(
+        width: 46,
+        height: 46,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: SvgPicture.asset(account.bankLogoPath!),
+        ),
+      );
+    }
+
     return Container(
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: hasSvg ? Colors.white : bankColor.withOpacity(0.12),
+        color: bankColor.withOpacity(0.12),
         borderRadius: BorderRadius.circular(14),
-        border: hasSvg
-            ? Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
-                width: 0.5,
-              )
-            : null,
       ),
-      child: hasSvg
-          ? Padding(
-              padding: const EdgeInsets.all(8),
-              child: SvgPicture.asset(account.bankLogoPath!),
-            )
-          : Center(
-              child: Text(
-                _bankInitials(account.bank),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: bankColor,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
+      child: Center(
+        child: Text(
+          _bankInitials(account.bank),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: bankColor,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ),
     );
   }
 }

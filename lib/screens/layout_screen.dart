@@ -11,6 +11,7 @@ import '../models/ad_config.dart';
 import '../services/ad_config_service.dart';
 import '../services/auth_service.dart';
 import '../screens/home_screen.dart';
+import '../screens/budgets_screen.dart';
 import '../screens/transactions_screen.dart';
 import '../screens/accounts_screen.dart';
 import '../widgets/add_expense_sheet.dart';
@@ -155,7 +156,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
   }
 
   Widget _buildTopHeader(BuildContext context) {
-    final showMonthPicker = _currentIndex <= 1;
+    final showMonthPicker = _currentIndex <= 2;
     final monthLabel =
         '${Helpers.months[_selectedMonth.month - 1]} ${_selectedMonth.year}';
 
@@ -193,6 +194,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
             const [
               '',
               'Transactions',
+              'Budgets',
               'Accounts',
               'Settings',
             ][_currentIndex],
@@ -427,10 +429,13 @@ class _LayoutScreenState extends State<LayoutScreen> {
 
   Widget? _buildFab() {
     // Settings — no FAB
-    if (_currentIndex == 3) return null;
+    if (_currentIndex == 4) return null;
+
+    // Budgets — no FAB; it's a dashboard, not a transaction-entry surface
+    if (_currentIndex == 2) return null;
 
     // Accounts — navigate to add account
-    if (_currentIndex == 2) {
+    if (_currentIndex == 3) {
       return FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
@@ -455,6 +460,7 @@ class _LayoutScreenState extends State<LayoutScreen> {
   final List<NavItem> _navItems = [
     const NavItem(icon: LucideIcons.layoutDashboard, label: 'Home'),
     const NavItem(icon: LucideIcons.arrowLeftRight, label: 'History'),
+    const NavItem(icon: LucideIcons.pieChart, label: 'Budgets'),
     const NavItem(icon: LucideIcons.wallet, label: 'Accounts'),
     const NavItem(icon: LucideIcons.settings, label: 'Settings'),
   ];
@@ -569,10 +575,12 @@ class _LayoutScreenState extends State<LayoutScreen> {
       selectedMonth: _selectedMonth,
       onMonthChanged: _changeMonth,
       onNavigateToHistory: () => _navigateToTab(1),
+      onNavigateToBudgets: () => _navigateToTab(2),
       pageScrollEnabled: _pageScrollEnabled,
       onCategoryBreakdownTap: _handleCategoryBreakdownTap,
     ),
     TransactionsScreen(selectedMonth: _selectedMonth),
+    BudgetsScreen(selectedMonth: _selectedMonth),
     const AccountsScreen(),
     const SettingsScreen(),
   ];

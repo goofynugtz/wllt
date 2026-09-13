@@ -606,6 +606,7 @@ class _CategoryDetailPageState extends State<_CategoryDetailPage>
                 category: _category,
                 existing: budget,
                 budgetProvider: budgetProvider,
+                currencySymbol: currencySymbol,
               ),
             ),
             child: Container(
@@ -1053,11 +1054,13 @@ class _BudgetBottomSheet extends StatefulWidget {
   final Category category;
   final Budget? existing;
   final BudgetProvider budgetProvider;
+  final String currencySymbol;
 
   const _BudgetBottomSheet({
     required this.category,
     required this.existing,
     required this.budgetProvider,
+    required this.currencySymbol,
   });
 
   @override
@@ -1083,14 +1086,19 @@ class _BudgetBottomSheetState extends State<_BudgetBottomSheet> {
     super.dispose();
   }
 
-  bool get _canSave {
-    final v = double.tryParse(_amountCtrl.text);
-    return v != null && v > 0;
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
+    final enteredAmount = double.tryParse(_amountCtrl.text);
+    final monthlyEquiv = enteredAmount == null
+        ? null
+        : (_period == BudgetPeriod.weekly ? enteredAmount * 4.33 : enteredAmount);
+    final remaining = widget.budgetProvider
+        .remainingGlobalBudget(excludingCategoryId: widget.category.id);
+    final overCap = monthlyEquiv != null && remaining.isFinite && monthlyEquiv > remaining;
+    final canSave = enteredAmount != null && enteredAmount > 0 && !overCap;
+
     return Padding(
       padding: EdgeInsets.only(
         left: 24, right: 24, top: 24,
@@ -1115,6 +1123,13 @@ class _BudgetBottomSheetState extends State<_BudgetBottomSheet> {
             ),
             onChanged: (_) => setState(() {}),
           ),
+          if (overCap) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Only ${Helpers.formatAmount(remaining, widget.currencySymbol)} left of global budget',
+              style: TextStyle(fontSize: 12, color: cs.error),
+            ),
+          ],
           const SizedBox(height: 16),
           SegmentedButton<BudgetPeriod>(
             segments: const [
@@ -1128,12 +1143,12 @@ class _BudgetBottomSheetState extends State<_BudgetBottomSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _canSave
+              onPressed: canSave
                   ? () {
                       FocusScope.of(context).unfocus();
                       widget.budgetProvider.setBudget(Budget(
                         categoryId: widget.category.id,
-                        amount: double.parse(_amountCtrl.text),
+                        amount: enteredAmount,
                         period: _period,
                       ));
                       Navigator.of(context).pop();

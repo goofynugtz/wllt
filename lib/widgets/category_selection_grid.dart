@@ -8,6 +8,7 @@ import 'category_icon_widget.dart';
 class CategorySelectionGrid extends StatelessWidget {
   final List<Category> categories;
   final Set<String> selectedIds;
+  final Set<String> lockedIds;
   final ValueChanged<String> onToggle;
   final ScrollController? scrollController;
   final EdgeInsetsGeometry padding;
@@ -23,6 +24,7 @@ class CategorySelectionGrid extends StatelessWidget {
     super.key,
     required this.categories,
     required this.selectedIds,
+    this.lockedIds = const {},
     required this.onToggle,
     this.scrollController,
     this.padding = const EdgeInsets.symmetric(vertical: 6),
@@ -47,6 +49,7 @@ class CategorySelectionGrid extends StatelessWidget {
         return _CategoryChip(
           category: cat,
           isSelected: selectedIds.contains(cat.id),
+          isLocked: lockedIds.contains(cat.id),
           onTap: () => onToggle(cat.id),
         );
       },
@@ -57,11 +60,13 @@ class CategorySelectionGrid extends StatelessWidget {
 class _CategoryChip extends StatelessWidget {
   final Category category;
   final bool isSelected;
+  final bool isLocked;
   final VoidCallback onTap;
 
   const _CategoryChip({
     required this.category,
     required this.isSelected,
+    this.isLocked = false,
     required this.onTap,
   });
 
@@ -73,6 +78,7 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final accent = isLocked ? cs.onSurfaceVariant : _color;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -116,15 +122,15 @@ class _CategoryChip extends StatelessWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? _color
-                          : _color.withValues(alpha: 0.25),
+                          ? accent
+                          : accent.withValues(alpha: 0.25),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: CategoryIconWidget(
                         category: category,
                         size: 18,
-                        color: isSelected ? Colors.white : _color,
+                        color: isSelected ? Colors.white : accent,
                       ),
                     ),
                   ),
@@ -135,7 +141,9 @@ class _CategoryChip extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: isSelected ? cs.onSurface : cs.onSurfaceVariant,
+                        color: isLocked
+                            ? cs.onSurfaceVariant
+                            : (isSelected ? cs.onSurface : cs.onSurfaceVariant),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -156,11 +164,14 @@ class _CategoryChip extends StatelessWidget {
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: _color,
+                    color: accent,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(LucideIcons.check,
-                      size: 11, color: Colors.white),
+                  child: Icon(
+                    isLocked ? LucideIcons.lock : LucideIcons.check,
+                    size: 11,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),

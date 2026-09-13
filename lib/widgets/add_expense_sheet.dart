@@ -1049,9 +1049,16 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                               children: [
                                                                 SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
                                                                 Positioned(
-                                                                  right: 0,
-                                                                  bottom: 0,
-                                                                  child: SvgPicture.asset(networkPath, height: 9, fit: BoxFit.contain),
+                                                                  right: -2,
+                                                                  bottom: -2,
+                                                                  child: Container(
+                                                                    padding: const EdgeInsets.all(2),
+                                                                    decoration: const BoxDecoration(
+                                                                      color: Colors.white,
+                                                                      shape: BoxShape.circle,
+                                                                    ),
+                                                                    child: SvgPicture.asset(networkPath, height: 12, fit: BoxFit.contain),
+                                                                  ),
                                                                 ),
                                                               ],
                                                             )
@@ -1099,9 +1106,16 @@ class _ManualEntryFormState extends State<ManualEntryForm>
                                                               child: SvgPicture.asset(account.bankLogoPath!, fit: BoxFit.contain),
                                                             ),
                                                             Positioned(
-                                                              right: 4,
-                                                              bottom: 4,
-                                                              child: SvgPicture.asset(networkPath, height: 10, fit: BoxFit.contain),
+                                                              right: 2,
+                                                              bottom: 2,
+                                                              child: Container(
+                                                                padding: const EdgeInsets.all(2),
+                                                                decoration: const BoxDecoration(
+                                                                  color: Colors.white,
+                                                                  shape: BoxShape.circle,
+                                                                ),
+                                                                child: SvgPicture.asset(networkPath, height: 18, fit: BoxFit.contain),
+                                                              ),
                                                             ),
                                                           ],
                                                         )

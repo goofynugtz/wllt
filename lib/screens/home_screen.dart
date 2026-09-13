@@ -19,6 +19,7 @@ import '../widgets/spending_trend_card.dart';
 import '../widgets/suggested_actions_card.dart';
 import '../services/ad_config_service.dart';
 import '../services/exchange_rate_service.dart';
+import '../providers/budget_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/layout_screen.dart';
@@ -42,6 +43,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToHistory;
   final ValueNotifier<bool>? pageScrollEnabled;
   final VoidCallback? onCategoryBreakdownTap;
+  final VoidCallback? onNavigateToBudgets;
 
   const HomeScreen({
     super.key,
@@ -50,6 +52,7 @@ class HomeScreen extends StatefulWidget {
     this.onNavigateToHistory,
     this.pageScrollEnabled,
     this.onCategoryBreakdownTap,
+    this.onNavigateToBudgets,
   });
 
   @override
@@ -334,6 +337,7 @@ class _HomeScreenState extends State<HomeScreen>
     final settings =
         context.watch<AppSettingsProvider>(); // rebuild on color/theme changes
     context.watch<ExchangeRateService>(); // rebuild when new rates arrive
+    final globalBudgetAmount = context.watch<BudgetProvider>().globalBudget?.amount;
 
     // Dev-mode date picker on the insight card — lets you replay AI
     // generation for any period against the current data set.
@@ -390,8 +394,9 @@ class _HomeScreenState extends State<HomeScreen>
         .where((t) => t.type == TransactionType.income)
         .fold(0.0, (sum, t) => sum + resolveAmount(t));
 
-    final budgetPct =
-        (totalExpense / Helpers.monthlyBudget * 100).clamp(0.0, 100.0);
+    final budgetPct = (globalBudgetAmount != null && globalBudgetAmount > 0)
+        ? (totalExpense / globalBudgetAmount * 100).clamp(0.0, 100.0)
+        : 0.0;
 
     final categoryBreakdown = Helpers.getExpenseCategories(activeIds: activeIds)
         .map((cat) {
@@ -442,8 +447,9 @@ class _HomeScreenState extends State<HomeScreen>
             t.date.year == m.year &&
             t.type == TransactionType.income)
         .fold(0.0, (s, t) => s + resolveAmount(t));
-    double pct(double exp) =>
-        (exp / Helpers.monthlyBudget * 100).clamp(0.0, 100.0);
+    double pct(double exp) => (globalBudgetAmount != null && globalBudgetAmount > 0)
+        ? (exp / globalBudgetAmount * 100).clamp(0.0, 100.0)
+        : 0.0;
 
     final prevExp  = monthExpense(prevMonth);
     final nextExp  = monthExpense(nextMonth);
@@ -513,21 +519,21 @@ class _HomeScreenState extends State<HomeScreen>
                                 offset: Offset(_dragOffset - w, 0),
                                 child: SizedBox(width: w, child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: _buildBalanceCard(prevExp, pct(prevExp), prevInc, currencySymbol, month: prevMonth),
+                                  child: _buildBalanceCard(prevExp, pct(prevExp), prevInc, currencySymbol, month: prevMonth, monthlyBudgetAmount: globalBudgetAmount),
                                 )),
                               ),
                               Transform.translate(
                                 offset: Offset(_dragOffset, 0),
                                 child: SizedBox(width: w, child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: _buildBalanceCard(totalExpense, budgetPct, totalIncome, currencySymbol),
+                                  child: _buildBalanceCard(totalExpense, budgetPct, totalIncome, currencySymbol, monthlyBudgetAmount: globalBudgetAmount, onBudgetTap: widget.onNavigateToBudgets),
                                 )),
                               ),
                               Transform.translate(
                                 offset: Offset(_dragOffset + w, 0),
                                 child: SizedBox(width: w, child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: _buildBalanceCard(nextExp, pct(nextExp), nextInc, currencySymbol, month: nextMonth),
+                                  child: _buildBalanceCard(nextExp, pct(nextExp), nextInc, currencySymbol, month: nextMonth, monthlyBudgetAmount: globalBudgetAmount),
                                 )),
                               ),
                             ],
@@ -652,11 +658,13 @@ class _HomeScreenState extends State<HomeScreen>
     double totalIncome,
     String currencySymbol, {
     DateTime? month,
+    double? monthlyBudgetAmount,
+    VoidCallback? onBudgetTap,
   }) {
     final m = month ?? widget.selectedMonth;
     final monthName = Helpers.months[m.month - 1];
     final year = m.year;
-    final hasBudget = Helpers.monthlyBudget > 0;
+    final hasBudget = monthlyBudgetAmount != null && monthlyBudgetAmount > 0;
 
     return Container(
       width: double.infinity,
@@ -742,64 +750,78 @@ class _HomeScreenState extends State<HomeScreen>
 
                     const SizedBox(height: 16),
 
-                    // Budget section
-                    if (hasBudget) ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Budget ${Helpers.formatAmount(Helpers.monthlyBudget, currencySymbol)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.4),
+                    // Budget section — tappable through to the Budgets tab
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onBudgetTap,
+                      child: hasBudget
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Budget ${Helpers.formatAmount(monthlyBudgetAmount, currencySymbol)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white.withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${budgetPct.round()}% used',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white.withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: budgetPct / 100,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: budgetPct > 85
+                                            ? AppTheme.warningColor
+                                            : AppTheme.successColor,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'No budgets configured',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tap to set a monthly budget',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '${budgetPct.round()}% used',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.4),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: budgetPct / 100,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: budgetPct > 85
-                                  ? AppTheme.warningColor
-                                  : AppTheme.successColor,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      Text(
-                        'No budgets configured',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Edit categories to set monthly budgets',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.3),
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -843,7 +865,7 @@ class _HomeScreenState extends State<HomeScreen>
         height: 28,
         child: IconButton(
           padding: EdgeInsets.zero,
-          icon: Icon(LucideIcons.slidersHorizontal,
+          icon: Icon(LucideIcons.settings,
               size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
           onPressed: () => showCategoryFilterSheet(context),
         ),

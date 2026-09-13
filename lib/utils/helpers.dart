@@ -8,9 +8,6 @@ class Helpers {
 
   // ── Constants ─────────────────────────────────────────────────────────────
 
-  /// Default total monthly spending budget (INR).
-  static const double monthlyBudget = 30000;
-
   /// Abbreviated month names for display (index 0 = January).
   static const List<String> months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',

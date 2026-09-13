@@ -15,6 +15,11 @@ class AiProvider extends ChangeNotifier {
   double get downloadProgress => _downloadProgress;
   bool get isEnabled => _storage.aiEnabled;
 
+  /// Name/size of whichever on-device model tier this device resolved to —
+  /// for settings copy. Small-tier numbers until [init] resolves.
+  String get modelDisplayName => AiService.instance.modelDisplayName;
+  String get modelSizeLabel => AiService.instance.modelSizeLabel;
+
   /// True only when model is loaded AND user has Pro subscription.
   bool get isReady => _state == AiModelState.ready && _isPro;
 

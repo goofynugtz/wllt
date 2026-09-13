@@ -26,6 +26,19 @@ import UIKit
           result(FlutterMethodNotImplemented)
         }
       }
+
+      // Total physical device RAM in bytes, used to gate the on-device AI model tier.
+      let deviceInfoChannel = FlutterMethodChannel(
+        name: "com.goofynugtz.wllt/device_info",
+        binaryMessenger: controller.binaryMessenger
+      )
+      deviceInfoChannel.setMethodCallHandler { call, result in
+        if call.method == "getTotalRamBytes" {
+          result(Int64(ProcessInfo.processInfo.physicalMemory))
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
     }
     return result
   }

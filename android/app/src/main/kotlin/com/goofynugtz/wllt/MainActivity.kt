@@ -1,5 +1,7 @@
 package com.goofynugtz.wllt
 
+import android.app.ActivityManager
+import android.content.Context
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -12,6 +14,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "com.goofynugtz.wllt/system_font"
+        private const val DEVICE_INFO_CHANNEL = "com.goofynugtz.wllt/device_info"
         private const val SYSTEM_FONTS_DIR = "/system/fonts"
     }
 
@@ -24,6 +27,21 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_INFO_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getTotalRamBytes" -> result.success(getTotalRamBytes())
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** Total physical device RAM in bytes, used to gate the on-device AI model tier. */
+    private fun getTotalRamBytes(): Long {
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val info = ActivityManager.MemoryInfo()
+        activityManager.getMemoryInfo(info)
+        return info.totalMem
     }
 
     /**

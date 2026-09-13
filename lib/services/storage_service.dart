@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -25,6 +27,7 @@ class StorageService {
   static const String keyAvatarSeed                 = 'avatar_seed';
   static const String keyCategoryOrder              = 'category_order';
   static const String keyAiEnabled                  = 'ai_enabled';
+  static const String keyActiveModel                = 'active_model';
   static const String keyFeedbackAutoShown          = 'feedback_auto_shown';
   static const String keyGroupTransactionsThreshold = 'group_transactions_threshold';
 
@@ -65,6 +68,19 @@ class StorageService {
   // ── AI features ───────────────────────────────────────────────────────────
   bool get aiEnabled => _prefs.getBool(keyAiEnabled) ?? false;
   Future<void> setAiEnabled(bool v) => _prefs.setBool(keyAiEnabled, v);
+
+  /// Dev-mode model picker's chosen model (url/displayName/sizeLabel) —
+  /// stored whole so it can be reloaded on launch without a network call to
+  /// re-fetch the manifest. Ignored in release (auto-pick by RAM applies
+  /// instead) — see [devMode].
+  Map<String, String>? get activeModel {
+    final raw = _prefs.getString(keyActiveModel);
+    if (raw == null) return null;
+    return (jsonDecode(raw) as Map<String, dynamic>).cast<String, String>();
+  }
+
+  Future<void> setActiveModel(Map<String, String> model) =>
+      _prefs.setString(keyActiveModel, jsonEncode(model));
 
   // ── Currency ──────────────────────────────────────────────────────────
   String get currency =>

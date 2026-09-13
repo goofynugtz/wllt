@@ -2,12 +2,16 @@ import 'dart:async';
 
 // Web stub for flutter_gemma — all operations are no-ops.
 
-enum ModelType { gemmaIt }
+enum ModelType { gemmaIt, gemma4 }
+enum ModelFileType { task, litertlm }
 
 class FlutterGemma {
   static Future<void> initialize({String? huggingFaceToken}) async {}
   static Future<bool> isModelInstalled(String modelId) async => false;
-  static _ModelInstaller installModel({required ModelType modelType}) =>
+  static _ModelInstaller installModel({
+    required ModelType modelType,
+    ModelFileType fileType = ModelFileType.task,
+  }) =>
       _ModelInstaller();
   static Future<InferenceModel> getActiveModel({required int maxTokens}) async =>
       InferenceModel._();
@@ -15,15 +19,23 @@ class FlutterGemma {
 }
 
 class _ModelInstaller {
-  _FromNetwork fromNetwork(String url, {String? token}) => _FromNetwork();
-}
-
-class _FromNetwork {
-  _WithProgress withProgress(void Function(int) cb) => _WithProgress();
-}
-
-class _WithProgress {
+  _ModelInstaller fromNetwork(String url, {String? token, bool? foreground}) => this;
+  _ModelInstaller withProgress(void Function(int) cb) => this;
+  _ModelInstaller withCancelToken(CancelToken token) => this;
   Future<void> install() async {}
+}
+
+class CancelToken {
+  bool isCancelled = false;
+  void cancel([String reason = 'Operation cancelled']) => isCancelled = true;
+  static bool isCancel(Object error) => error is DownloadCancelledException;
+}
+
+class DownloadCancelledException implements Exception {
+  final String message;
+  DownloadCancelledException(this.message);
+  @override
+  String toString() => 'DownloadCancelledException: $message';
 }
 
 class InferenceModel {

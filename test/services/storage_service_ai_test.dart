@@ -33,4 +33,20 @@ void main() {
     await storage.setAiEnabled(false);
     expect(storage.aiEnabled, false);
   });
+
+  test('activeModel defaults to null and persists once set', () async {
+    final storage = StorageService();
+    await storage.init();
+    expect(storage.activeModel, null);
+    await storage.setActiveModel({
+      'url': 'https://pub-xyz.r2.dev/gemma3-1b-it-int4.task',
+      'displayName': 'Gemma 3 1B',
+      'sizeLabel': '600.00 MB',
+    });
+    expect(storage.activeModel, {
+      'url': 'https://pub-xyz.r2.dev/gemma3-1b-it-int4.task',
+      'displayName': 'Gemma 3 1B',
+      'sizeLabel': '600.00 MB',
+    });
+  });
 }

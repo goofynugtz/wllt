@@ -61,4 +61,6 @@ app.*.map.json
 # settings.json and skills/ are committed as project config.
 .claude/settings.local.json
 gemma3-1b-it-int4.task
+*.task
+*.litertlm
 .env

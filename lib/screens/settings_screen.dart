@@ -16,6 +16,7 @@ import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../screens/categories_screen.dart';
 import '../screens/currency_picker_screen.dart';
+import '../screens/model_lab_screen.dart';
 import '../screens/onboarding/onboarding_flow.dart';
 import '../screens/custom_paywall_screen.dart';
 import '../screens/paywall_screen.dart';
@@ -781,12 +782,25 @@ class SettingsScreen extends StatelessWidget {
   }
   Widget _buildLabsCard(BuildContext context) {
     final ai = context.watch<AiProvider>();
+    final devMode = context.watch<AppSettingsProvider>().devMode;
     final subtitle = switch (ai.state) {
       AiModelState.ready       => '${ai.modelDisplayName} · On-device',
       AiModelState.downloading => 'Downloading…',
       AiModelState.error       => 'Download failed — tap to retry',
       _                        => '${ai.modelDisplayName} · ${ai.modelSizeLabel}',
     };
+    if (devMode) {
+      return _SettingsCard(
+        child: _SettingsTappableRow(
+          icon: LucideIcons.flaskConical,
+          label: 'AI Features',
+          value: 'Model lab',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ModelLabScreen()),
+          ),
+        ),
+      );
+    }
     return _SettingsCard(
       child: SwitchListTile(
         secondary: Container(
@@ -814,7 +828,7 @@ class SettingsScreen extends StatelessWidget {
                 }
                 // Model may already be on disk (previous install, interrupted
                 // toggle-off) — skip the download sheet and just load it.
-                if (await ai.isModelDownloaded) {
+                if (await ai.isActiveModelDownloaded) {
                   await ai.enableAndDownload();
                 } else if (context.mounted) {
                   _showDownloadConfirmation(context, ai);

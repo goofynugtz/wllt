@@ -124,6 +124,27 @@ class _HomeScreenState extends State<HomeScreen>
     await _generateAiContent(asOf: DateTime.now());
   }
 
+  /// Converts every transaction's amount to [displayCurrency] before it
+  /// reaches [InsightFacts.compute] — which sums and compares across
+  /// transactions and labels everything with one currency symbol. Unlike the
+  /// transaction list (which can leave historical entries in their original
+  /// currency, symbol traveling with them), a mixed-currency aggregate has
+  /// no coherent "original currency" to fall back to, so this always
+  /// converts regardless of the convertHistoricalCurrency display setting.
+  List<Transaction> _currencyNormalized(
+    List<Transaction> transactions,
+    String displayCurrency,
+  ) {
+    return transactions.map((t) {
+      if (t.baseCurrency == displayCurrency) return t;
+      final snap = ExchangeRateService.instance
+          .getCachedSnapshot(t.baseCurrency, t.date);
+      final converted =
+          Helpers.convertAmount(t.amount, t.baseCurrency, displayCurrency, snap?.rates);
+      return t.copyWith(amount: converted, baseCurrency: displayCurrency);
+    }).toList();
+  }
+
   /// Generates the monthly summary and weekly insight as of [asOf]. Both the
   /// data windows and the cache keys derive from [asOf], so the dev date
   /// picker can replay any period. [force] (dev-only) bypasses the Hive cache
@@ -146,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen>
     final box = await Hive.openBox<String>('ai_cache');
 
     final facts = InsightFacts.compute(
-      transactions: allTxSnapshot,
+      transactions: _currencyNormalized(allTxSnapshot, prefs.currency),
       asOf: asOf,
       currencySymbol: currencySymbol,
       budgetLimits: {for (final b in Budget.budgets) b.categoryId: b.amount},
@@ -249,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen>
             orElse: () => kCurrencies.firstWhere((c) => c.code == 'USD'))
         .symbol;
     final facts = InsightFacts.compute(
-      transactions: allTx,
+      transactions: _currencyNormalized(allTx, prefs.currency),
       asOf: DateTime.now(),
       currencySymbol: currencySymbol,
       budgetLimits: {for (final b in Budget.budgets) b.categoryId: b.amount},

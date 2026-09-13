@@ -716,10 +716,10 @@ class SettingsScreen extends StatelessWidget {
   Widget _buildLabsCard(BuildContext context) {
     final ai = context.watch<AiProvider>();
     final subtitle = switch (ai.state) {
-      AiModelState.ready       => 'Gemma 3 1B · On-device',
+      AiModelState.ready       => '${ai.modelDisplayName} · On-device',
       AiModelState.downloading => 'Downloading…',
       AiModelState.error       => 'Download failed — tap to retry',
-      _                        => 'Gemma 3 1B · ~600 MB',
+      _                        => '${ai.modelDisplayName} · ${ai.modelSizeLabel}',
     };
     return _SettingsCard(
       child: SwitchListTile(
@@ -794,7 +794,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '~600 MB will be freed from your device.',
+              '${ai.modelSizeLabel} will be freed from your device.',
               style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(ctx).colorScheme.onSurfaceVariant,
@@ -884,7 +884,7 @@ class _DownloadSheetState extends State<_DownloadSheet> {
         children: [
           if (!_started) ...[
             Text(
-              'Download AI Model (~600 MB)',
+              'Download AI Model (${widget.ai.modelSizeLabel})',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,

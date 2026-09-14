@@ -10,10 +10,12 @@ class DeviceCapability {
   static const _channel = MethodChannel('com.goofynugtz.wllt/device_info');
 
   // ponytail: one global RAM cutoff, not tuned per chipset/GPU-delegate
-  // support. Reported RAM runs below the marketed figure (OS reserves some),
-  // so 6GB reported reliably catches real 8GB-marketed phones while
-  // excluding 4/6GB ones. Revisit if the big tier proves too slow near this line.
-  static const _bigModelMinRamBytes = 6 * 1024 * 1024 * 1024; // 6GB
+  // support. Big tier is now a ~2.6GB litertlm model (was a 6.5GB one that
+  // needed the old 6GB cutoff) so mid-range phones can take it too. Reported
+  // RAM runs below the marketed figure (OS reserves some), so 4GB reported
+  // reliably catches real 6GB-marketed phones while excluding 3/4GB budget
+  // ones. Revisit if the big tier proves too slow near this line.
+  static const _bigModelMinRamBytes = 4 * 1024 * 1024 * 1024; // 4GB
 
   /// True if this device should get the larger on-device model tier.
   /// False on web and on any error reading device RAM — safe default, falls

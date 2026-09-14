@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -33,6 +34,9 @@ import 'services/sms_pending_store.dart';
 import 'services/storage_service.dart';
 import 'services/system_font_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/add_expense_sheet.dart';
+
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -189,6 +193,8 @@ class _ThemedAppState extends State<_ThemedApp> {
 
   StreamSubscription<User?>? _authSub;
   StreamSubscription? _sharingSubscription;
+  StreamSubscription<Uri>? _appLinksSubscription;
+  final AppLinks _appLinks = AppLinks();
 
   @override
   void initState() {
@@ -228,6 +234,11 @@ class _ThemedAppState extends State<_ThemedApp> {
         }
         ReceiveSharingIntent.instance.reset();
       });
+
+      _appLinksSubscription = _appLinks.uriLinkStream.listen(_handleDeepLink);
+      _appLinks.getInitialLink().then((uri) {
+        if (uri != null) _handleDeepLink(uri);
+      });
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -240,10 +251,24 @@ class _ThemedAppState extends State<_ThemedApp> {
     context.read<SmsProvider>().processRawSms('shared', text, null);
   }
 
+  void _handleDeepLink(Uri uri) {
+    if (uri.scheme != 'wllt' || uri.host != 'voice-add') return;
+    if (FirebaseAuth.instance.currentUser == null) return;
+    rootNavigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => const AddTransactionPage(
+          method: AddTransactionMethod.expense,
+          startInVoiceMode: true,
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _authSub?.cancel();
     _sharingSubscription?.cancel();
+    _appLinksSubscription?.cancel();
     super.dispose();
   }
 
@@ -257,6 +282,7 @@ class _ThemedAppState extends State<_ThemedApp> {
         context.select<AppSettingsProvider, bool>((s) => s.demoMode);
 
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'WLLT',
       theme: AppTheme.fromSeed(colorSeed, Brightness.light,
           fontFamily: widget.systemFont),

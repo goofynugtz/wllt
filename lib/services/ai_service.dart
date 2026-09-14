@@ -67,7 +67,7 @@ class AiService {
   //   no HF_TOKEN       → self-hosted URL (default for all builds)
   //   flutter run --dart-define=HF_TOKEN=hf_xxx
   //   flutter run --dart-define=MODEL_URL=https://your-bucket/gemma3-1b-it-int4.task
-  //   flutter run --dart-define=MODEL_URL_4B=https://your-bucket/gemma-3n-E4B-it-int4.task
+  //   flutter run --dart-define=MODEL_URL_2B=https://your-bucket/gemma-4-E2B-it.litertlm
   // NOTE: dart-define values are embedded in the binary. HF token is for
   // testing builds only — public releases must ship without it.
   static const _smallSpec = ModelSpec(
@@ -81,19 +81,21 @@ class AiService {
     displayName: 'Gemma 3 1B',
     sizeLabel: '~600 MB',
   );
-  // Gemma 3n E4B — the "4B"-class tier. No plain mobile-CPU .task build of
-  // the larger, non-nano Gemma 3 4B is published (litert-community only
-  // ships that one as web/WASM bundles); this is the real deployable
-  // equivalent for MediaPipe LlmInference on Android/iOS.
-  // selfHostedUrl has no default — there's no public, ungated CPU build to
-  // fall back to, so this MUST be configured (or use HF_TOKEN for testing)
-  // before the big tier can actually download. See [downloadModel].
+  // "Big" tier — was Gemma 3n E4B (~6.5GB, .task/MediaPipe): too big for any
+  // phone-class thermal/memory envelope, flagship included — that's what was
+  // crashing. Replaced with Gemma 4 E2B (~2.6GB, .litertlm/LiteRT-LM), which
+  // also unlocks the NPU backend below (.litertlm only) instead of GPU.
   static const _bigSpec = ModelSpec(
     hfUrl:
-        'https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task',
-    selfHostedUrl: String.fromEnvironment('MODEL_URL_4B'),
-    displayName: 'Gemma 3n E4B',
-    sizeLabel: '~6.5 GB',
+        'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm',
+    selfHostedUrl: String.fromEnvironment(
+      'MODEL_URL_2B',
+      defaultValue:
+          'https://pub-c5cf7c64e3d44baea74a98f0d802eab7.r2.dev/gemma-4-E2B-it.litertlm',
+    ),
+    displayName: 'Gemma 4 E2B',
+    sizeLabel: '~2.6 GB',
+    modelType: ModelType.gemma4,
   );
 
   static const _hfTokenEnv = String.fromEnvironment('HF_TOKEN');
@@ -120,7 +122,7 @@ class AiService {
     if (spec.selfHostedUrl.isEmpty) {
       throw StateError(
         'AiService: no self-hosted URL configured for the ${spec.displayName} '
-        'model. Pass --dart-define=MODEL_URL_4B=https://your-host/... (or '
+        'model. Pass --dart-define=MODEL_URL_2B=https://your-host/... (or '
         '--dart-define=HF_TOKEN=hf_xxx for testing against the gated '
         'Hugging Face repo).',
       );
@@ -213,13 +215,31 @@ class AiService {
     await initModel();
   }
 
+  /// GPU delegate ramps clock speed under sustained token-by-token decode —
+  /// that's the actual overheat driver, not raw model size (a 2B model on
+  /// GPU still cooked the phone). NPU is a dedicated accelerator instead:
+  /// far less heat per token. Requested for every model type on Android —
+  /// flutter_gemma falls back to GPU then CPU itself if a given chip/model
+  /// combo can't actually run on NPU, so this is never worse than asking.
+  /// CPU is the direct fallback off Android. GPU is intentionally never
+  /// requested.
+  PreferredBackend get _preferredBackend {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return PreferredBackend.npu;
+    }
+    return PreferredBackend.cpu;
+  }
+
   /// Load model weights into memory. Call after confirming model is installed.
   /// Safe to call multiple times — no-op if already initialized.
   Future<void> initModel() async {
     if (_model != null) return;
     // 1024: chat prompt (facts + trimmed history) plus a 150-token reply
     // needs more headroom than the one-shot summary/insight prompts.
-    _model = await FlutterGemma.getActiveModel(maxTokens: 1024);
+    _model = await FlutterGemma.getActiveModel(
+      maxTokens: 1024,
+      preferredBackend: _preferredBackend,
+    );
     debugPrint('[AiService] Model loaded ($modelDisplayName)');
   }
 

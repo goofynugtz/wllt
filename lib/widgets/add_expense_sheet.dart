@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../ai/categorization_adapter.dart';
 import '../ai/feedback_store.dart';
+import '../ai/purchase_transcript_adapter.dart';
 import '../data/currencies.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
@@ -17,6 +18,9 @@ import '../providers/transaction_provider.dart';
 import '../providers/user_preferences_provider.dart';
 import '../services/ai_service.dart';
 import '../services/exchange_rate_service.dart';
+import '../services/purchase_transcript_parser.dart';
+import '../services/sms_rules_engine.dart';
+import '../services/voice_capture_service.dart';
 import '../utils/helpers.dart';
 import 'category_icon_widget.dart';
 import '../screens/add_account_screen.dart';
@@ -27,11 +31,13 @@ import 'amount_calculator.dart';
 class AddTransactionPage extends StatefulWidget {
   final AddTransactionMethod method;
   final Transaction? editTransaction;
+  final bool startInVoiceMode;
 
   const AddTransactionPage({
     super.key,
     required this.method,
     this.editTransaction,
+    this.startInVoiceMode = false,
   });
 
   @override
@@ -49,10 +55,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   late AddTransactionMethod _method;
   late final PageController _methodController;
   bool _isScrollerPressed = false;
+  late bool _voiceMode;
 
   @override
   void initState() {
     super.initState();
+    _voiceMode = widget.startInVoiceMode;
     final tx = widget.editTransaction;
     if (tx != null) {
       _method = tx.type == TransactionType.income
@@ -89,20 +97,52 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 children: [
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        isEdit ? 'Edit ' : 'Add ',
-                        style: TextStyle(
-                          color: cs.onSurface,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      _buildMethodScroller(context),
-                    ],
+                    children: _voiceMode
+                        ? [
+                            IconButton(
+                              onPressed: () => setState(() => _voiceMode = false),
+                              icon: Icon(LucideIcons.chevronLeft, color: cs.onSurface),
+                              padding: EdgeInsets.zero,
+                            ),
+                            Text(
+                              'Voice entry',
+                              style: TextStyle(
+                                color: cs.onSurface,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ]
+                        : [
+                            Text(
+                              isEdit ? 'Edit ' : 'Add ',
+                              style: TextStyle(
+                                color: cs.onSurface,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            _buildMethodScroller(context),
+                          ],
                   ),
                   Row(
                     children: [
+                      if (!isEdit && !_voiceMode) ...[
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: cs.secondaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: () => setState(() => _voiceMode = true),
+                            icon: Icon(LucideIcons.mic, size: 13, color: cs.onSecondaryContainer),
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       if (isEdit) ...[
                         Container(
                           width: 28,
@@ -221,6 +261,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   }
 
   Widget _buildFormContent() {
+    if (_voiceMode) {
+      return VoiceInputForm(autoStart: widget.startInVoiceMode);
+    }
     switch (_method) {
       case AddTransactionMethod.expense:
         return ManualEntryForm(
@@ -1533,7 +1576,9 @@ class _ManualEntryFormState extends State<ManualEntryForm>
 }
 
 class VoiceInputForm extends StatefulWidget {
-  const VoiceInputForm({super.key});
+  final bool autoStart;
+
+  const VoiceInputForm({super.key, this.autoStart = false});
 
   @override
   State<VoiceInputForm> createState() => _VoiceInputFormState();
@@ -1543,7 +1588,14 @@ class _VoiceInputFormState extends State<VoiceInputForm>
     with SingleTickerProviderStateMixin {
   VoiceStage _stage = VoiceStage.idle;
   String _transcribed = '';
+  String _errorMessage = '';
+  double? _amount;
+  String? _merchant;
+  String? _categoryId;
   late AnimationController _controller;
+  final VoiceCaptureService _capture = VoiceCaptureService();
+  Timer? _autoPopTimer;
+  Transaction? _savedTx;
 
   @override
   void initState() {
@@ -1552,11 +1604,16 @@ class _VoiceInputFormState extends State<VoiceInputForm>
       duration: const Duration(milliseconds: 1100),
       vsync: this,
     );
+    if (widget.autoStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startListening());
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _autoPopTimer?.cancel();
+    _capture.stop();
     super.dispose();
   }
 
@@ -1595,12 +1652,15 @@ class _VoiceInputFormState extends State<VoiceInputForm>
           const SizedBox(height: 16),
 
           Text(
-            _stage == VoiceStage.idle
-                ? 'Tap the mic to speak'
-                : _stage == VoiceStage.listening
-                ? 'Listening…'
-                : "Got it! Here's what I heard:",
+            switch (_stage) {
+              VoiceStage.idle => 'Tap the mic to speak',
+              VoiceStage.listening => 'Listening…',
+              VoiceStage.parsed => "Got it! Here's what I heard:",
+              VoiceStage.saved => 'Saved!',
+              VoiceStage.error => _errorMessage,
+            },
             style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
           ),
 
           if (_transcribed.isNotEmpty) ...[
@@ -1622,7 +1682,7 @@ class _VoiceInputFormState extends State<VoiceInputForm>
             ),
           ],
 
-          if (_stage == VoiceStage.parsed) ...[
+          if (_stage == VoiceStage.parsed || _stage == VoiceStage.saved) ...[
             const SizedBox(height: 24),
             Wrap(
               spacing: 8,
@@ -1630,12 +1690,12 @@ class _VoiceInputFormState extends State<VoiceInputForm>
               alignment: WrapAlignment.center,
               children: [
                 _buildChip(
-                  '₹450',
+                  '₹${_amount?.toStringAsFixed(0) ?? '0'}',
                   const Color(0xFFe8f5e9),
                   const Color(0xFF1a5c2a),
                 ),
                 _buildChip(
-                  'Food & Drink',
+                  _categoryId != null ? Category.getById(_categoryId!).name : 'Uncategorized',
                   const Color(0xFFfff3e0),
                   const Color(0xFF8a4a00),
                 ),
@@ -1644,27 +1704,26 @@ class _VoiceInputFormState extends State<VoiceInputForm>
                   const Color(0xFFe3f2fd),
                   const Color(0xFF0d47a1),
                 ),
-                _buildChip(
-                  'Swiggy',
-                  const Color(0xFFf3e5f5),
-                  const Color(0xFF6a1b9a),
-                ),
+                if (_merchant != null)
+                  _buildChip(
+                    _merchant!,
+                    const Color(0xFFf3e5f5),
+                    const Color(0xFF6a1b9a),
+                  ),
               ],
             ),
           ],
 
           const Spacer(),
 
-          if (_stage != VoiceStage.parsed)
+          if (_stage == VoiceStage.idle || _stage == VoiceStage.error)
             GestureDetector(
               onTap: _startListening,
               child: Container(
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: _stage == VoiceStage.listening
-                      ? AppTheme.expenseColor
-                      : AppTheme.primaryColor,
+                  color: AppTheme.primaryColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -1681,15 +1740,22 @@ class _VoiceInputFormState extends State<VoiceInputForm>
                 ),
               ),
             )
-          else
+          else if (_stage == VoiceStage.listening)
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: AppTheme.expenseColor,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(LucideIcons.mic, size: 24, color: Colors.white),
+            )
+          else if (_stage == VoiceStage.parsed)
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => setState(() {
-                      _stage = VoiceStage.idle;
-                      _transcribed = '';
-                    }),
+                    onPressed: _retake,
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5), width: 0.5),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1703,7 +1769,7 @@ class _VoiceInputFormState extends State<VoiceInputForm>
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: _confirmAndSave,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1715,6 +1781,11 @@ class _VoiceInputFormState extends State<VoiceInputForm>
                   ),
                 ),
               ],
+            )
+          else if (_stage == VoiceStage.saved)
+            TextButton(
+              onPressed: _undo,
+              child: const Text('Undo'),
             ),
         ],
       ),
@@ -1732,26 +1803,139 @@ class _VoiceInputFormState extends State<VoiceInputForm>
     );
   }
 
-  void _startListening() {
-    setState(() => _stage = VoiceStage.listening);
-
-    // Simulate listening and transcription
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) {
-        setState(
-          () => _transcribed = '"Paid four fifty at Swiggy for lunch today"',
-        );
-        Future.delayed(const Duration(milliseconds: 1400), () {
-          if (mounted) {
-            setState(() => _stage = VoiceStage.parsed);
-          }
-        });
-      }
+  void _retake() {
+    setState(() {
+      _stage = VoiceStage.idle;
+      _transcribed = '';
+      _amount = null;
+      _merchant = null;
+      _categoryId = null;
     });
+  }
+
+  Future<void> _startListening() async {
+    setState(() => _stage = VoiceStage.listening);
+    await _capture.start(
+      onFinalResult: _handleTranscript,
+      onError: _handleCaptureError,
+    );
+  }
+
+  void _handleCaptureError(VoiceCaptureError error) {
+    if (!mounted) return;
+    setState(() {
+      _stage = VoiceStage.error;
+      _errorMessage = switch (error) {
+        VoiceCaptureError.permissionDenied => 'Microphone access needed — check app settings',
+        VoiceCaptureError.notAvailable => "Couldn't make that out — try again",
+        VoiceCaptureError.noMatch => "Didn't catch that — try again",
+      };
+    });
+  }
+
+  Future<void> _handleTranscript(String transcript) async {
+    if (!mounted) return;
+    setState(() => _transcribed = '"$transcript"');
+
+    var parsed = PurchaseTranscriptParser.parse(transcript);
+    if (parsed == null) {
+      final aiProvider = context.read<AiProvider>();
+      if (aiProvider.isReady) {
+        final aiResult = await PurchaseTranscriptAdapter.parse(
+          transcript: transcript,
+          infer: (p) => AiService.instance.infer(p, temperature: 0.1, maxTokens: 60),
+        );
+        if (aiResult != null) {
+          parsed = ParsedPurchase(amount: aiResult.amount, merchant: aiResult.merchant);
+        }
+      }
+    }
+
+    if (!mounted) return;
+    if (parsed == null) {
+      setState(() {
+        _stage = VoiceStage.error;
+        _errorMessage = "Couldn't make that out — try again";
+      });
+      return;
+    }
+
+    String? categoryId = SmsRulesEngine.categorize(parsed.merchant);
+    if (categoryId == null && parsed.merchant != null) {
+      final aiProvider = context.read<AiProvider>();
+      if (aiProvider.isReady) {
+        final prefs = context.read<UserPreferencesProvider>();
+        final categoryIds = prefs.activeCategories.isNotEmpty
+            ? prefs.activeCategories
+            : Category.categories.map((c) => c.id).toList();
+        categoryId = await CategorizationAdapter.suggest(
+          merchant: parsed.merchant!,
+          availableCategories: categoryIds,
+          infer: (p) => AiService.instance.infer(p, temperature: 0.1, maxTokens: 10),
+        );
+      }
+    }
+
+    final resolvedAmount = parsed.amount;
+    final resolvedMerchant = parsed.merchant;
+    if (!mounted) return;
+    setState(() {
+      _amount = resolvedAmount;
+      _merchant = resolvedMerchant;
+      _categoryId = categoryId;
+      _stage = VoiceStage.parsed;
+    });
+
+    if (widget.autoStart) {
+      await _confirmAndSave();
+    }
+  }
+
+  Transaction _buildTransaction() {
+    final accounts = context.read<AccountProvider>().accounts;
+    final account = accounts.isNotEmpty ? accounts.first : null;
+    return Transaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      transactionTitle: _merchant ?? 'Voice entry',
+      categoryId: _categoryId ?? '',
+      amount: _amount ?? 0,
+      type: TransactionType.expense,
+      date: DateTime.now(),
+      account: account?.id ?? '',
+      tags: const [],
+      baseCurrency: account?.baseCurrency ?? 'USD',
+    );
+  }
+
+  Future<void> _confirmAndSave() async {
+    final tx = _buildTransaction();
+    await context.read<TransactionProvider>().addTransaction(tx);
+    if (!mounted) return;
+
+    if (widget.autoStart) {
+      setState(() {
+        _savedTx = tx;
+        _stage = VoiceStage.saved;
+      });
+      _autoPopTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) Navigator.of(context).pop();
+      });
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _undo() async {
+    _autoPopTimer?.cancel();
+    final tx = _savedTx;
+    if (tx != null) {
+      await context.read<TransactionProvider>().deleteTransaction(tx.id);
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 }
 
-enum VoiceStage { idle, listening, parsed }
+enum VoiceStage { idle, listening, parsed, saved, error }
 
 class TransferForm extends StatelessWidget {
   const TransferForm({super.key});

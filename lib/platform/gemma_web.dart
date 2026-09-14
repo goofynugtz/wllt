@@ -4,6 +4,7 @@ import 'dart:async';
 
 enum ModelType { gemmaIt, gemma4 }
 enum ModelFileType { task, litertlm }
+enum PreferredBackend { cpu, gpu, npu }
 
 class FlutterGemma {
   static Future<void> initialize({String? huggingFaceToken}) async {}
@@ -13,7 +14,10 @@ class FlutterGemma {
     ModelFileType fileType = ModelFileType.task,
   }) =>
       _ModelInstaller();
-  static Future<InferenceModel> getActiveModel({required int maxTokens}) async =>
+  static Future<InferenceModel> getActiveModel({
+    required int maxTokens,
+    PreferredBackend? preferredBackend,
+  }) async =>
       InferenceModel._();
   static Future<void> uninstallModel(String modelId) async {}
 }

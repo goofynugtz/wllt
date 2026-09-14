@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="com.android.vending.BILLING" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- AI model downloads run as an Android foreground service (background_downloader)
          so they survive backgrounding/navigation instead of being throttled. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -27,6 +28,9 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <meta-data
+              android:name="android.app.shortcuts"
+              android:resource="@xml/shortcuts" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -35,6 +39,12 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="wllt" android:host="voice-add" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

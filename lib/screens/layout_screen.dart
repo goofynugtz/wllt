@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../vendor/lucide_icons.dart';
 import 'package:multiavatar/multiavatar.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';

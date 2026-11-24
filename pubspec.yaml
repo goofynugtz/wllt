@@ -44,9 +44,6 @@ dependencies:
   # Charts
   fl_chart: ^0.68.0
   
-  # Icons
-  lucide_icons: ^0.257.0
-  
   # UI Components
   modal_bottom_sheet: ^3.0.0
   
@@ -147,6 +144,9 @@ flutter:
           weight: 400
         - asset: assets/fonts/Archia-Regular.otf
           weight: 700
+    - family: Lucide
+      fonts:
+        - asset: assets/fonts/lucide.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

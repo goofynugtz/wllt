@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' hide Category;
-import 'package:lucide_icons/lucide_icons.dart';
+import '../vendor/lucide_icons.dart';
 import '../models/models.dart';
 import '../models/pending_sms_transaction.dart';
 import '../providers/transaction_provider.dart';

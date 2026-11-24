@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' hide TextDirection;
-import 'package:lucide_icons/lucide_icons.dart';
+import '../vendor/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../ai/categorization_adapter.dart';
 import '../ai/feedback_store.dart';

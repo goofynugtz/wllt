@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:workmanager/workmanager.dart'
     if (dart.library.html) '../platform/workmanager_web.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../vendor/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_flavor.dart';

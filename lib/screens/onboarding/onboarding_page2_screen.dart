@@ -1,6 +1,6 @@
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../../vendor/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/currencies.dart';

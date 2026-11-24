@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../vendor/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../ai/chat_adapter.dart';
 import '../providers/suggested_actions_provider.dart';
